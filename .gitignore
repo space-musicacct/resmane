@@ -1,0 +1,216 @@
+# =========================================================
+# OS / Editor
+# =========================================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/
+.idea/
+*.iml
+
+# =========================================================
+# AI Agents / Assistants
+# =========================================================
+
+**/.claude/
+**/.cursor/
+**/.windsurf/
+**/.continue/
+**/.codex/
+**/.gemini/
+**/.aider*
+**/.roo/
+**/.cline/
+**/.kilocode/
+**/.openhands/
+**/.qwen/
+**/.kiro/
+**/.augment/
+**/.junie/
+**/.copilot/
+
+**/.ai/
+**/.agent/
+**/.agents/
+**/.ai-cache/
+**/.agent-cache/
+**/ai-cache/
+**/ai-cache*/
+**/agent-cache/
+
+**/CLAUDE.md
+**/CLAUDE.*.md
+
+**/GEMINI.md
+**/GEMINI.*.md
+
+**/AGENTS.md
+**/AGENTS.*.md
+
+**/AI.md
+**/AI.*.md
+
+**/QWEN.md
+**/QWEN.*.md
+
+**/OPENAI.md
+**/OPENAI.*.md
+
+**/.cursorrules
+**/.cursorignore
+**/.windsurfrules
+
+# =========================================================
+# Environment / Secrets
+# =========================================================
+
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+
+**/*.key
+**/*.pem
+**/*.crt
+**/*.p12
+**/*.pfx
+
+**/secrets/
+**/secret/
+**/credentials/
+**/credentials.json
+**/service-account.json
+
+# =========================================================
+# Logs
+# =========================================================
+
+**/*.log
+**/logs/
+**/log/
+
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# =========================================================
+# Runtime / Cache / Temporary Files
+# =========================================================
+
+**/cache/
+**/tmp/
+**/temp/
+**/.runtime/
+
+**/*.tmp
+**/*.temp
+**/*.bak
+**/*.swp
+**/*.swo
+
+# =========================================================
+# PHP / Composer
+# =========================================================
+
+**/vendor/
+
+# Laravel-like
+**/storage/*.key
+**/storage/logs/*
+**/storage/framework/cache/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*
+**/bootstrap/cache/*
+
+# =========================================================
+# Node.js / Frontend
+# =========================================================
+
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/.nuxt/
+**/.svelte-kit/
+**/.vite/
+
+# =========================================================
+# Python
+# =========================================================
+
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+
+**/.venv/
+**/venv/
+**/env/
+
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/htmlcov/
+
+# =========================================================
+# Database / Local Data
+# =========================================================
+
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+
+**/db_data/
+**/mysql_data/
+**/postgres_data/
+
+# =========================================================
+# Docker / Compose
+# =========================================================
+
+**/docker-compose.yml
+**/docker-compose.yaml
+**/compose.yml
+**/compose.yaml
+
+**/docker-compose.override.yml
+**/docker-compose.override.yaml
+**/compose.override.yml
+**/compose.override.yaml
+
+# =========================================================
+# Uploads / Generated Files
+# =========================================================
+
+**/uploads/
+**/public/uploads/
+**/storage/uploads/
+
+**/generated/
+**/exports/
+
+# =========================================================
+# Test / Coverage
+# =========================================================
+
+**/coverage/
+**/test-results/
+
+# =========================================================
+# Archives / Misc
+# =========================================================
+
+**/*.zip
+**/*.tar
+**/*.tar.gz
+**/*.7z
+**/*.rar
+
+# =========================================================
+# Memo
+# =========================================================
+
+memo/
