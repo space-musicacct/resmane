@@ -48,6 +48,7 @@ desktop.ini
 
 **/AGENTS.md
 **/AGENTS.*.md
+!/AGENTS.md
 
 **/AI.md
 **/AI.*.md
