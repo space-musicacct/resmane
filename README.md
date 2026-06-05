@@ -44,7 +44,6 @@ cd resmane
 cp compose.example.yml compose.yml
 cp .env.example .env
 cp web/backend/.env.example web/backend/.env
-cp web/frontend/vite.config.example.ts web/frontend/vite.config.ts
 
 # 3. コンテナをビルド・起動
 docker compose up -d --build
