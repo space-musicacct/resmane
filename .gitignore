@@ -138,6 +138,11 @@ desktop.ini
 **/.svelte-kit/
 **/.vite/
 
+**/vite.config.ts
+**/vite.config.js
+!**/vite.config.example.ts
+!**/vite.config.example.js
+
 # =========================================================
 # Python
 # =========================================================
