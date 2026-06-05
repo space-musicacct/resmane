@@ -43,6 +43,7 @@ cd resmane
 # 2. テンプレートをコピー
 cp compose.example.yml compose.yml
 cp .env.example .env
+cp web/backend/.env.example web/backend/.env
 
 # 3. コンテナをビルド・起動
 docker compose up -d --build

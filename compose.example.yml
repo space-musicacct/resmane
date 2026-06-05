@@ -61,8 +61,6 @@ services:
       dockerfile: ../../docker/backend/Dockerfile
     volumes:
       - ./web/backend:/var/www/html
-    env_file:
-      - .env
     depends_on:
       db:
         condition: service_healthy
