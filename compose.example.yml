@@ -1,0 +1,133 @@
+# =================================================================
+# レスマネ ローカル開発用 Docker Compose
+# =================================================================
+# 使い方:
+#   1. cp compose.example.yml compose.yml
+#   2. cp .env.example .env
+#   3. docker compose up -d --build
+#
+# ポートマッピング (デフォルト):
+#   http://localhost:50080  -> Nginx -> React / Laravel API
+#   localhost:53306         -> MySQL
+# =================================================================
+
+services:
+  # ---------------------------------------------------------------
+  # Nginx リバースプロキシ
+  # ---------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_PORT:-50080}:80"
+    volumes:
+      - ./docker/nginx/default.dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - resmane-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------
+  # フロントエンド (React + Vite dev server)
+  # ---------------------------------------------------------------
+  frontend:
+    build:
+      context: ./web/frontend
+      dockerfile: ../../docker/frontend/Dockerfile
+    volumes:
+      - ./web/frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:5173"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - resmane-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------
+  # バックエンド (Laravel 10 / PHP 8.3 FPM)
+  # ---------------------------------------------------------------
+  backend:
+    build:
+      context: ./web/backend
+      dockerfile: ../../docker/backend/Dockerfile
+    volumes:
+      - ./web/backend:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - resmane-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------
+  # バックグラウンド Worker (Python 3.11)
+  # ローカルでは外部 AI API がないため無効化。
+  # 必要になったらコメントを外して docker compose up -d --build
+  # ---------------------------------------------------------------
+  # worker:
+  #   build:
+  #     context: ./worker
+  #     dockerfile: ../docker/worker/Dockerfile
+  #   volumes:
+  #     - ./worker:/app
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   networks:
+  #     - resmane-net
+  #   restart: unless-stopped
+
+  # ---------------------------------------------------------------
+  # データベース (MySQL 8.4)
+  # ---------------------------------------------------------------
+  db:
+    image: mysql:8.4
+    ports:
+      - "${DB_EXTERNAL_PORT:-53306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-resmane}
+      MYSQL_USER: ${MYSQL_USER:-resmane_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-resmane_password}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - resmane-net
+    restart: unless-stopped
+
+# =================================================================
+# ボリューム
+# =================================================================
+volumes:
+  db_data:
+    driver: local
+  frontend_node_modules:
+    driver: local
+
+# =================================================================
+# ネットワーク
+# =================================================================
+networks:
+  resmane-net:
+    driver: bridge
