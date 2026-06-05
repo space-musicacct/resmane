@@ -1,6 +1,7 @@
 FROM php:8.3-fpm-alpine
 
 RUN apk add --no-cache \
+    $PHPIZE_DEPS \
     git \
     unzip \
     libzip-dev \
