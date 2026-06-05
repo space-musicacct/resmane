@@ -20,7 +20,7 @@ resmane/
 ├── web/
 │   ├── frontend/    React SPA (Vite)
 │   └── backend/     Laravel API
-├── worker/          Python AI worker
+├── worker/          Python バックグラウンド worker
 ├── docker/          Dockerfile / Nginx 設定
 ├── docs/            要件定義・技術構成書・コーディング規約
 ├── compose.example.yml

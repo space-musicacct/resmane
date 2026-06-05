@@ -19,7 +19,7 @@ def check_pending_tasks() -> None:
 
 
 def main() -> None:
-    logger.info("レスマネ AI Worker を起動しました (間隔: %d 秒)", POLL_INTERVAL)
+    logger.info("レスマネ Worker を起動しました (間隔: %d 秒)", POLL_INTERVAL)
     schedule.every(POLL_INTERVAL).seconds.do(check_pending_tasks)
 
     while True:
