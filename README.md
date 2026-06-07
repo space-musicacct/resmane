@@ -90,6 +90,21 @@ docker compose exec frontend npm install <package>
 docker compose exec backend php artisan <command>
 ```
 
+## 既存環境の更新手順
+
+### Node.js 20 → 24 (2026-06-07)
+
+Node 20 が EOL のため Node 24 LTS に変更しました。構築済みの環境は以下で更新してください。
+
+```bash
+docker compose down
+docker volume rm resmane_frontend_node_modules
+docker compose build --pull --no-cache frontend
+docker compose up -d
+```
+
+---
+
 ## 関連ドキュメント
 
 - [要件定義書](docs/要件定義/要件定義書.md)
