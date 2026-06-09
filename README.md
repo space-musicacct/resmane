@@ -98,7 +98,6 @@ Node 20 が EOL のため Node 24 LTS に変更しました。構築済みの環
 
 ```bash
 docker compose down
-docker volume rm resmane_frontend_node_modules
 docker compose build --pull --no-cache frontend
 docker compose up -d
 ```

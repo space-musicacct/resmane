@@ -39,7 +39,6 @@ services:
       dockerfile: ../../docker/frontend/Dockerfile
     volumes:
       - ./web/frontend:/app
-      - frontend_node_modules:/app/node_modules
     environment:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api}
     healthcheck:
@@ -121,8 +120,6 @@ services:
 # =================================================================
 volumes:
   db_data:
-    driver: local
-  frontend_node_modules:
     driver: local
 
 # =================================================================
