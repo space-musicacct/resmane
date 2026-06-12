@@ -39,7 +39,6 @@ services:
       dockerfile: ../../docker/frontend/Dockerfile
     volumes:
       - ./web/frontend:/app
-      - /app/node_modules
     environment:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api}
     healthcheck:
