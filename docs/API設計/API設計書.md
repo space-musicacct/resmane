@@ -694,7 +694,7 @@
 
 投稿成功時、AIフィードバック生成要求を `posts` テーブルに登録する（`is_ai = 1`, `ai_status_id = 1（pending）`）。実際の生成は Python worker が非同期で行う。
 
-自己レビューの本文は `self_reviews` テーブルに保存し、`posts` には複製しない。S-005 のスレッド表示では、フロントエンドが `/api/v1/records/{recordId}/reviews`（自己レビュー）と `/api/v1/records/{recordId}/posts`（AI返信・以降のやり取り）を両方取得し、`createdAt` の時系列で組み合わせて表示する。
+`self_reviews` はユーザーが家計簿に対して振り返るための記録であり、AIとの会話とは独立している。AIとのやり取り（F-008 / F-011）は `posts` テーブルで完結し、`is_ai` でユーザー投稿とAI投稿を区別、`parent_id` の自己参照FKでリプライチェーンを構成する。S-005 のスレッド表示は `/api/v1/records/{recordId}/posts` のみで取得する。
 
 **エラーレスポンス**
 
