@@ -62,11 +62,52 @@ docker compose exec backend php artisan migrate
 | http://localhost:50080/api | Laravel API |
 | localhost:53306 | MySQL (DB クライアントから接続) |
 
+## 起動方法
+
+起動は原則 `--build` 付きで行う。`npm ci` がビルド時に実行されるため、`package.json` / `package-lock.json` の変更（パッケージの追加・更新）も `--build` で反映される。
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+## フロントエンドでの画像の使い方
+
+### `public/` に置く場合（そのまま配信）
+
+`web/frontend/public/` に置いたファイルはパスを変えずにそのまま配信される。favicon や OGP 画像など、ビルドに巻き込みたくないファイル向け。
+
+```
+web/frontend/public/images/logo.png
+```
+
+```tsx
+// JSX で参照（パスは / から始める）
+<img src="/images/logo.png" alt="ロゴ" />
+```
+
+### `src/assets/` に置く場合（import して使う）
+
+`web/frontend/src/assets/` に置いたファイルは `import` で読み込む。Vite がハッシュ付きファイル名に変換してバンドルするため、キャッシュ破棄が自動で効く。コンポーネントから使う画像はこちら。
+
+```
+web/frontend/src/assets/images/icon.png
+```
+
+```tsx
+import icon from '../assets/images/icon.png'
+
+<img src={icon} alt="アイコン" />
+```
+
+---
+
 ## よく使うコマンド
 
 ```bash
-# 起動
-docker compose up -d
+# 起動（原則こちらを使う）
+docker compose up -d --build
 
 # 停止
 docker compose down
@@ -76,9 +117,6 @@ docker compose ps
 
 # ログ確認
 docker compose logs -f
-
-# 再ビルド
-docker compose up -d --build
 
 # ベースイメージを最新に更新 (セキュリティパッチ適用)
 docker compose build --pull --no-cache
