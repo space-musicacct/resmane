@@ -812,7 +812,7 @@
     },
     {
       "id": 2,
-      "userId": null,
+      "userId": 1,
       "kakeiboRecordId": 1,
       "isAi": true,
       "aiStatus": {
@@ -830,7 +830,7 @@
 
 `isAi = true` かつ `aiStatus` が `pending` / `processing` の場合、`content` は `null`（生成中）。フロントエンドは `aiStatus` を見て「生成中」表示を行う。
 
-AI投稿（`isAi = true`）の `userId` は `null` となる。DB の `posts.user_id` は NULL 許容とする。
+AI投稿（`isAi = true`）の `userId` には、対象の家計簿レコードの所有者のユーザーIDを格納する（認可チェック用）。DB の `posts.user_id` は NOT NULL。
 
 **エラーレスポンス**
 
@@ -898,7 +898,7 @@ AIフィードバック要求 / AIコミュニケーション投稿（F-008 / F-
     },
     "aiPost": {
       "id": 4,
-      "userId": null,
+      "userId": 1,
       "kakeiboRecordId": 1,
       "isAi": true,
       "aiStatus": {
@@ -926,7 +926,7 @@ AIフィードバック要求 / AIコミュニケーション投稿（F-008 / F-
     "userPost": null,
     "aiPost": {
       "id": 5,
-      "userId": null,
+      "userId": 1,
       "kakeiboRecordId": 1,
       "isAi": true,
       "aiStatus": {
