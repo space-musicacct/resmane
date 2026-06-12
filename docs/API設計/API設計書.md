@@ -31,6 +31,7 @@
 | 提供形態         | JSON API（`Content-Type: application/json`）                         |
 | ベースパス       | `/api/v1`                                                            |
 | 認証方式         | セッションベース認証（Laravel Sanctum / Cookie）                     |
+| パスワードカラム | DB カラム名は監査性のため `password_hash` とする。Laravel 標準の `password` とは異なるため、User モデルで `getAuthPassword()` をオーバーライドして `return $this->password_hash;` とする |
 | 認可             | 認証済みユーザーは自身のデータのみ操作可能。他ユーザーのデータへのアクセスは 403 で拒否する |
 | 入力値検証       | サーバー側で必ず検証する（Laravel FormRequest）                      |
 | ソフトデリート   | テーブル定義書に `deleted_at` が存在するテーブルは論理削除を使用する |
