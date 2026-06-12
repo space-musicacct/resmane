@@ -830,6 +830,8 @@
 
 `isAi = true` かつ `aiStatus` が `pending` / `processing` の場合、`content` は `null`（生成中）。フロントエンドは `aiStatus` を見て「生成中」表示を行う。
 
+AI投稿（`isAi = true`）の `userId` は `null` となる。DB の `posts.user_id` は NULL 許容とする。
+
 **エラーレスポンス**
 
 未認証（401）: 4.3 と同形式
@@ -989,6 +991,7 @@ AI生成登録失敗（500）:
 {
   "data": {
     "id": 1,
+    "userId": 1,
     "upperLimitTypeId": 1,
     "upperLimitTypeName": "金額",
     "maxValue": 50000,
