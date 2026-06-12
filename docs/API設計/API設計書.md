@@ -1221,6 +1221,8 @@ sequenceDiagram
 
 Laravel Sanctum の SPA 認証を使用する。フロントエンドは初回に `/sanctum/csrf-cookie` を取得し、以降のリクエストで `X-XSRF-TOKEN` ヘッダを送信する。
 
+Nginx は `/api` に加えて `/sanctum/*` も Laravel へ転送する必要がある（技術構成書の振り分けルールに追加）。転送しない場合、CSRF Cookie が取得できず状態変更リクエストが 419 エラーになる。
+
 ---
 
 ## 6. AI生成フロー

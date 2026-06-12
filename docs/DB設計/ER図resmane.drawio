@@ -1,4 +1,4 @@
-<mxfile host="drawio-plugin" modified="2026-06-12T07:59:34.367Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" version="22.1.22" etag="rcX8fVsPh0xTLfvud0FO" type="embed">
+<mxfile host="drawio-plugin" modified="2026-06-12T08:07:35.667Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" version="22.1.22" etag="1LeTBVkD3SHyqv7PpAhg" type="embed">
   <diagram name="ページ-1" id="d-fvfLM7HuYRywGWL0FA">
     <mxGraphModel dx="3583" dy="737" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
@@ -308,7 +308,7 @@
             <mxRectangle width="30" height="30" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="jdsqUz1Py_fnJEKzOHnq-101" value="kakeibo_record_ud" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;fontStyle=0;overflow=hidden;whiteSpace=wrap;html=1;" parent="jdsqUz1Py_fnJEKzOHnq-99" vertex="1">
+        <mxCell id="jdsqUz1Py_fnJEKzOHnq-101" value="kakeibo_record_id" style="shape=partialRectangle;connectable=0;fillColor=none;top=0;left=0;bottom=0;right=0;align=left;spacingLeft=6;fontStyle=0;overflow=hidden;whiteSpace=wrap;html=1;" parent="jdsqUz1Py_fnJEKzOHnq-99" vertex="1">
           <mxGeometry x="30" width="130" height="30" as="geometry">
             <mxRectangle width="130" height="30" as="alternateBounds" />
           </mxGeometry>
