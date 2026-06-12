@@ -1340,12 +1340,12 @@ sequenceDiagram
 | ------ | -------------------------------------------- | ---------------------------------------------------------------- |
 | S-001  | `/login`                                     | `POST /api/v1/login`                                                |
 | S-002  | `/register`                                  | `POST /api/v1/register`                                             |
-| S-003  | `/`                                          | `GET /api/v1/records`                                               |
+| S-003  | `/`                                          | `GET /api/v1/records`, `GET /api/v1/settings/limit`                 |
 | S-004  | `/records/new`                               | `POST /api/v1/records`, `GET /api/v1/categories`, `GET /api/v1/amountTypes` |
 | S-005  | `/records/:id`                               | `GET /api/v1/records/{id}`, `GET /api/v1/records/{id}/reviews`, `GET /api/v1/records/{id}/posts`, `POST /api/v1/records/{id}/reviews`, `POST /api/v1/records/{id}/posts`, `DELETE /api/v1/records/{id}`, `DELETE /api/v1/records/{id}/reviews/{id}` |
 | S-006  | `/settings`                                  | `GET /api/v1/user`, `PUT /api/v1/user`, `DELETE /api/v1/user`, `GET /api/v1/settings/limit`, `PUT /api/v1/settings/limit`, `POST /api/v1/logout` |
 | S-007  | `/records/:id/edit`                          | `GET /api/v1/records/{id}`, `PUT /api/v1/records/{id}`, `GET /api/v1/categories`, `GET /api/v1/amountTypes` |
-| S-008  | `/records/:recordId/reviews/:reviewId/edit`  | `PUT /api/v1/records/{recordId}/reviews/{id}`                       |
+| S-008  | `/records/:recordId/reviews/:reviewId/edit`  | `GET /api/v1/records/{recordId}/reviews`, `PUT /api/v1/records/{recordId}/reviews/{id}` |
 
 ---
 
