@@ -211,7 +211,7 @@
 
 | フィールド             | 型     | 必須 | バリデーション                         |
 | ---------------------- | ------ | ---- | -------------------------------------- |
-| `loginId`              | string | ○    | 1〜15文字、一意（`user.login_id`）     |
+| `loginId`              | string | ○    | 1〜15文字、一意（`users.login_id`）     |
 | `email`                | string | ○    | メール形式、255文字以内、一意          |
 | `name`                 | string | ○    | 1〜50文字                              |
 | `password`             | string | ○    | 8文字以上、確認用と一致               |
@@ -436,10 +436,10 @@
 | フィールド                  | 型     | 必須 | バリデーション                                   |
 | --------------------------- | ------ | ---- | ------------------------------------------------ |
 | `purchaseDate`              | string | -    | 日付形式（`YYYY-MM-DD`）。省略・NULL時は `createdAt` の日付を採用する |
-| `amountTypeId`              | int    | ○    | `amount_type.id` に存在すること                  |
+| `amountTypeId`              | int    | ○    | `amount_types.id` に存在すること                  |
 | `amount`                    | int    | ○    | 1以上の整数                                      |
 | `details`                   | string | ○    | 1〜250文字                                       |
-| `kakeiboDefaultCategoryId`  | int    | -    | `kakeibo_default_category.id` に存在すること（NULL許容） |
+| `kakeiboDefaultCategoryId`  | int    | -    | `kakeibo_default_categories.id` に存在すること（NULL許容） |
 
 ```json
 {
@@ -561,10 +561,10 @@
 | フィールド                  | 型     | 必須 | バリデーション                                   |
 | --------------------------- | ------ | ---- | ------------------------------------------------ |
 | `purchaseDate`              | string | -    | 日付形式（`YYYY-MM-DD`）。省略・NULL時は `createdAt` の日付を維持する |
-| `amountTypeId`              | int    | ○    | `amount_type.id` に存在すること                  |
+| `amountTypeId`              | int    | ○    | `amount_types.id` に存在すること                  |
 | `amount`                    | int    | ○    | 1以上の整数                                      |
 | `details`                   | string | ○    | 1〜250文字                                       |
-| `kakeiboDefaultCategoryId`  | int    | -    | `kakeibo_default_category.id` に存在すること（NULL許容） |
+| `kakeiboDefaultCategoryId`  | int    | -    | `kakeibo_default_categories.id` に存在すること（NULL許容） |
 
 **レスポンス（200 OK）**
 
@@ -869,7 +869,7 @@ AIフィードバック要求 / AIコミュニケーション投稿（F-008 / F-
 | フィールド  | 型     | 必須 | バリデーション                                       |
 | ----------- | ------ | ---- | ---------------------------------------------------- |
 | `content`   | string | -    | 1〜3000文字（ユーザーメッセージ。省略時はAIフィードバック要求のみ） |
-| `parentId`  | int    | -    | リプライ先の投稿ID（`posts.id` に存在すること）      |
+| `parentId`  | int    | -    | リプライ先の投稿ID。同一 `recordId` 内かつ認証ユーザーが参照可能な投稿に限定する |
 
 ```json
 {
@@ -991,7 +991,7 @@ AI生成登録失敗（500）:
 
 | フィールド          | 型  | 必須 | バリデーション                                         |
 | ------------------- | --- | ---- | ------------------------------------------------------ |
-| `upperLimitTypeId`  | int | ○    | `upper_limit_type.id` に存在すること                   |
+| `upperLimitTypeId`  | int | ○    | `upper_limit_types.id` に存在すること                   |
 | `maxValue`          | int | -    | 1以上の整数（NULL許容）                                |
 | `aveMonthlyIncome`  | int | -    | 1以上の整数。割合指定時は必須（プログラム側で制御）    |
 
@@ -1208,14 +1208,14 @@ sequenceDiagram
 
     Note over U,A: ログイン
     U->>A: POST /api/v1/login { loginId, password }
-    A->>DB: SELECT * FROM user WHERE login_id = ?
+    A->>DB: SELECT * FROM users WHERE login_id = ?
     A->>A: パスワードハッシュ照合
     A-->>U: 200 OK + Set-Cookie: session
 
     Note over U,A: 認証済みリクエスト
     U->>A: GET /api/v1/records（Cookie: session, X-XSRF-TOKEN）
     A->>A: セッション検証
-    A->>DB: SELECT * FROM kakeibo_record WHERE user_id = ?
+    A->>DB: SELECT * FROM kakeibo_records WHERE user_id = ?
     A-->>U: 200 OK { data: [...] }
 ```
 
@@ -1270,17 +1270,17 @@ sequenceDiagram
 
 ## 7. テーブルとAPIの対応
 
-| テーブル                      | 主な利用エンドポイント                         |
-| ----------------------------- | ---------------------------------------------- |
-| `user`                        | `/api/v1/register`, `/api/v1/login`, `/api/v1/user`     |
-| `kakeibo_record`              | `/api/v1/records`                                 |
-| `amount_type`                 | `/api/v1/amountTypes`                            |
-| `kakeibo_default_category`    | `/api/v1/categories`                              |
-| `upper_limit_settings`        | `/api/v1/settings/limit`                          |
-| `upper_limit_type`            | `/api/v1/settings/limit`（区分名を含めて返す）    |
-| `self_reviews`                | `/api/v1/records/{id}/reviews`                    |
-| `posts`                       | `/api/v1/records/{id}/posts`                      |
-| `ai_status`                   | `/api/v1/records/{id}/posts`（ステータス名を含めて返す） |
+| テーブル                       | 主な利用エンドポイント                         |
+| ------------------------------ | ---------------------------------------------- |
+| `users`                        | `/api/v1/register`, `/api/v1/login`, `/api/v1/user`     |
+| `kakeibo_records`              | `/api/v1/records`                                 |
+| `amount_types`                 | `/api/v1/amountTypes`                            |
+| `kakeibo_default_categories`   | `/api/v1/categories`                              |
+| `upper_limit_settings`         | `/api/v1/settings/limit`                          |
+| `upper_limit_types`            | `/api/v1/settings/limit`（区分名を含めて返す）    |
+| `self_reviews`                 | `/api/v1/records/{id}/reviews`                    |
+| `posts`                        | `/api/v1/records/{id}/posts`                      |
+| `ai_statuses`                  | `/api/v1/records/{id}/posts`（ステータス名を含めて返す） |
 
 ---
 
