@@ -64,10 +64,16 @@ docker compose exec backend php artisan migrate
 
 ## 起動方法
 
-起動は原則 `--build` 付きで行う。`npm ci` がビルド時に実行されるため、`package.json` / `package-lock.json` の変更（パッケージの追加・更新）も `--build` で反映される。
+起動は原則 `--build` 付きで行う。`--build` によりイメージが再ビルドされ、コンテナが再作成されるため、起動時に実行される `npm ci` で `package-lock.json` の状態に依存が同期される。
 
 ```bash
 docker compose up -d --build
+```
+
+パッケージの追加・更新後にコンテナが再作成されない場合は、明示的に再作成する。
+
+```bash
+docker compose up -d --build --force-recreate frontend
 ```
 
 ---
