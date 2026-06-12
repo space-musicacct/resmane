@@ -1296,7 +1296,7 @@ sequenceDiagram
         A-->>U: 200 OK（aiStatus確認）
     end
 
-    W->>DB: SELECT * FROM posts WHERE ai_status_id = 1[pending]
+    W->>DB: SELECT * FROM posts WHERE ai_status_id = 1[pending] AND deleted_at IS NULL
     W->>W: ai_status_id = 2[processing] に更新
     W->>AI: AIフィードバック生成リクエスト
     AI-->>W: 生成結果
@@ -1315,6 +1315,8 @@ sequenceDiagram
 | 2  | `processing` | 生成中                 |
 | 3  | `completed`  | 生成完了               |
 | 4  | `failed`     | 生成失敗（再試行可能） |
+
+Python worker は `ai_status_id = 1（pending）` かつ `posts.deleted_at IS NULL` の投稿のみを処理対象とする。家計簿削除やユーザー退会で論理削除された投稿は処理しない。
 
 ---
 
