@@ -163,7 +163,7 @@
             <mxPoint x="-1289.9999999999995" y="60" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="jdsqUz1Py_fnJEKzOHnq-53" value="kakeibo_default_category" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=center;fontSize=14;" parent="1" vertex="1">
+        <mxCell id="jdsqUz1Py_fnJEKzOHnq-53" value="kakeibo_default_categories" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=center;fontSize=14;" parent="1" vertex="1">
           <mxGeometry x="-950" y="570" width="180" height="176" as="geometry" />
         </mxCell>
         <mxCell id="jdsqUz1Py_fnJEKzOHnq-54" value="" style="shape=table;startSize=0;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=0;align=center;resizeLast=1;strokeColor=none;fillColor=none;collapsible=0;" parent="jdsqUz1Py_fnJEKzOHnq-53" vertex="1">
@@ -436,7 +436,7 @@
         <mxCell id="jdsqUz1Py_fnJEKzOHnq-131" value="deleted_at" style="text;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;whiteSpace=wrap;html=1;" parent="jdsqUz1Py_fnJEKzOHnq-106" vertex="1">
           <mxGeometry y="296" width="160" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="jdsqUz1Py_fnJEKzOHnq-132" value="ai_status" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=center;fontSize=14;" parent="1" vertex="1">
+        <mxCell id="jdsqUz1Py_fnJEKzOHnq-132" value="ai_statuses" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;align=center;fontSize=14;" parent="1" vertex="1">
           <mxGeometry x="-1900" y="409" width="160" height="176" as="geometry" />
         </mxCell>
         <mxCell id="jdsqUz1Py_fnJEKzOHnq-136" value="" style="shape=table;startSize=0;container=1;collapsible=1;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=0;align=center;resizeLast=1;strokeColor=none;fillColor=none;collapsible=0;" parent="jdsqUz1Py_fnJEKzOHnq-132" vertex="1">
