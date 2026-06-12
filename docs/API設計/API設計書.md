@@ -692,12 +692,9 @@
 }
 ```
 
-投稿成功時、以下の2レコードを `posts` テーブルに登録する。
+投稿成功時、AIフィードバック生成要求を `posts` テーブルに登録する（`is_ai = 1`, `ai_status_id = 1（pending）`）。実際の生成は Python worker が非同期で行う。
 
-1. **ユーザー投稿**（`is_ai = 0`）: 自己レビューの内容を `content` として保存。スレッド（4.13）でユーザーの発言として表示される
-2. **AI投稿**（`is_ai = 1`, `ai_status_id = 1（pending）`）: AI返信用の空レコード。Python worker が非同期で生成する
-
-これにより、S-005 のスレッド表示は `/api/v1/records/{recordId}/posts` だけで自己レビュー本文とAI返信の両方を時系列で取得できる。`self_reviews` テーブルはレビューのメタデータ管理用、`posts` テーブルはスレッド表示用として併用する。
+自己レビューの本文は `self_reviews` テーブルに保存し、`posts` には複製しない。S-005 のスレッド表示では、フロントエンドが `/api/v1/records/{recordId}/reviews`（自己レビュー）と `/api/v1/records/{recordId}/posts`（AI返信・以降のやり取り）を両方取得し、`createdAt` の時系列で組み合わせて表示する。
 
 **エラーレスポンス**
 
