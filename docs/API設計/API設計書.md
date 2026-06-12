@@ -914,7 +914,31 @@ AIフィードバック要求 / AIコミュニケーション投稿（F-008 / F-
 
 ユーザーの投稿を保存すると同時に、AI返信用の投稿レコード（`is_ai = 1`, `ai_status_id = 1（pending）`）を作成する。Python worker が非同期で生成し、`content` と `ai_status_id` を更新する。
 
-`content` を省略した場合は、ユーザー投稿なしでAIフィードバック生成要求のみを行う（F-008：自己レビューがない場合でも家計簿情報をもとに生成できる）。
+`content` を省略した場合は、ユーザー投稿なしでAIフィードバック生成要求のみを行う（F-008：自己レビューがない場合でも家計簿情報をもとに生成できる）。この場合、レスポンスの `userPost` は `null` となり、`aiPost` のみ返る。
+
+**`content` 省略時のレスポンス（201 Created）:**
+
+```json
+{
+  "data": {
+    "userPost": null,
+    "aiPost": {
+      "id": 5,
+      "userId": null,
+      "kakeiboRecordId": 1,
+      "isAi": true,
+      "aiStatus": {
+        "id": 1,
+        "statusName": "pending"
+      },
+      "parentId": null,
+      "content": null,
+      "createdAt": "2026-06-10T15:00:00.000000Z",
+      "updatedAt": "2026-06-10T15:00:00.000000Z"
+    }
+  }
+}
+```
 
 **エラーレスポンス**
 
