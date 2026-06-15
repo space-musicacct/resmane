@@ -132,6 +132,11 @@ docker compose exec frontend npm install <package>
 
 # バックエンドで artisan コマンド実行
 docker compose exec backend php artisan <command>
+
+# IDE Helper (PhpStorm / VS Code 補完用ファイル生成)
+docker compose exec backend php artisan ide-helper:generate
+docker compose exec backend php artisan ide-helper:models -N
+docker compose exec backend php artisan ide-helper:eloquent
 ```
 
 ## 既存環境の更新手順
