@@ -18,7 +18,7 @@ return new class extends Migration
             $table->tinyInteger('is_ai');
             $table->integer('ai_status_id')->nullable();
             $table->integer('parent_id')->nullable();
-            $table->string('content', 3000);
+            $table->string('content', 3000)->nullable();
             $table->timestamps();
             $table->softDeletes();
 

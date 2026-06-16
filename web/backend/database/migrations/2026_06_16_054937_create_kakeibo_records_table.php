@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::create('kakeibo_records', function (Blueprint $table) {
             $table->id();
-            $table->integer('user_id');
+            $table->foreignId('user_id');
             $table->date('purchase_date')->nullable();
             $table->integer('amount_type_id')->nullable();
             $table->integer('amount')->nullable();
-            $table->string('details', 250);
-            $table->integer('kakeibo_default_category_id');
+            $table->string('details', 250)->nullable();
+            $table->integer('kakeibo_default_category_id')->nullable;
             $table->timestamps();
             $table->softDeletes();
 
