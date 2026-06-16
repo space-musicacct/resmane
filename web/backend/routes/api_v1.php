@@ -18,16 +18,19 @@ Route::post('login', [AuthController::class, 'login'])->name('auth.login');
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('auth.logout');
 
-    // 家計簿レコード
+    // 家計簿レコード (API設計書は PUT のみ定義のため update を分離)
     Route::apiResource('records', KakeiboRecordController::class)
+        ->except(['update'])
         ->names('kakeibo')
         ->parameters(['records' => 'id']);
+    Route::put('records/{id}', [KakeiboRecordController::class, 'update'])->name('kakeibo.update');
 
-    // 自己レビュー (家計簿レコードにネスト)
+    // 自己レビュー (家計簿レコードにネスト、同上)
     Route::apiResource('records.reviews', SelfReviewController::class)
-        ->except('show')
+        ->except(['show', 'update'])
         ->names('review')
         ->parameters(['records' => 'recordId', 'reviews' => 'id']);
+    Route::put('records/{recordId}/reviews/{id}', [SelfReviewController::class, 'update'])->name('review.update');
 
     // スレッド・AIメッセージ (家計簿レコードにネスト)
     Route::apiResource('records.posts', PostController::class)
