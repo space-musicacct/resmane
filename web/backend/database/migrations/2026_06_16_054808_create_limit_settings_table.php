@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('upper_limit_settings', function (Blueprint $table) {
             $table->id();
-            $table->string('login_id', 15)->unique();
-            $table->string('email', 255)->unique();
-            $table->string('name', 50);
-            $table->string('password_hash', 255);
+            $table->foreignId('user_id')->constrained('users');
+            $table->foreignId('upper_limit_type_id')->constrained('upper_limit_types');
+            $table->integer('max_value');
+            $table->integer('ave_monthly_income')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('upper_limit_settings');
     }
 };
