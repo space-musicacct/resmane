@@ -13,16 +13,12 @@ return new class extends Migration
     {
         Schema::create('upper_limit_settings', function (Blueprint $table) {
             $table->id();
-            $table->integer('user_id');
-            $table->string('upper_limit_type_id', 50);
+            $table->foreignId('user_id')->constrained('users');
+            $table->foreignId('upper_limit_type_id')->constrained('upper_limit_types');
             $table->integer('max_value');
             $table->integer('ave_monthly_income')->nullable();
             $table->timestamps();
             $table->softDeletes();
-
-            // 外部キー
-            $table->foreign('user_id')->references('id')->on('users');
-            $table->foreign('upper_limit_type_id')->references('id')->on('upper_limit_types');
         });
     }
 

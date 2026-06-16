@@ -13,12 +13,10 @@ return new class extends Migration
     {
         Schema::create('self_reviews', function (Blueprint $table) {
             $table->id();
-            $table->integer('kakeibo_record_id');
+            $table->foreignId('kakeibo_record_id')->constrained('kakeibo_records');
             $table->string('review_comment', 250);
             $table->timestamps();
             $table->softDeletes();
-
-            $table->foreign('kakeibo_record_id')->references('id')->on('kakeibo_records');
         });
     }
 

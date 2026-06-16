@@ -14,18 +14,13 @@ return new class extends Migration
         Schema::create('kakeibo_records', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id');
-            $table->date('purchase_date')->nullable();
-            $table->integer('amount_type_id')->nullable();
-            $table->integer('amount')->nullable();
+            $table->date('purchase_date');
+            $table->foreignId('amount_type_id')->constrained('amount_type');
+            $table->integer('amount');
             $table->string('details', 250)->nullable();
-            $table->integer('kakeibo_default_category_id')->nullable;
+            $table->foreignId('kakeibo_default_category_id')->nullable()->constrained('kakeibo_default_categories');
             $table->timestamps();
             $table->softDeletes();
-
-            // 外部キー
-            $table->foreign('user_id')->references('id')->on('users');
-            $table->foreign('amount_type_id')->references('id')->on('amount_types');
-            $table->foreign('kakeibo_default_category_id')->references('id')->on('kakeibo_default_categories');
         });
     }
 

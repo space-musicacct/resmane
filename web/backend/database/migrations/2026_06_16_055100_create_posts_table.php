@@ -13,19 +13,14 @@ return new class extends Migration
     {
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
-            $table->integer('user_id');
-            $table->integer('kakeibo_record_id');
+            $table->foreignId('user_id')->constrained('users');
+            $table->foreignId('kakeibo_record_id')->constrained('kakeibo_records');
+            $table->foreignId('ai_status_id')->nullable()->constrained('ai_statuses');
+            $table->foreignId('parent_id')->nullable()->constrained('posts');
             $table->tinyInteger('is_ai');
-            $table->integer('ai_status_id')->nullable();
-            $table->integer('parent_id')->nullable();
             $table->string('content', 3000)->nullable();
             $table->timestamps();
             $table->softDeletes();
-
-            $table->foreign('user_id')->references('id')->on('users');
-            $table->foreign('kakeibo_record_id')->references('id')->on('kakeibo_records');
-            $table->foreign('ai_status_id')->references('id')->on('ai_statuses');
-            $table->foreign('parent_id')->references('id')->on('posts');
         });
     }
 
