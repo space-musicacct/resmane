@@ -15,7 +15,7 @@ Route::post('register', [AuthController::class, 'register'])->name('auth.registe
 Route::post('login', [AuthController::class, 'login'])->name('auth.login');
 
 // 認証必須
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:sanctum')->whereNumber(['id', 'recordId'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('auth.logout');
 
     // 家計簿レコード (API設計書は PUT のみ定義のため update を分離)
@@ -50,4 +50,4 @@ Route::middleware('auth:sanctum')->group(function () {
     // マスタデータ
     Route::get('categories', [CategoryController::class, 'index'])->name('category.index');
     Route::get('amountTypes', [AmountTypeController::class, 'index'])->name('amount_type.index');
-})->whereNumber(['id', 'recordId']);
+});
