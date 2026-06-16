@@ -50,4 +50,4 @@ Route::middleware('auth:sanctum')->group(function () {
     // マスタデータ
     Route::get('categories', [CategoryController::class, 'index'])->name('category.index');
     Route::get('amountTypes', [AmountTypeController::class, 'index'])->name('amount_type.index');
-});
+})->whereNumber(['id', 'recordId']);
