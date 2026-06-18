@@ -11,7 +11,7 @@ class UserStoreRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,12 +23,10 @@ class UserStoreRequest extends FormRequest
     {
         return [
             //
-            return [
-                'login_id' => ['required', 'string', 'max:50', 'unique:users,login_id'],
-                'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-                'name' => ['required', 'string', 'max:100'],
-                'password' => ['required', 'string', 'min:8'],
-            ];
+            'login_id' => ['required', 'string', 'max:15', 'unique:users,login_id'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'name' => ['required', 'string', 'max:50'],
+            'password' => ['required', 'string', 'min:8'],
         ];
     }
 

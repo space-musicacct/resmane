@@ -11,7 +11,7 @@ class UpperLimitSettingUpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,11 +23,9 @@ class UpperLimitSettingUpdateRequest extends FormRequest
     {
         return [
             //
-            return [
-                'upper_limit_type_id' => ['sometimes', 'exists:upper_limit_types,id'],
-                'max_value' => ['sometimes', 'integer', 'min:1'],
-                'ave_monthly_income' => ['sometimes', 'integer', 'min:1'],
-            ];
+            'upper_limit_type_id' => ['sometimes', 'exists:upper_limit_types,id'],
+            'max_value' => ['sometimes', 'integer', 'min:1'],
+            'ave_monthly_income' => ['sometimes', 'integer', 'min:1'],
         ];
     }
 }

@@ -11,7 +11,7 @@ class UpperLimitSettingStoreRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,12 +23,10 @@ class UpperLimitSettingStoreRequest extends FormRequest
     {
         return [
             //
-            return [
-                'user_id' => ['required', 'exists:users,id'],
-                'upper_limit_type_id' => ['required', 'exists:upper_limit_types,id'],
-                'max_value' => ['required', 'integer', 'min:1'],
-                'ave_monthly_income' => ['required', 'integer', 'min:1'],
-            ];
+            'user_id' => ['required', 'exists:users,id'],
+            'upper_limit_type_id' => ['required', 'exists:upper_limit_types,id'],
+            'max_value' => ['required', 'integer', 'min:1'],
+            'ave_monthly_income' => ['required', 'integer', 'min:1'],
         ];
     }
 }

@@ -11,7 +11,7 @@ class PostUpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,10 +23,8 @@ class PostUpdateRequest extends FormRequest
     {
         return [
             //
-            return [
-                'ai_status_id' => ['sometimes', 'exists:ai_statuses,id'],
-                'content' => ['nullable', 'string', 'max:3000'],
-            ];
+            'ai_status_id' => ['sometimes', 'exists:ai_statuses,id'],
+            'content' => ['nullable', 'string', 'max:3000'],
         ];
     }
 }

@@ -11,7 +11,7 @@ class SelfReviewStoreRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,10 +23,8 @@ class SelfReviewStoreRequest extends FormRequest
     {
         return [
             //
-            return [
-                'kakeibo_record_id' => ['required', 'exists:kakeibo_records,id'],
-                'review_comment' => ['required', 'string', 'max:250'],
-            ];
+            'kakeibo_record_id' => ['required', 'exists:kakeibo_records,id'],
+            'review_comment' => ['required', 'string', 'max:250']
         ];
     }
 }

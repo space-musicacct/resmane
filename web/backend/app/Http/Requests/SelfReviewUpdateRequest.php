@@ -11,7 +11,7 @@ class SelfReviewUpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,10 +22,8 @@ class SelfReviewUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
-            return [
-                'review_comment' => ['sometimes', 'string', 'max:250'],
-            ];
+            // 
+            'review_comment' => ['sometimes', 'string', 'max:250'],
         ];
     }
 }

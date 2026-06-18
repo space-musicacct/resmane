@@ -11,7 +11,7 @@ class KakeiboRecordUpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -23,13 +23,11 @@ class KakeiboRecordUpdateRequest extends FormRequest
     {
         return [
             //
-            return [
-                'purchase_date' => ['sometimes', 'date'],
-                'amount_type_id' => ['sometimes', 'exists:amount_types,id'],
-                'amount' => ['sometimes', 'integer', 'min:1'],
-                'details' => ['nullable', 'string', 'max:250'],
-                'kakeibo_default_category_id' => ['sometimes', 'exists:kakeibo_default_categories,id'],
-        ]   ;
+            'purchase_date' => ['sometimes', 'date'],
+            'amount_type_id' => ['sometimes', 'exists:amount_types,id'],
+            'amount' => ['sometimes', 'integer', 'min:1'],
+            'details' => ['nullable', 'string', 'max:250'],
+            'kakeibo_default_category_id' => ['sometimes', 'exists:kakeibo_default_categories,id'],
         ];
     }
 }
