@@ -3,18 +3,26 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\V1\UserResource;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
     /**
-     * @param FormRequest $request
+     * ログインユーザー情報取得
+     *
+     * 認証済みユーザーの情報を返す
+     *
+     * @param Request $request
      * @return JsonResponse
      */
-    public function show(FormRequest $request): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        return response()->json([
+            'data' => new UserResource($request->user()),
+        ]);
     }
 
     /**

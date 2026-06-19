@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
@@ -17,10 +19,10 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
+        'login_id',
         'email',
-        'password',
-
+        'name',
+        'password_hash',
     ];
 
     /**
@@ -29,17 +31,22 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'password_hash',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-    ];
+    public function getAuthPassword(): string
+    {
+        return $this->password_hash;
+    }
+
+    public function kakeiboRecords(): HasMany
+    {
+        return $this->hasMany(KakeiboRecord::class);
+    }
+
+    public function upperLimitSetting(): HasOne
+    {
+        return $this->hasOne(UpperLimitSetting::class);
+    }
 }
+
