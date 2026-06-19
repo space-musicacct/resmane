@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\V1;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\KakeiboRecordStoreRequest;
@@ -68,7 +68,7 @@ class KakeiboRecordController extends Controller
     {
         $record = KakeiboRecord::create([
             'user_id' => auth()->id(),
-            'purchase_date' => $request->purchaseDate,
+            'purchase_date' => $request->purchaseDate ?? now()->toDateString(),
             'amount_type_id' => $request->amountTypeId,
             'amount' => $request->amount,
             'details' => $request->details,

@@ -22,7 +22,7 @@ class KakeiboRecordStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'purchaseDate' => ['required', 'date'],
+            'purchaseDate' => ['nullable', 'date'],
             'amountTypeId' => ['required', 'exists:amount_types,id'],
             'amount' => ['required', 'integer', 'min:1'],
             'details' => ['nullable', 'string', 'max:250'],
