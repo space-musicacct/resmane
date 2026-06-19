@@ -23,7 +23,7 @@ class PostUpdateRequest extends FormRequest
     {
         return [
             //
-            'ai_status_id' => ['sometimes', 'exists:ai_statuses,id'],
+            'aiStatusId' => ['sometimes', 'exists:ai_statuses,id'],
             'content' => ['nullable', 'string', 'max:3000'],
         ];
     }

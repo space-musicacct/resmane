@@ -23,10 +23,10 @@ class UpperLimitSettingStoreRequest extends FormRequest
     {
         return [
             //
-            'user_id' => ['required', 'exists:users,id'],
-            'upper_limit_type_id' => ['required', 'exists:upper_limit_types,id'],
-            'max_value' => ['required', 'integer', 'min:1'],
-            'ave_monthly_income' => ['required', 'integer', 'min:1'],
+            'userId' => ['required', 'exists:users,id'],
+            'upperLimitTypeId' => ['required', 'exists:upper_limit_types,id'],
+            'maxValue' => ['required', 'integer', 'min:1'],
+            'aveMonthlyIncome' => ['required', 'integer', 'min:1'],
         ];
     }
 }

@@ -23,7 +23,7 @@ class SelfReviewUpdateRequest extends FormRequest
     {
         return [
             // 
-            'review_comment' => ['sometimes', 'string', 'max:250'],
+            'reviewComment' => ['sometimes', 'string', 'max:250'],
         ];
     }
 }

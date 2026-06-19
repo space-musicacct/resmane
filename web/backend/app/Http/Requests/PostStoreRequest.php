@@ -23,11 +23,11 @@ class PostStoreRequest extends FormRequest
     {
         return [
             //
-            'user_id' => ['required', 'exists:users,id'],
-            'kakeibo_record_id' => ['required', 'exists:kakeibo_records,id'],
-            'ai_status_id' => ['nullable', 'exists:ai_statuses,id'],
-            'parent_id' => ['nullable', 'exists:posts,id'],
-            'is_ai' => ['required', 'boolean'],
+            'userId' => ['required', 'exists:users,id'],
+            'kakeiboRecordId' => ['required', 'exists:kakeibo_records,id'],
+            'aiStatusId' => ['nullable', 'exists:ai_statuses,id'],
+            'parentId' => ['nullable', 'exists:posts,id'],
+            'isAi' => ['required', 'boolean'],
             'content' => ['nullable', 'string', 'max:3000'],
         ];
     }

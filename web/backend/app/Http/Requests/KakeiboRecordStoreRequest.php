@@ -22,19 +22,19 @@ class KakeiboRecordStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'user_id' => ['required', 'exists:users,id'],
-            'purchase_date' => ['required', 'date'],
-            'amount_type_id' => ['required', 'exists:amount_types,id'],
+            'userId' => ['required', 'exists:users,id'],
+            'purchaseDate' => ['required', 'date'],
+            'amountTypeId' => ['required', 'exists:amount_types,id'],
             'amount' => ['required', 'integer', 'min:1'],
             'details' => ['nullable', 'string', 'max:250'],
-            'kakeibo_default_category_id' => ['required', 'exists:kakeibo_default_categories,id'],
+            'kakeiboDefaultCategoryId' => ['required', 'exists:kakeibo_default_categories,id'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'purchase_date.required' => '購入日は必須です。',
+            'purchaseDate.required' => '購入日は必須です。',
             'amount.required' => '金額は必須です。',
         ];
     }

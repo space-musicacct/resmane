@@ -23,8 +23,8 @@ class SelfReviewStoreRequest extends FormRequest
     {
         return [
             //
-            'kakeibo_record_id' => ['required', 'exists:kakeibo_records,id'],
-            'review_comment' => ['required', 'string', 'max:250']
+            'kakeiboRecordId' => ['required', 'exists:kakeibo_records,id'],
+            'reviewComment' => ['required', 'string', 'max:250']
         ];
     }
 }

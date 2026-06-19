@@ -23,7 +23,7 @@ class UserUpdateRequest extends FormRequest
     {
         return [
             //
-            'login_id' => ['sometimes', 'string', 'max:50'],
+            'loginId' => ['sometimes', 'string', 'max:50'],
             'email' => ['sometimes', 'email', 'max:255'],
             'name' => ['sometimes', 'string', 'max:100'],
             'password' => ['nullable', 'string', 'min:8'],
