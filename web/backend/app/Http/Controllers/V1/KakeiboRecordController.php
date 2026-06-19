@@ -3,56 +3,110 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\KakeiboRecordStoreRequest;
+use App\Http\Requests\KakeiboRecordUpdateRequest;
+use App\Http\Resources\V1\KakeiboRecordResource;
+use App\Models\KakeiboRecord;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
 class KakeiboRecordController extends Controller
 {
     /**
-     * @param FormRequest $request
      * @return JsonResponse
      */
-    public function index(FormRequest $request): JsonResponse
+    public function index(): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $records = KakeiboRecord::where('user_id', auth()->id())
+            ->with(['amountType', 'category'])
+            ->paginate(20);
+
+        return response()->json([
+            'data' => KakeiboRecordResource::collection($records->items()),
+            'meta' => [
+                'currentPage' => $records->currentPage(),
+                'lastPage' => $records->lastPage(),
+                'perPage' => $records->perPage(),
+                'total' => $records->total(),
+            ],
+        ]);
     }
 
     /**
-     * @param FormRequest $request
-     * @return JsonResponse
-     */
-    public function store(FormRequest $request): JsonResponse
-    {
-        return response()->json(['message' => 'success'], 201);
-    }
-
-    /**
-     * @param FormRequest $request
      * @param int $id
      * @return JsonResponse
      */
-    public function show(FormRequest $request, int $id): JsonResponse
+    public function show(int $id): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $record = KakeiboRecord::where('user_id', auth()->id())
+            ->with(['amountType', 'category'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'data' => new KakeiboRecordResource($record),
+        ]);
     }
 
     /**
-     * @param FormRequest $request
-     * @param int $id
+     * @param KakeiboRecordStoreRequest $request
      * @return JsonResponse
      */
-    public function update(FormRequest $request, int $id): JsonResponse
+    public function store(KakeiboRecordStoreRequest $request): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $record = KakeiboRecord::create([
+            'user_id' => auth()->id(),
+            'purchase_date' => $request->purchaseDate ?? now()->toDateString(),
+            'amount_type_id' => $request->amountTypeId,
+            'amount' => $request->amount,
+            'details' => $request->details,
+            'kakeibo_default_category_id' => $request->kakeiboDefaultCategoryId,
+        ]);
+
+        $record->load(['amountType', 'category']);
+
+        return response()->json([
+            'data' => new KakeiboRecordResource($record),
+        ], 201);
     }
 
     /**
-     * @param FormRequest $request
+     * @param KakeiboRecordUpdateRequest $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(FormRequest $request, int $id): JsonResponse
+    public function update(KakeiboRecordUpdateRequest $request, int $id): JsonResponse
     {
-        return response()->json(null, 204);
+        $record = KakeiboRecord::where('user_id', auth()->id())
+            ->findOrFail($id);
+
+        $validated = $request->validated();
+
+        $record->update([
+            'purchase_date' => $validated['purchaseDate'] ?? $record->purchase_date,
+            'amount_type_id' => $validated['amountTypeId'] ?? $record->amount_type_id,
+            'amount' => $validated['amount'] ?? $record->amount,
+            'details' => array_key_exists('details', $validated) ? $validated['details'] : $record->details,
+            'kakeibo_default_category_id' => $validated['kakeiboDefaultCategoryId'] ?? $record->kakeibo_default_category_id,
+        ]);
+
+        $record->load(['amountType', 'category']);
+
+        return response()->json([
+            'data' => new KakeiboRecordResource($record),
+        ]);
+    }
+
+    /**
+     * @param int $id
+     * @return Response
+     */
+    public function destroy(int $id): Response
+    {
+        $record = KakeiboRecord::where('user_id', auth()->id())
+            ->findOrFail($id);
+
+        $record->delete();
+
+        return response()->noContent();
     }
 }
