@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\LoginRequest;
 use App\Http\Requests\V1\RegisterRequest;
+use App\Http\Resources\V1\AuthUserResource;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -71,13 +72,7 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'loginId' => $user->login_id,
-                'email' => $user->email,
-                'name' => $user->name,
-                'createdAt' => $user->created_at,
-            ],
+            'user' => new AuthUserResource($user),
         ], 201);
     }
 
@@ -117,16 +112,8 @@ class AuthController extends Controller
         RateLimiter::clear($throttleKey);
         $request->session()->regenerate();
 
-        $user = Auth::user();
-
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'loginId' => $user->login_id,
-                'email' => $user->email,
-                'name' => $user->name,
-                'createdAt' => $user->created_at,
-            ],
+            'user' => new AuthUserResource(Auth::user()),
         ]);
     }
 
