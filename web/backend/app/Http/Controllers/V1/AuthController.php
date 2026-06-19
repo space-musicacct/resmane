@@ -12,9 +12,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AuthController extends Controller
 {
+    private const int MAX_LOGIN_ATTEMPTS = 5;
+    private const int LOCKOUT_SECONDS = 3600;
     /**
      * ユーザー登録
      */
@@ -59,19 +62,33 @@ class AuthController extends Controller
     }
 
     /**
-     * ログイン
+     * ログイン（IP単位のロックアウト制御: 5回失敗で1時間ロック）
      */
     public function login(LoginRequest $request): JsonResponse
     {
+        $throttleKey = 'login:' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_LOGIN_ATTEMPTS)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+
+            return response()->json([
+                'message' => 'ログイン試行回数が上限に達しました。' . ceil($seconds / 60) . '分後に再試行してください',
+                'errors' => (object) [],
+            ], 429);
+        }
+
         $validated = $request->validated();
 
         if (!Auth::attempt(['login_id' => $validated['loginId'], 'password' => $validated['password']])) {
+            RateLimiter::hit($throttleKey, self::LOCKOUT_SECONDS);
+
             return response()->json([
                 'message' => 'ログインIDまたはパスワードが正しくありません',
                 'errors' => (object) [],
             ], 401);
         }
 
+        RateLimiter::clear($throttleKey);
         $request->session()->regenerate();
 
         return response()->json([
