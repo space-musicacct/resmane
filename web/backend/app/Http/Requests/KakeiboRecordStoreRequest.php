@@ -22,7 +22,6 @@ class KakeiboRecordStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'userId' => ['required', 'exists:users,id'],
             'purchaseDate' => ['required', 'date'],
             'amountTypeId' => ['required', 'exists:amount_types,id'],
             'amount' => ['required', 'integer', 'min:1'],

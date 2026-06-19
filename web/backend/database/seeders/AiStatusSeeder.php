@@ -15,10 +15,10 @@ class AiStatusSeeder extends Seeder
     {
         //
     DB::table('ai_statuses')->insert([
-        ['status_name' => '未処理'],
-        ['status_name' => '処理中'],
-        ['status_name' => '完了'],
-        ['status_name' => 'エラー'],
+        ['status_name' => 'pending'],
+        ['status_name' => 'procesing'],
+        ['status_name' => 'completed'],
+        ['status_name' => 'failed'],
     ]);
     }
 }

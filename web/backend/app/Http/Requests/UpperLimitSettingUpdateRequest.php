@@ -24,8 +24,8 @@ class UpperLimitSettingUpdateRequest extends FormRequest
         return [
             //
             'upperLimitTypeId' => ['sometimes', 'exists:upper_limit_types,id'],
-            'maxValue' => ['sometimes', 'integer', 'min:1'],
-            'aveMonthlyIncome' => ['sometimes', 'integer', 'min:1'],
+            'maxValue' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'aveMonthlyIncome' => ['sometimes','nullable', 'integer', 'min:1'],
         ];
     }
 }
