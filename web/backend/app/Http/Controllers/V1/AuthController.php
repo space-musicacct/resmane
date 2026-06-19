@@ -14,12 +14,24 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 
+/**
+ * 認証 API コントローラー
+ *
+ * ユーザー登録・ログイン・ログアウトを処理する
+ * Sanctum の Cookie/Session 認証を使用
+ */
 class AuthController extends Controller
 {
     private const int MAX_LOGIN_ATTEMPTS = 5;
     private const int LOCKOUT_SECONDS = 3600;
+
     /**
      * ユーザー登録
+     *
+     * 新規ユーザーを作成し、そのままログイン状態にする
+     *
+     * @param RegisterRequest $request
+     * @return JsonResponse
      */
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -62,7 +74,13 @@ class AuthController extends Controller
     }
 
     /**
-     * ログイン（IP単位のロックアウト制御: 5回失敗で1時間ロック）
+     * ログイン
+     *
+     * ログインIDとパスワードで認証し、セッションを開始する。
+     * IP単位のロックアウト制御 (5回失敗で1時間ロック) を含む
+     *
+     * @param LoginRequest $request
+     * @return JsonResponse
      */
     public function login(LoginRequest $request): JsonResponse
     {
@@ -98,6 +116,11 @@ class AuthController extends Controller
 
     /**
      * ログアウト
+     *
+     * セッションを破棄し、CSRFトークンを再生成する
+     *
+     * @param Request $request
+     * @return JsonResponse
      */
     public function logout(Request $request): JsonResponse
     {
