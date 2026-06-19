@@ -7,6 +7,7 @@ use App\Http\Requests\V1\LoginRequest;
 use App\Http\Requests\V1\RegisterRequest;
 use App\Http\Resources\V1\UserResource;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,12 +36,19 @@ class AuthController extends Controller
             ], 409);
         }
 
-        $user = User::create([
-            'login_id' => $validated['loginId'],
-            'email' => $validated['email'],
-            'name' => $validated['name'],
-            'password_hash' => Hash::make($validated['password']),
-        ]);
+        try {
+            $user = User::create([
+                'login_id' => $validated['loginId'],
+                'email' => $validated['email'],
+                'name' => $validated['name'],
+                'password_hash' => Hash::make($validated['password']),
+            ]);
+        } catch (QueryException) {
+            return response()->json([
+                'message' => 'このログインIDまたはメールアドレスは既に使用されています',
+                'errors' => (object) [],
+            ], 409);
+        }
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -80,6 +88,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return response()->json(null, 204);
+        return response()->noContent();
     }
 }
