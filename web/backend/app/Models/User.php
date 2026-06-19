@@ -13,6 +13,11 @@ class User extends Authenticatable
 {
     use HasApiTokens, Notifiable, SoftDeletes;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'login_id',
         'email',
@@ -20,6 +25,11 @@ class User extends Authenticatable
         'password_hash',
     ];
 
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
     protected $hidden = [
         'password_hash',
     ];
