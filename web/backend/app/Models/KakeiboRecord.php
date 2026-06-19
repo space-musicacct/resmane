@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class KakeiboRecord extends Model
@@ -18,7 +19,7 @@ class KakeiboRecord extends Model
         'kakeibo_default_category_id',
     ];
 
-     public function user(): BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -36,3 +37,4 @@ class KakeiboRecord extends Model
         );
     }
 }
+
