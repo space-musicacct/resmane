@@ -11,8 +11,8 @@ class UpperLimitType extends Model
 {
     use HasFactory, SoftDeletes;
 
-    const PERCENTAGE_ID = 1;
-    const FIXED_AMOUNT_ID = 2;
+    public const int PERCENTAGE_ID = 1;
+    public const int FIXED_AMOUNT_ID = 2;
 
     protected $fillable = [
         'type_name',
