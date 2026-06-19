@@ -12,6 +12,11 @@ class UserController extends Controller
 {
     /**
      * ログインユーザー情報取得
+     *
+     * 認証済みユーザーの情報を返す
+     *
+     * @param Request $request
+     * @return JsonResponse
      */
     public function show(Request $request): JsonResponse
     {

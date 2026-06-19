@@ -30,6 +30,8 @@ class AuthController extends Controller
      * ユーザー登録
      *
      * 新規ユーザーを作成し、そのままログイン状態にする
+     * 重複チェック: loginId/email を withTrashed() で検証し 409 を返す
+     * DB制約違反時も QueryException をキャッチして 409 にフォールバック
      *
      * @param RegisterRequest $request
      * @return JsonResponse
