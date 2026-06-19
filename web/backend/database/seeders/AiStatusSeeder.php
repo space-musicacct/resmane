@@ -16,7 +16,7 @@ class AiStatusSeeder extends Seeder
         //
     DB::table('ai_statuses')->insert([
         ['status_name' => 'pending'],
-        ['status_name' => 'procesing'],
+        ['status_name' => 'processing'],
         ['status_name' => 'completed'],
         ['status_name' => 'failed'],
     ]);

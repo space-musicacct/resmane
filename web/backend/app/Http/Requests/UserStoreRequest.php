@@ -34,8 +34,8 @@ class UserStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'login_id.required' => 'ログインIDは必須です。',
-            'login_id.unique' => 'このログインIDは既に使用されています。',
+            'loginId.required' => 'ログインIDは必須です。',
+            'loginId.unique' => 'このログインIDは既に使用されています。',
             'email.required' => 'メールアドレスは必須です。',
             'email.email' => 'メールアドレスの形式が正しくありません。',
             'email.unique' => 'このメールアドレスは既に使用されています。',

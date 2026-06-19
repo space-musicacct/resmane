@@ -23,9 +23,9 @@ class UserUpdateRequest extends FormRequest
     {
         return [
             //
-            'loginId' => ['sometimes', 'string', 'max:50'],
+            'loginId' => ['sometimes', 'string', 'max:15'],
             'email' => ['sometimes', 'email', 'max:255'],
-            'name' => ['sometimes', 'string', 'max:100'],
+            'name' => ['sometimes', 'string', 'max:50'],
             'password' => ['nullable', 'string', 'min:8'],
         ];
     }
