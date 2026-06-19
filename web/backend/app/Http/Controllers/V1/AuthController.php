@@ -3,55 +3,83 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\V1\LoginRequest;
+use App\Http\Requests\V1\RegisterRequest;
+use App\Http\Resources\V1\UserResource;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
-/**
- * 認証 API コントローラー
- *
- * ユーザー登録・ログイン・ログアウトを処理する
- * Sanctum の Cookie/Session 認証を使用
- */
 class AuthController extends Controller
 {
-
     /**
      * ユーザー登録
-     *
-     * 新規ユーザーを作成し、そのままログイン状態にする
-     *
-     * @param FormRequest $request
-     * @return JsonResponse
      */
-    public function register(FormRequest $request): JsonResponse
+    public function register(RegisterRequest $request): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $validated = $request->validated();
+
+        if (User::withTrashed()->where('login_id', $validated['loginId'])->exists()) {
+            return response()->json([
+                'message' => 'このログインIDは既に使用されています',
+                'errors' => (object) [],
+            ], 409);
+        }
+
+        if (User::withTrashed()->where('email', $validated['email'])->exists()) {
+            return response()->json([
+                'message' => 'このメールアドレスは既に使用されています',
+                'errors' => (object) [],
+            ], 409);
+        }
+
+        $user = User::create([
+            'login_id' => $validated['loginId'],
+            'email' => $validated['email'],
+            'name' => $validated['name'],
+            'password_hash' => Hash::make($validated['password']),
+        ]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return response()->json([
+            'user' => new UserResource($user),
+        ], 201);
     }
 
     /**
      * ログイン
-     *
-     * ログインIDとパスワードで認証し、セッションを開始する。
-     * IP単位のロックアウト制御 (5回失敗で1時間ロック) を含む
-     *
-     * @param FormRequest $request
-     * @return JsonResponse
      */
-    public function login(FormRequest $request): JsonResponse
+    public function login(LoginRequest $request): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $validated = $request->validated();
+
+        if (!Auth::attempt(['login_id' => $validated['loginId'], 'password' => $validated['password']])) {
+            return response()->json([
+                'message' => 'ログインIDまたはパスワードが正しくありません',
+                'errors' => (object) [],
+            ], 401);
+        }
+
+        $request->session()->regenerate();
+
+        return response()->json([
+            'user' => new UserResource(Auth::user()),
+        ]);
     }
 
     /**
      * ログアウト
-     *
-     * セッションを破棄し、CSRFトークンを再生成する
-     *
-     * @param FormRequest $request
-     * @return JsonResponse
      */
-    public function logout(FormRequest $request): JsonResponse
+    public function logout(Request $request): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json(null, 204);
     }
 }
