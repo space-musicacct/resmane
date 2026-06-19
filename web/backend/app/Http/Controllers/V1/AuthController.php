@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -120,9 +121,9 @@ class AuthController extends Controller
      * セッションを破棄し、CSRFトークンを再生成する
      *
      * @param Request $request
-     * @return JsonResponse
+     * @return Response
      */
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request): Response
     {
         Auth::guard('web')->logout();
         $request->session()->invalidate();
