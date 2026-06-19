@@ -17,8 +17,8 @@ class UpdateSettingLimitRequest extends FormRequest
     {
         $isPercentageType = false;
         $typeId = $this->input('upperLimitTypeId');
-        if ($typeId) {
-            $type = UpperLimitType::whereNull('deleted_at')->find($typeId);
+        if (is_numeric($typeId) && !is_array($typeId)) {
+            $type = UpperLimitType::whereNull('deleted_at')->find((int) $typeId);
             $isPercentageType = $type && $type->type_name === '割合';
         }
 
