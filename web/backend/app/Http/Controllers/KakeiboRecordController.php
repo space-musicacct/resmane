@@ -1,30 +1,29 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\V1;
 
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\KakeiboRecordStoreRequest;
+use App\Http\Requests\KakeiboRecordUpdateRequest;
 use App\Models\KakeiboRecord;
+use Illuminate\Http\JsonResponse;
 
 class KakeiboRecordController extends Controller
 {
-    //
-    public function index(){
-        $records = KakeiboRecord::with([
-            'amountType',
-            'category'
-        ])->paginate(20);
-
-        $data = $records->items();
+    public function index(): JsonResponse
+    {
+        $records = KakeiboRecord::where('user_id', auth()->id())
+            ->with(['amountType', 'category'])
+            ->paginate(20);
 
         return response()->json([
-            'data' => collect($data)->map(function ($record) {
+            'data' => collect($records->items())->map(function ($record) {
                 return [
                     'id' => $record->id,
                     'userId' => $record->user_id,
                     'purchaseDate' => $record->purchase_date,
                     'amountTypeId' => $record->amount_type_id,
-                    'amountTypeName' => $record->amountType->name,
+                    'amountTypeName' => $record->amountType->type_name,
                     'amount' => $record->amount,
                     'details' => $record->details,
                     'categoryId' => $record->kakeibo_default_category_id,
@@ -41,16 +40,12 @@ class KakeiboRecordController extends Controller
             ]
         ]);
     }
-    public function store(KakeiboRecordStoreRequest $request){
-        $record = KakeiboRecord::create([
-            'user_id' => auth()->id(),
-            'purchase_date' => $request->purchaseDate,
-            'amount_type_id' => $request->amountTypeId,
-            'amount' => $request->amount,
-            'details' => $request->details,
-            'kakeibo_default_category_id'
-                => $request->kakeiboDefaultCategoryId,
-        ]);
+
+    public function show(int $id): JsonResponse
+    {
+        $record = KakeiboRecord::where('user_id', auth()->id())
+            ->with(['amountType', 'category'])
+            ->findOrFail($id);
 
         return response()->json([
             'data' => [
@@ -58,28 +53,7 @@ class KakeiboRecordController extends Controller
                 'userId' => $record->user_id,
                 'purchaseDate' => $record->purchase_date,
                 'amountTypeId' => $record->amount_type_id,
-                'amount' => $record->amount,
-                'details' => $record->details,
-                'kakeiboDefaultCategoryId'
-                    => $record->kakeibo_default_category_id,
-                'createdAt' => $record->created_at,
-                'updatedAt' => $record->updated_at,
-            ]
-        ], 201);
-    }
-    public function show(int $id){
-        $record = KakeiboRecord::with([
-            'amountType',
-            'category'
-        ])->findOrFail($id);
-
-        return response()->json([
-            'data' => [
-                'id' => $record->id,
-                'userId' => $record->user_id,
-                'purchaseDate' => $record->purchase_date,
-                'amountTypeId' => $record->amount_type_id,
-                'amountTypeName' => $record->amountType->name,
+                'amountTypeName' => $record->amountType->type_name,
                 'amount' => $record->amount,
                 'details' => $record->details,
                 'categoryId' => $record->kakeibo_default_category_id,
@@ -89,8 +63,43 @@ class KakeiboRecordController extends Controller
             ]
         ]);
     }
-    public function update(KakeiboRecordStoreRequest $request, int $id){
-        $record = KakeiboRecord::findOrFail($id);
+
+    public function store(KakeiboRecordStoreRequest $request): JsonResponse
+    {
+        $record = KakeiboRecord::create([
+            'user_id' => auth()->id(),
+            'purchase_date' => $request->purchaseDate,
+            'amount_type_id' => $request->amountTypeId,
+            'amount' => $request->amount,
+            'details' => $request->details,
+            'kakeibo_default_category_id' => $request->kakeiboDefaultCategoryId,
+        ]);
+
+        $record->load(['amountType', 'category']);
+
+        return response()->json([
+            'data' => [
+                'id' => $record->id,
+                'userId' => $record->user_id,
+                'purchaseDate' => $record->purchase_date,
+                'amountTypeId' => $record->amount_type_id,
+                'amountTypeName' => $record->amountType->type_name,
+                'amount' => $record->amount,
+                'details' => $record->details,
+                'categoryId' => $record->kakeibo_default_category_id,
+                'categoryName' => $record->category->category_name,
+                'createdAt' => $record->created_at,
+                'updatedAt' => $record->updated_at,
+            ]
+        ], 201);
+    }
+
+    public function update(
+        KakeiboRecordUpdateRequest $request,
+        int $id
+    ): JsonResponse {
+        $record = KakeiboRecord::where('user_id', auth()->id())
+            ->findOrFail($id);
 
         $record->update([
             'purchase_date' => $request->purchaseDate,
@@ -100,27 +109,32 @@ class KakeiboRecordController extends Controller
             'kakeibo_default_category_id' => $request->kakeiboDefaultCategoryId,
         ]);
 
+        $record->load(['amountType', 'category']);
+
         return response()->json([
             'data' => [
                 'id' => $record->id,
                 'userId' => $record->user_id,
                 'purchaseDate' => $record->purchase_date,
                 'amountTypeId' => $record->amount_type_id,
+                'amountTypeName' => $record->amountType->type_name,
                 'amount' => $record->amount,
                 'details' => $record->details,
                 'categoryId' => $record->kakeibo_default_category_id,
+                'categoryName' => $record->category->category_name,
+                'createdAt' => $record->created_at,
                 'updatedAt' => $record->updated_at,
             ]
         ]);
     }
 
-    public function destroy(int $id){
-        $record = KakeiboRecord::findOrFail($id);
+    public function destroy(int $id): JsonResponse
+    {
+        $record = KakeiboRecord::where('user_id', auth()->id())
+            ->findOrFail($id);
 
         $record->delete();
 
-        return response()->json([
-            'message' => '削除しました'
-        ], 200);
+        return response()->noContent();
     }
 }
