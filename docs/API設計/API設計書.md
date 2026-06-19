@@ -440,7 +440,7 @@
 | `amountTypeId`              | int    | ○    | `amount_types.id` に存在すること                  |
 | `amount`                    | int    | ○    | 1以上の整数                                      |
 | `details`                   | string | ○    | 1〜250文字                                       |
-| `kakeiboDefaultCategoryId`  | int    | -    | `kakeibo_default_categories.id` に存在すること（NULL許容） |
+| `kakeiboDefaultCategoryId`  | int    | ○    | `kakeibo_default_categories.id` に存在すること            |
 
 ```json
 {
@@ -565,7 +565,7 @@
 | `amountTypeId`              | int    | ○    | `amount_types.id` に存在すること                  |
 | `amount`                    | int    | ○    | 1以上の整数                                      |
 | `details`                   | string | ○    | 1〜250文字                                       |
-| `kakeiboDefaultCategoryId`  | int    | -    | `kakeibo_default_categories.id` に存在すること（NULL許容） |
+| `kakeiboDefaultCategoryId`  | int    | ○    | `kakeibo_default_categories.id` に存在すること            |
 
 **レスポンス（200 OK）**
 
@@ -1040,7 +1040,7 @@ AI生成登録失敗（500）:
 | フィールド          | 型  | 必須 | バリデーション                                         |
 | ------------------- | --- | ---- | ------------------------------------------------------ |
 | `upperLimitTypeId`  | int | ○    | `upper_limit_types.id` に存在すること                   |
-| `maxValue`          | int | -    | 1以上の整数（NULL許容）                                |
+| `maxValue`          | int | ○    | 1以上の整数                                            |
 | `aveMonthlyIncome`  | int | -    | 1以上の整数。割合指定時は必須（プログラム側で制御）    |
 
 ```json
