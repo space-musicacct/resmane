@@ -6,7 +6,9 @@
 Thumbs.db
 desktop.ini
 
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.iml
 
@@ -117,6 +119,11 @@ desktop.ini
 # =========================================================
 
 **/vendor/
+
+# IDE Helper generated files
+_ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
 
 # Laravel-like
 **/storage/*.key
