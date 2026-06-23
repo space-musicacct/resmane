@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class PostStoreRequest extends FormRequest
+class UpperLimitSettingStoreRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,15 +23,10 @@ class PostStoreRequest extends FormRequest
     {
         return [
             //
-            'parentId' => ['nullable', 'exists:posts,id'],
-            'content' => ['nullable', 'string', 'max:3000'],
+            'userId' => ['required', 'exists:users,id'],
+            'upperLimitTypeId' => ['required', 'exists:upper_limit_types,id'],
+            'maxValue' => ['required', 'integer', 'min:1'],
+            'aveMonthlyIncome' => ['required', 'integer', 'min:1'],
         ];
     }
-
-    public function messages(): array
-    {
-        return [
-            'content.max' => '内容は3000文字以内で入力してください。',
-        ];
-    }    
 }

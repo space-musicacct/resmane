@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class SelfReviewUpdateRequest extends FormRequest
+class SelfReviewStoreRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,8 +22,9 @@ class SelfReviewUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // 
-            'reviewComment' => ['sometimes', 'string', 'max:250'],
+            //
+            'kakeiboRecordId' => ['required', 'exists:kakeibo_records,id'],
+            'reviewComment' => ['required', 'string', 'max:250']
         ];
     }
 }
