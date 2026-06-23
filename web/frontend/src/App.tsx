@@ -1,34 +1,46 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { AuthProvider, PrivateRoute, GuestRoute } from './auth/AuthContext'
+import Header from './components/Header'
+import Footer from './components/Footer'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import HomePage from './pages/HomePage'
+import RecordListPage from './pages/RecordListPage'
 import RecordNewPage from './pages/RecordNewPage'
 import RecordDetailPage from './pages/RecordDetailPage'
 import SettingsPage from './pages/SettingsPage'
 import RecordEditPage from './pages/RecordEditPage'
 import ReviewEditPage from './pages/ReviewEditPage'
+import NotFoundPage from './pages/errors/NotFoundPage'
+import ForbiddenPage from './pages/errors/ForbiddenPage'
+import ServerErrorPage from './pages/errors/ServerErrorPage'
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* S-001 ログイン */}
-        <Route path="/login" element={<LoginPage />} />
-        {/* S-002 ユーザー登録 */}
-        <Route path="/register" element={<RegisterPage />} />
-        {/* S-003 ホーム / 家計簿一覧 */}
-        <Route path="/" element={<HomePage />} />
-        {/* S-004 家計簿登録 */}
-        <Route path="/records/new" element={<RecordNewPage />} />
-        {/* S-005 家計簿詳細 / スレッド */}
-        <Route path="/records/:id" element={<RecordDetailPage />} />
-        {/* S-006 設定 */}
-        <Route path="/settings" element={<SettingsPage />} />
-        {/* S-007 家計簿編集 */}
-        <Route path="/records/:id/edit" element={<RecordEditPage />} />
-        {/* S-008 自己レビュー編集 */}
-        <Route path="/records/:recordId/reviews/:reviewId/edit" element={<ReviewEditPage />} />
-      </Routes>
+      <AuthProvider>
+        <Header />
+        <Routes>
+          {/* ゲスト専用 */}
+          <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+          <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+
+          {/* 認証必須 */}
+          <Route path="/" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+          <Route path="/records" element={<PrivateRoute><RecordListPage /></PrivateRoute>} />
+          <Route path="/records/new" element={<PrivateRoute><RecordNewPage /></PrivateRoute>} />
+          <Route path="/records/:id" element={<PrivateRoute><RecordDetailPage /></PrivateRoute>} />
+          <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+          <Route path="/records/:id/edit" element={<PrivateRoute><RecordEditPage /></PrivateRoute>} />
+          <Route path="/records/:recordId/reviews/:reviewId/edit" element={<PrivateRoute><ReviewEditPage /></PrivateRoute>} />
+
+          {/* エラーページ */}
+          <Route path="/403" element={<ForbiddenPage />} />
+          <Route path="/500" element={<ServerErrorPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+        <Footer />
+      </AuthProvider>
     </BrowserRouter>
   )
 }

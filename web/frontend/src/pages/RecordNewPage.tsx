@@ -1,105 +1,57 @@
-import React, { useState } from 'react';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import api, { getCsrfCookie, isApiError } from '../lib/axios'
+import type { ValidationErrors } from '../types'
+import PageCard from '../components/PageCard'
+import RecordForm, { type RecordFormValues } from '../components/RecordForm'
 
 export default function RecordNewPage() {
-  const [purchaseDate, setPurchaseDate] = useState('');
-  const [amountTypeId, setAmountTypeId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [details, setDetails] = useState('');
-  const [kakeiboDefaultCategoryId, setKakeiboDefaultCategoryId] = useState('');
-  const amountypes = [
-    { id: 1, name: '支出' }
-  ];
-  const categorides = [
-    { id: 1, name: '交通費' },
-    { id: 2, name: '食費' },
-    { id: 3, name: 'サブスク' },
-    { id: 4, name: '固定費' },
-  ];
+  const navigate = useNavigate()
+  const [errors, setErrors] = useState<ValidationErrors>({})
+  const [generalError, setGeneralError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
+  const handleSubmit = async (values: RecordFormValues) => {
+    if (submitting) return
+    setErrors({})
+    setGeneralError('')
+    setSubmitting(true)
 
-  const submit = async () => {
-    const data = {
-      purchaseDate,
-      amountTypeId: Number(amountTypeId),
-      amount: Number(amount),
-      details,
-      kakeiboDefaultCategoryId: Number(kakeiboDefaultCategoryId),
-    };
-    console.log(data);
+    try {
+      await getCsrfCookie()
+      await api.post('/records', {
+        purchaseDate: values.purchaseDate || null,
+        amountTypeId: Number(values.amountTypeId),
+        amount: Number(values.amount),
+        details: values.details,
+        kakeiboDefaultCategoryId: Number(values.kakeiboDefaultCategoryId),
+      })
+      navigate('/records')
+    } catch (err) {
+      if (isApiError(err)) {
+        const { status, data } = err.response
+        if (status === 422 && data.errors) {
+          setErrors(data.errors)
+        } else {
+          setGeneralError(data.message)
+        }
+      } else {
+        setGeneralError('通信に失敗しました')
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
+
   return (
-    <div className="min-h-screen bg-[#D7A10A] flex justify-center pt-10">
-      <div className="w-[380px] min-h-[600px] bg-[#F4F1F1] rounded-[40px] p-8">
-        <div className="flex flex-col items-center">
-          <h1 className="text-5xl font-bold text-center mb-12">家計簿登録</h1>
-
-          <div className="flex items-center mb-3">
-            <label className="w-24">購入日</label>
-            <input
-              type="date"
-              value={purchaseDate}
-              onChange={(e) => setPurchaseDate(e.target.value)}
-              className="border border-gray-500 w-44 h-8 px-2"
-            />
-          </div>
-
-          <div className="flex items-center mb-3">
-            <label className="w-24">種類：</label>
-            <select
-              value={amountTypeId}
-              onChange={(e) => setAmountTypeId(e.target.value)}
-              className="border border-gray-500 w-44 h-8"
-            >
-              <option value="">収入</option>
-              {amountypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center mb-3">
-            <label className="w-24">金額</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="border border-gray-500 w-44 h-8 px-2"
-            />
-          </div>
-
-          <div className="flex items-start mb-3">
-            <label className="w-24 pt-2">内容：</label>
-            <textarea
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              className="border border-gray-500 w-44 h-32 p-2 resize-none"
-            />
-          </div>
-
-          <div className="flex items-center mb-8">
-            <label className="w-24">カテゴリー:</label>
-            <select
-              value={kakeiboDefaultCategoryId}
-              onChange={(e) => setKakeiboDefaultCategoryId(e.target.value)}
-              className="border border-gray-500 w-44 h-8"
-            >
-              <option value="">娯楽費</option>
-              {categorides.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button onClick={submit} className="block mx-auto w-64 h-20 rounded-3xl bg-lime-400
-          bg-[#A6E01A] text-4xl font-bold mt-10 hover:bg-lime-500">登録</button>
-        </div >
-      </div >
-    </div>
-  );
-
-
+    <PageCard title="家計簿登録">
+      <RecordForm
+        errors={errors}
+        generalError={generalError}
+        submitting={submitting}
+        submitLabel="登録"
+        onSubmit={handleSubmit}
+      />
+    </PageCard>
+  )
 }
