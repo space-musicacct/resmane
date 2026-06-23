@@ -3,15 +3,21 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\AmountType;
 use Illuminate\Http\JsonResponse;
 
 class AmountTypeController extends Controller
 {
-    /**
-     * @return JsonResponse
-     */
     public function index(): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $types = AmountType::all()
+            ->map(fn ($type) => [
+                'id' => $type->id,
+                'typeName' => $type->type_name,
+            ]);
+
+        return response()->json([
+            'data' => $types,
+        ]);
     }
 }

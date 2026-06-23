@@ -115,6 +115,24 @@ services:
       - resmane-net
     restart: unless-stopped
 
+  # ---------------------------------------------------------------
+  # phpMyAdmin
+  # ---------------------------------------------------------------
+  phpmyadmin:
+    image: phpmyadmin:latest
+    ports:
+      - "${PMA_PORT:-58080}:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: ${MYSQL_USER:-resmane_user}
+      PMA_PASSWORD: ${MYSQL_PASSWORD:-resmane_password}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - resmane-net
+    restart: unless-stopped
+
 # =================================================================
 # ボリューム
 # =================================================================

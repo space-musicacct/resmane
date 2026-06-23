@@ -19,3 +19,13 @@ export interface MessageResponse {
 export interface ResourceResponse<T> {
   data: T;
 }
+
+/** ログインユーザー情報 */
+export interface User {
+  id: number;
+  loginId: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}

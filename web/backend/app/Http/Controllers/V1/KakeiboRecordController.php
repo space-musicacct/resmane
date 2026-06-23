@@ -8,6 +8,7 @@ use App\Http\Requests\V1\KakeiboRecordUpdateRequest;
 use App\Http\Resources\V1\KakeiboRecordResource;
 use App\Models\KakeiboRecord;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class KakeiboRecordController extends Controller
@@ -15,11 +16,20 @@ class KakeiboRecordController extends Controller
     /**
      * @return JsonResponse
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $records = KakeiboRecord::where('user_id', auth()->id())
+        $query = KakeiboRecord::where('user_id', auth()->id());
+
+        $sortOrder = $request->input('sort', 'desc') === 'asc' ? 'asc' : 'desc';
+
+        $records = (clone $query)
             ->with(['amountType', 'category'])
+            ->orderBy('purchase_date', $sortOrder)
+            ->orderBy('id', $sortOrder)
             ->paginate(20);
+
+        $totalIncome = (clone $query)->where('amount_type_id', 2)->sum('amount');
+        $totalExpense = (clone $query)->where('amount_type_id', 1)->sum('amount');
 
         return response()->json([
             'data' => KakeiboRecordResource::collection($records->items()),
@@ -28,6 +38,10 @@ class KakeiboRecordController extends Controller
                 'lastPage' => $records->lastPage(),
                 'perPage' => $records->perPage(),
                 'total' => $records->total(),
+            ],
+            'summary' => [
+                'totalIncome' => (int) $totalIncome,
+                'totalExpense' => (int) $totalExpense,
             ],
         ]);
     }

@@ -52,6 +52,7 @@ docker compose up -d --build
 docker compose exec backend composer install
 docker compose exec backend php artisan key:generate
 docker compose exec backend php artisan migrate
+docker compose exec backend php artisan db:seed
 ```
 
 ## アクセス
@@ -61,6 +62,7 @@ docker compose exec backend php artisan migrate
 | http://localhost:50080 | React (フロントエンド) |
 | http://localhost:50080/api | Laravel API |
 | localhost:53306 | MySQL (DB クライアントから接続) |
+| http://localhost:58080 | phpMyAdmin |
 
 ## 起動方法
 

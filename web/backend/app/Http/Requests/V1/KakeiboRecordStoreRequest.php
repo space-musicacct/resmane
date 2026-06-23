@@ -6,19 +6,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class KakeiboRecordStoreRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
@@ -33,8 +25,15 @@ class KakeiboRecordStoreRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'purchaseDate.required' => '購入日は必須です。',
-            'amount.required' => '金額は必須です。',
+            'purchaseDate.date' => '購入日は日付形式（YYYY-MM-DD）で入力してください',
+            'amountTypeId.required' => '収支区分は必須です',
+            'amountTypeId.exists' => '指定された収支区分が存在しません',
+            'amount.required' => '金額は必須です',
+            'amount.integer' => '金額は1以上の整数で入力してください',
+            'amount.min' => '金額は1以上の整数で入力してください',
+            'details.max' => '購入詳細は250文字以内で入力してください',
+            'kakeiboDefaultCategoryId.required' => 'カテゴリは必須です',
+            'kakeiboDefaultCategoryId.exists' => '指定されたカテゴリが存在しません',
         ];
     }
 }

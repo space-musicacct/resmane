@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import api, { getCsrfCookie, isApiError } from '../lib/axios'
+import PageCard from '../components/PageCard'
+import LoadingScreen from '../components/LoadingScreen'
 
 type KakeiboRecord = {
   id: number
@@ -15,117 +18,101 @@ type KakeiboRecord = {
   updatedAt: string
 }
 
-type KakeiboRecordResponse = {
-  data: KakeiboRecord
-}
-
-type ApiErrorResponse = {
-  message: string
-  errors: Record<string, string[]>
-}
-
 export default function RecordDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
 
   const [record, setRecord] = useState<KakeiboRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
-  useEffect(() => {
-    async function fetchRecord() {
-      try {
-        const response = await fetch(`/api/v1/records/${id}`)
-
-        if (!response.ok) {
-          const errorJson: ApiErrorResponse = await response.json()
-          setErrorMessage(errorJson.message)
-          return
-        }
-
-        const json: KakeiboRecordResponse = await response.json()
-        setRecord(json.data)
-      } catch {
-        setErrorMessage('通信に失敗しました')
-      } finally {
-        setLoading(false)
+  const handleDelete = async () => {
+    if (!confirm('この記録を削除しますか？')) return
+    try {
+      await getCsrfCookie()
+      await api.delete(`/records/${id}`)
+      navigate('/records')
+    } catch (err) {
+      if (isApiError(err)) {
+        setErrorMessage(err.response.data.message)
+      } else {
+        setErrorMessage('削除に失敗しました')
       }
     }
+  }
 
-    fetchRecord()
+  useEffect(() => {
+    api.get(`/records/${id}`)
+      .then((res) => setRecord(res.data.data))
+      .catch((err) => {
+        if (isApiError(err)) {
+          setErrorMessage(err.response.data.message)
+        } else {
+          setErrorMessage('通信に失敗しました')
+        }
+      })
+      .finally(() => setLoading(false))
   }, [id])
 
-  if (loading) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <p className="text-gray-600">読み込み中...</p>
-    </div>
-  )
-  }
+  if (loading) return <LoadingScreen />
 
   if (errorMessage) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
-        <div className="rounded-xl bg-white p-6 shadow-md">
-          <p className="text-red-600">{errorMessage}</p>
-        </div>
-      </div>
+      <PageCard title="エラー">
+        <p className="text-center text-red-600">{errorMessage}</p>
+      </PageCard>
     )
   }
 
-  if (record === null) {
+  if (!record) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
-        <div className="rounded-xl bg-white p-6 shadow-md">
-          <p className="text-gray-700">家計簿レコードを表示できませんでした</p>
-        </div>
-      </div>
+      <PageCard title="エラー">
+        <p className="text-center text-gray-700">家計簿レコードを表示できませんでした</p>
+      </PageCard>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 px-4 py-8">
-      <div className="mx-auto max-w-md rounded-xl bg-white p-6 shadow-md">
-        <h1 className="mb-6 text-2xl font-bold text-gray-800">
-          家計簿詳細
-        </h1>
-
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm text-gray-500">購入日</p>
-            <p className="text-base font-medium text-gray-800">
-              {record.purchaseDate}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">区分</p>
-            <p className="text-base font-medium text-gray-800">
-              {record.amountTypeName}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">金額</p>
-            <p className="text-xl font-bold text-gray-900">
-              {record.amount}円
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">カテゴリ</p>
-            <p className="text-base font-medium text-gray-800">
-              {record.categoryName}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">詳細</p>
-            <p className="text-base text-gray-800">
-              {record.details}
-            </p>
-          </div>
-        </div>
+    <PageCard title="家計簿詳細">
+      <div className="space-y-5">
+        <DetailRow label="購入日" value={record.purchaseDate} />
+        <DetailRow label="区分" value={record.amountTypeName} />
+        <DetailRow label="金額" value={`${record.amount.toLocaleString()}円`} bold />
+        <DetailRow label="カテゴリー" value={record.categoryName} />
+        <DetailRow label="内容" value={record.details} />
       </div>
+
+      <div className="mt-8 flex gap-3">
+        <Link
+          to={`/records/${record.id}/edit`}
+          className="flex-1 rounded-2xl border border-green-500 py-3 text-center font-bold text-green-600 hover:bg-green-50"
+        >
+          編集
+        </Link>
+        <button
+          onClick={handleDelete}
+          className="flex-1 rounded-2xl border border-red-400 py-3 font-bold text-red-600 hover:bg-red-50"
+        >
+          削除
+        </button>
+      </div>
+    </PageCard>
+  )
+}
+
+function DetailRow({
+  label,
+  value,
+  bold,
+}: {
+  label: string
+  value: string
+  bold?: boolean
+}) {
+  return (
+    <div className="flex items-start">
+      <p className="w-28 shrink-0 text-sm font-medium">{label}</p>
+      <p className={bold ? 'text-lg font-bold' : 'text-sm'}>{value}</p>
     </div>
   )
 }

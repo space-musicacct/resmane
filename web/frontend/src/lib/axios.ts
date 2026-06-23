@@ -40,4 +40,32 @@ export async function getCsrfCookie(): Promise<void> {
   await axios.get('/sanctum/csrf-cookie', { withCredentials: true });
 }
 
+let onUnauthorized: (() => void) | null = null;
+let onNavigateError: ((path: string) => void) | null = null;
+
+export function setupInterceptors(
+  handleUnauthorized: () => void,
+  handleNavigateError: (path: string) => void,
+) {
+  onUnauthorized = handleUnauthorized;
+  onNavigateError = handleNavigateError;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response) {
+      const { status } = error.response;
+      if (status === 401 || status === 419) {
+        onUnauthorized?.();
+      } else if (status === 403) {
+        onNavigateError?.('/403');
+      } else if (status === 500) {
+        onNavigateError?.('/500');
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
 export default api;
