@@ -56,18 +56,18 @@ export default function RecordDetailPage() {
 
   if (loading) return <LoadingScreen />
 
-  if (errorMessage) {
+  if (errorMessage || !record) {
     return (
       <PageCard title="エラー">
-        <p className="text-center text-red-600">{errorMessage}</p>
-      </PageCard>
-    )
-  }
-
-  if (!record) {
-    return (
-      <PageCard title="エラー">
-        <p className="text-center text-gray-700">家計簿レコードを表示できませんでした</p>
+        <p className="text-center text-red-600">
+          {errorMessage || '家計簿レコードを表示できませんでした'}
+        </p>
+        <Link
+          to="/records"
+          className="mt-6 block text-center text-sm font-medium text-blue-600 underline"
+        >
+          一覧に戻る
+        </Link>
       </PageCard>
     )
   }

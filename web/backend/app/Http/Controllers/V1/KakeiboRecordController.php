@@ -13,9 +13,6 @@ use Illuminate\Http\Response;
 
 class KakeiboRecordController extends Controller
 {
-    /**
-     * @return JsonResponse
-     */
     public function index(Request $request): JsonResponse
     {
         $query = KakeiboRecord::where('user_id', auth()->id());
@@ -46,25 +43,17 @@ class KakeiboRecordController extends Controller
         ]);
     }
 
-    /**
-     * @param int $id
-     * @return JsonResponse
-     */
     public function show(int $id): JsonResponse
     {
-        $record = KakeiboRecord::where('user_id', auth()->id())
-            ->with(['amountType', 'category'])
-            ->findOrFail($id);
+        $record = $this->findRecordOrFail($id);
+
+        $record->load(['amountType', 'category']);
 
         return response()->json([
             'data' => new KakeiboRecordResource($record),
         ]);
     }
 
-    /**
-     * @param KakeiboRecordStoreRequest $request
-     * @return JsonResponse
-     */
     public function store(KakeiboRecordStoreRequest $request): JsonResponse
     {
         $record = KakeiboRecord::create([
@@ -83,15 +72,9 @@ class KakeiboRecordController extends Controller
         ], 201);
     }
 
-    /**
-     * @param KakeiboRecordUpdateRequest $request
-     * @param int $id
-     * @return JsonResponse
-     */
     public function update(KakeiboRecordUpdateRequest $request, int $id): JsonResponse
     {
-        $record = KakeiboRecord::where('user_id', auth()->id())
-            ->findOrFail($id);
+        $record = $this->findRecordOrFail($id);
 
         $validated = $request->validated();
 
@@ -110,17 +93,27 @@ class KakeiboRecordController extends Controller
         ]);
     }
 
-    /**
-     * @param int $id
-     * @return Response
-     */
     public function destroy(int $id): Response
     {
-        $record = KakeiboRecord::where('user_id', auth()->id())
-            ->findOrFail($id);
+        $record = $this->findRecordOrFail($id);
 
         $record->delete();
 
         return response()->noContent();
+    }
+
+    private function findRecordOrFail(int $id): KakeiboRecord
+    {
+        $record = KakeiboRecord::find($id);
+
+        if (!$record) {
+            abort(404, '指定された家計簿レコードが見つかりません');
+        }
+
+        if ($record->user_id !== auth()->id()) {
+            abort(403, 'このレコードへのアクセス権限がありません');
+        }
+
+        return $record;
     }
 }

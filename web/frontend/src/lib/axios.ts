@@ -58,8 +58,6 @@ api.interceptors.response.use(
       const { status } = error.response;
       if (status === 401 || status === 419) {
         onUnauthorized?.();
-      } else if (status === 403) {
-        onNavigateError?.('/403');
       } else if (status === 500) {
         onNavigateError?.('/500');
       }
