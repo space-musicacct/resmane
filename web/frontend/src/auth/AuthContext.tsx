@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api, { setupInterceptors } from '../lib/axios'
 import type { User } from '../types'
@@ -20,8 +20,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
+  const initialized = useRef(false)
 
   useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+
     api.get('/user')
       .then((res) => setUser(res.data.data))
       .catch(() => setUser(null))
@@ -29,10 +35,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
         setupInterceptors(
           () => setUser(null),
-          (path) => navigate(path, { replace: true }),
+          (path) => navigateRef.current(path, { replace: true }),
         )
       })
-  }, [navigate])
+  }, [])
 
   return (
     <AuthContext.Provider value={{ user, setUser, loading }}>
