@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\KakeiboRecordStoreRequest;
-use App\Http\Requests\KakeiboRecordUpdateRequest;
+use App\Http\Requests\V1\KakeiboRecordStoreRequest;
+use App\Http\Requests\V1\KakeiboRecordUpdateRequest;
 use App\Http\Resources\V1\KakeiboRecordResource;
 use App\Models\KakeiboRecord;
 use Illuminate\Http\JsonResponse;

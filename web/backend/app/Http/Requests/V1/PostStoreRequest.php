@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class SelfReviewStoreRequest extends FormRequest
+class PostStoreRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,8 +23,15 @@ class SelfReviewStoreRequest extends FormRequest
     {
         return [
             //
-            'kakeiboRecordId' => ['required', 'exists:kakeibo_records,id'],
-            'reviewComment' => ['required', 'string', 'max:250']
+            'parentId' => ['nullable', 'exists:posts,id'],
+            'content' => ['nullable', 'string', 'max:3000'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'content.max' => '内容は3000文字以内で入力してください。',
         ];
     }
 }
