@@ -107,7 +107,7 @@ class KakeiboRecordController extends Controller
         $record = KakeiboRecord::find($id);
 
         if (!$record) {
-            abort(404, '指定された家計簿レコードが見つかりません');
+            abort(404, '指定された家計簿レコードが見つかりませんでした');
         }
 
         if ($record->user_id !== auth()->id()) {
