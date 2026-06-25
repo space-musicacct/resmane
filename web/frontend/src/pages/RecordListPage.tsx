@@ -47,12 +47,33 @@ export default function RecordListPage() {
   const [page, setPage] = useState(1)
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
 
+  const fetchRecords = (targetPage: number) => {
+    setLoading(true)
+    api.get<RecordsResponse>('/records', { params: { page: targetPage, sort: sortOrder } })
+      .then((res) => {
+        setRecords(res.data.data)
+        setMeta(res.data.meta)
+        setSummary(res.data.summary)
+        if (res.data.data.length === 0 && targetPage > 1) {
+          setPage(targetPage - 1)
+        }
+      })
+      .catch((err) => {
+        if (isApiError(err)) {
+          setError(err.response.data.message)
+        } else {
+          setError('データの取得に失敗しました')
+        }
+      })
+      .finally(() => setLoading(false))
+  }
+
   const handleDelete = async (recordId: number) => {
     if (!confirm('この記録を削除しますか？')) return
     try {
       await getCsrfCookie()
       await api.delete(`/records/${recordId}`)
-      setRecords((prev) => prev.filter((r) => r.id !== recordId))
+      fetchRecords(page)
     } catch (err) {
       if (isApiError(err)) {
         setError(err.response.data.message)
@@ -63,21 +84,7 @@ export default function RecordListPage() {
   }
 
   useEffect(() => {
-    setLoading(true)
-    api.get<RecordsResponse>('/records', { params: { page, sort: sortOrder } })
-      .then((res) => {
-        setRecords(res.data.data)
-        setMeta(res.data.meta)
-        setSummary(res.data.summary)
-      })
-      .catch((err) => {
-        if (isApiError(err)) {
-          setError(err.response.data.message)
-        } else {
-          setError('データの取得に失敗しました')
-        }
-      })
-      .finally(() => setLoading(false))
+    fetchRecords(page)
   }, [page, sortOrder])
 
   if (loading && page === 1) return <LoadingScreen />
