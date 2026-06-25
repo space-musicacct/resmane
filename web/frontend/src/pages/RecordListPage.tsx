@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { getCsrfCookie, isApiError } from '../lib/axios'
 import PageCard from '../components/PageCard'
@@ -47,7 +47,7 @@ export default function RecordListPage() {
   const [page, setPage] = useState(1)
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
 
-  const fetchRecords = (targetPage: number) => {
+  const fetchRecords = useCallback((targetPage: number) => {
     setLoading(true)
     api.get<RecordsResponse>('/records', { params: { page: targetPage, sort: sortOrder } })
       .then((res) => {
@@ -66,7 +66,7 @@ export default function RecordListPage() {
         }
       })
       .finally(() => setLoading(false))
-  }
+  }, [sortOrder])
 
   const handleDelete = async (recordId: number) => {
     if (!confirm('この記録を削除しますか？')) return
@@ -85,7 +85,7 @@ export default function RecordListPage() {
 
   useEffect(() => {
     fetchRecords(page)
-  }, [page, sortOrder])
+  }, [page, fetchRecords])
 
   if (loading && page === 1) return <LoadingScreen />
 
