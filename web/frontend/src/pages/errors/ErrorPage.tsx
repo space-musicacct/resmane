@@ -1,5 +1,5 @@
 import PageCard from '../../components/PageCard'
-import BackButton from '../../components/BackButton'
+import HomeButton from '../../components/HomeButton'
 
 const errors: Record<string, { title: string; message: string }> = {
   '403': { title: 'アクセス権限がありません', message: 'このページにアクセスする権限がありません。' },
@@ -15,7 +15,7 @@ export default function ErrorPage({ statusCode }: { statusCode: string }) {
       <div className="text-center space-y-4">
         <p className="text-lg font-medium">{title}</p>
         <p className="text-sm text-gray-600">{message}</p>
-        <BackButton className="mt-6" />
+        <HomeButton className="mt-6" />
       </div>
     </PageCard>
   )
