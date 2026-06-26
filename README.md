@@ -177,7 +177,7 @@ NGINX_PORT=30080
 ```dotenv
 APP_URL=http://localhost:30080
 # ...
-SANCTUM_STATEFUL_DOMAINS=http://localhost:30080
+SANCTUM_STATEFUL_DOMAINS=localhost:30080
 ```
 
 ```bash
