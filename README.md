@@ -155,6 +155,36 @@ docker compose up -d
 
 ---
 
+## トラブルシューティング
+
+### `localhost:50080` にアクセスできない (WSL2)
+
+Nginx コンテナが `address already in use` で起動に失敗する場合、Windows の Hyper-V がポート 50080 を予約している可能性がある。
+
+```powershell
+# Windows PowerShell で予約ポートを確認
+netsh interface ipv4 show excludedportrange protocol=tcp
+```
+
+50080 を含む範囲が表示された場合、`.env` でポート番号を変更する。
+
+```dotenv
+NGINX_PORT=30080
+```
+
+`web/backend/.env` の `APP_URL` も合わせて変更する。
+
+```dotenv
+APP_URL=http://localhost:30080
+```
+
+```bash
+docker compose up -d --build
+docker compose exec backend php artisan key:generate
+```
+
+---
+
 ## 関連ドキュメント
 
 - [要件定義書](docs/要件定義/要件定義書.md)
