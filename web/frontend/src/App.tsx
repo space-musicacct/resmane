@@ -11,9 +11,7 @@ import RecordDetailPage from './pages/RecordDetailPage'
 import SettingsPage from './pages/SettingsPage'
 import RecordEditPage from './pages/RecordEditPage'
 import ReviewEditPage from './pages/ReviewEditPage'
-import NotFoundPage from './pages/errors/NotFoundPage'
-import ForbiddenPage from './pages/errors/ForbiddenPage'
-import ServerErrorPage from './pages/errors/ServerErrorPage'
+import ErrorPage from './pages/errors/ErrorPage'
 
 export default function App() {
   return (
@@ -35,9 +33,10 @@ export default function App() {
           <Route path="/records/:recordId/reviews/:reviewId/edit" element={<PrivateRoute><ReviewEditPage /></PrivateRoute>} />
 
           {/* エラーページ */}
-          <Route path="/403" element={<ForbiddenPage />} />
-          <Route path="/500" element={<ServerErrorPage />} />
-          <Route path="*" element={<NotFoundPage />} />
+          {['403', '500'].map(code => (
+            <Route key={code} path={`/${code}`} element={<ErrorPage statusCode={code} />} />
+          ))}
+          <Route path="*" element={<ErrorPage statusCode="404" />} />
         </Routes>
         <Footer />
       </AuthProvider>

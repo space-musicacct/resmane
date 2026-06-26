@@ -3,7 +3,7 @@ import api from '../lib/axios'
 import type { ValidationErrors } from '../types'
 import { FormInput, FormSelect, FormTextarea } from './FormInput'
 import ErrorAlert from './ErrorAlert'
-import SubmitButton from './SubmitButton'
+import PrimaryButton from './PrimaryButton'
 
 type MasterItem = { id: number; name: string }
 
@@ -122,10 +122,11 @@ export default function RecordForm({
         />
       </div>
 
-      <SubmitButton
+      <PrimaryButton
         label={submitLabel}
         submitting={submitting}
         onClick={() => onSubmit({ purchaseDate, amountTypeId, amount, details, kakeiboDefaultCategoryId })}
+        className="mt-10"
       />
     </>
   )

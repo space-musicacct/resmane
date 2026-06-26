@@ -5,6 +5,7 @@ import PageCard from '../components/PageCard'
 import LoadingScreen from '../components/LoadingScreen'
 import ErrorAlert from '../components/ErrorAlert'
 import { cardClass } from '../components/Card'
+import PrimaryButton from '../components/PrimaryButton'
 
 type KakeiboRecord = {
   id: number
@@ -110,12 +111,7 @@ export default function RecordListPage() {
         </div>
       )}
 
-      <Link
-        to="/records/new"
-        className="mb-4 block w-full rounded-2xl bg-[#A6E01A] py-3 text-center text-lg font-bold hover:brightness-95 active:brightness-90"
-      >
-        + 家計簿を登録
-      </Link>
+      <PrimaryButton to="/records/new" label="+ 家計簿を登録" className="mb-4" />
 
       {records.length > 0 && (
         <div className="mb-4 flex justify-end">
