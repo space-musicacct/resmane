@@ -182,7 +182,38 @@ SANCTUM_STATEFUL_DOMAINS=localhost:30080
 
 ```bash
 docker compose up -d --build
+```
+
+もし、`web/backend/.env` の **`APP_KEY` が空の場合は**、以下も併せて実行する。
+
+```bash
 docker compose exec backend php artisan key:generate
+```
+
+---
+
+## `docker compose` と入力するのがだるいよ〜という方へ
+
+2026年6月26日(金)のチーム開発の授業内で、チームメンバー全員の本プロジェクト開発用の WSL2 に以下のエイリアスを `~/.bashrc` に追加した。現在は `source ~/.bashrc` を実行済みである。
+
+```bash
+alias dc='docker compose'
+alias dce='docker compose exec'
+```
+
+### 使用例
+
+```bash
+# 起動
+dc up -d --build
+```
+```bash
+# 停止
+dc down
+```
+```bash
+# Laravel
+dce backend php artisan route:list --path=records
 ```
 
 ---
