@@ -172,10 +172,12 @@ netsh interface ipv4 show excludedportrange protocol=tcp
 NGINX_PORT=30080
 ```
 
-`web/backend/.env` の `APP_URL` も合わせて変更する。
+`web/backend/.env` の `APP_URL` と `SANCTUM_STATEFUL_DOMAINS` も合わせて変更する。
 
 ```dotenv
 APP_URL=http://localhost:30080
+# ...
+SANCTUM_STATEFUL_DOMAINS=http://localhost:30080
 ```
 
 ```bash
