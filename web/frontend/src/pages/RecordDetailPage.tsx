@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { getCsrfCookie, isApiError } from '../lib/axios'
 import PageCard from '../components/PageCard'
 import LoadingScreen from '../components/LoadingScreen'
+import TabSwitcher from '../components/TabSwitcher'
 
 type KakeiboRecord = {
   id: number
@@ -18,6 +19,8 @@ type KakeiboRecord = {
   updatedAt: string
 }
 
+type Tab = 'detail' | 'review'
+
 export default function RecordDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -25,6 +28,7 @@ export default function RecordDetailPage() {
   const [record, setRecord] = useState<KakeiboRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [activeTab, setActiveTab] = useState<Tab>('detail')
 
   const handleDelete = async () => {
     if (!confirm('この記録を削除しますか？')) return
@@ -74,28 +78,48 @@ export default function RecordDetailPage() {
 
   return (
     <PageCard title="家計簿詳細">
-      <div className="space-y-5">
-        <DetailRow label="購入日" value={record.purchaseDate} />
-        <DetailRow label="区分" value={record.amountTypeName} />
-        <DetailRow label="金額" value={`${record.amount.toLocaleString()}円`} bold />
-        <DetailRow label="カテゴリー" value={record.categoryName} />
-        <DetailRow label="内容" value={record.details} />
-      </div>
+      <TabSwitcher
+        tabs={[
+          { key: 'detail', label: '家計簿詳細' },
+          { key: 'review', label: <>自己レビュー /<br />AIフィードバック</> },
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        className="mb-8"
+      />
 
-      <div className="mt-8 flex gap-3">
-        <Link
-          to={`/records/${record.id}/edit`}
-          className="flex-1 rounded-2xl border border-green-500 py-3 text-center font-bold text-green-600 hover:bg-green-50"
-        >
-          編集
-        </Link>
-        <button
-          onClick={handleDelete}
-          className="flex-1 rounded-2xl border border-red-400 py-3 font-bold text-red-600 hover:bg-red-50"
-        >
-          削除
-        </button>
-      </div>
+      {activeTab === 'detail' && (
+        <>
+          <div className="space-y-5">
+            <DetailRow label="購入日" value={record.purchaseDate} />
+            <DetailRow label="区分" value={record.amountTypeName} />
+            <DetailRow label="金額" value={`${record.amount.toLocaleString()}円`} bold />
+            <DetailRow label="カテゴリー" value={record.categoryName} />
+            <DetailRow label="内容" value={record.details} />
+          </div>
+
+          <div className="mt-8 flex gap-3">
+            <Link
+              to={`/records/${record.id}/edit`}
+              className="flex-1 rounded-2xl border border-green-500 py-3 text-center font-bold text-green-600 hover:bg-green-50"
+            >
+              編集
+            </Link>
+            <button
+              onClick={handleDelete}
+              className="flex-1 rounded-2xl border border-red-400 py-3 font-bold text-red-600 hover:bg-red-50"
+            >
+              削除
+            </button>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'review' && (
+        <p className="py-10 text-center text-sm text-gray-400">
+          自己レビュー &amp; AIフィードバック機能は準備中です
+        </p>
+      )}
     </PageCard>
   )
 }
