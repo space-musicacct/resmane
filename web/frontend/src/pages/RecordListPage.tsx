@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { getCsrfCookie, isApiError } from '../lib/axios'
 import PageCard from '../components/PageCard'
 import LoadingScreen from '../components/LoadingScreen'
 import ErrorAlert from '../components/ErrorAlert'
 import { cardClass } from '../components/Card'
-import PrimaryButton from '../components/PrimaryButton'
 
 type KakeiboRecord = {
   id: number
@@ -48,33 +47,12 @@ export default function RecordListPage() {
   const [page, setPage] = useState(1)
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
 
-  const fetchRecords = useCallback((targetPage: number) => {
-    setLoading(true)
-    api.get<RecordsResponse>('/records', { params: { page: targetPage, sort: sortOrder } })
-      .then((res) => {
-        setRecords(res.data.data)
-        setMeta(res.data.meta)
-        setSummary(res.data.summary)
-        if (res.data.data.length === 0 && targetPage > 1) {
-          setPage(targetPage - 1)
-        }
-      })
-      .catch((err) => {
-        if (isApiError(err)) {
-          setError(err.response.data.message)
-        } else {
-          setError('データの取得に失敗しました')
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [sortOrder])
-
   const handleDelete = async (recordId: number) => {
     if (!confirm('この記録を削除しますか？')) return
     try {
       await getCsrfCookie()
       await api.delete(`/records/${recordId}`)
-      fetchRecords(page)
+      setRecords((prev) => prev.filter((r) => r.id !== recordId))
     } catch (err) {
       if (isApiError(err)) {
         setError(err.response.data.message)
@@ -85,8 +63,22 @@ export default function RecordListPage() {
   }
 
   useEffect(() => {
-    fetchRecords(page)
-  }, [page, fetchRecords])
+    setLoading(true)
+    api.get<RecordsResponse>('/records', { params: { page, sort: sortOrder } })
+      .then((res) => {
+        setRecords(res.data.data)
+        setMeta(res.data.meta)
+        setSummary(res.data.summary)
+      })
+      .catch((err) => {
+        if (isApiError(err)) {
+          setError(err.response.data.message)
+        } else {
+          setError('データの取得に失敗しました')
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [page, sortOrder])
 
   if (loading && page === 1) return <LoadingScreen />
 
@@ -111,7 +103,12 @@ export default function RecordListPage() {
         </div>
       )}
 
-      <PrimaryButton to="/records/new" label="+ 家計簿を登録" className="mb-4" />
+      <Link
+        to="/records/new"
+        className="mb-4 block w-full rounded-2xl bg-[#A6E01A] py-3 text-center text-lg font-bold hover:brightness-95 active:brightness-90"
+      >
+        + 家計簿を登録
+      </Link>
 
       {records.length > 0 && (
         <div className="mb-4 flex justify-end">

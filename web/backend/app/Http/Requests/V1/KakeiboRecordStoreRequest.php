@@ -3,7 +3,6 @@
 namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class KakeiboRecordStoreRequest extends FormRequest
 {
@@ -19,11 +18,7 @@ class KakeiboRecordStoreRequest extends FormRequest
             'amountTypeId' => ['required', 'exists:amount_types,id'],
             'amount' => ['required', 'integer', 'min:1'],
             'details' => ['nullable', 'string', 'max:250'],
-            'kakeiboDefaultCategoryId' => [
-                'required',
-                Rule::exists('kakeibo_default_categories', 'id')
-                    ->where('amount_type_id', $this->input('amountTypeId')),
-            ],
+            'kakeiboDefaultCategoryId' => ['required', 'exists:kakeibo_default_categories,id'],
         ];
     }
 
@@ -38,7 +33,7 @@ class KakeiboRecordStoreRequest extends FormRequest
             'amount.min' => '金額は1以上の整数で入力してください',
             'details.max' => '購入詳細は250文字以内で入力してください',
             'kakeiboDefaultCategoryId.required' => 'カテゴリは必須です',
-            'kakeiboDefaultCategoryId.exists' => '指定されたカテゴリは選択された収支区分に対応していません',
+            'kakeiboDefaultCategoryId.exists' => '指定されたカテゴリが存在しません',
         ];
     }
 }

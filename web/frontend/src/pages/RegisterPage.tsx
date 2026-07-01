@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import type { ValidationErrors } from '../types'
 import PageCard from '../components/PageCard'
 import { FormInput } from '../components/FormInput'
-import PrimaryButton from '../components/PrimaryButton'
+import SubmitButton from '../components/SubmitButton'
 import ErrorAlert from '../components/ErrorAlert'
 
 export default function RegisterPage() {
@@ -106,7 +106,7 @@ export default function RegisterPage() {
         />
       </div>
 
-      <PrimaryButton label="登録" submitting={submitting} onClick={handleSubmit} className="mt-10" />
+      <SubmitButton label="登録" submitting={submitting} onClick={handleSubmit} />
 
       <p className="mt-6 text-center text-sm">
         アカウントをお持ちの方は
