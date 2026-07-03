@@ -5,23 +5,18 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\SelfReviewStoreRequest;
 use App\Http\Requests\V1\SelfReviewUpdateRequest;
-use App\Models\SelfReview;
+use App\Http\Resources\V1\SelfReviewResource;
 use App\Models\KakeiboRecord;
-use Illuminate\Http\Request;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Models\SelfReview;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class SelfReviewController extends Controller
 {
-    /**
-     * @param FormRequest $request
-     * @param int $recordId
-     * @return JsonResponse
-     */
     public function index(Request $request, int $recordId): JsonResponse
     {
         $records = KakeiboRecord::where('id', $recordId)
-            -> where('user_id', auth()->id())
+            ->where('user_id', auth()->id())
             ->firstOrFail();
 
         $reviews = SelfReview::where('kakeibo_record_id', $records->id)
@@ -39,11 +34,6 @@ class SelfReviewController extends Controller
         ]);
     }
 
-    /**
-     * @param FormRequest $request
-     * @param int $recordId
-     * @return JsonResponse
-     */
     public function store(SelfReviewStoreRequest $request, int $recordId): JsonResponse
     {
         $record = KakeiboRecord::where('id', $recordId)
@@ -52,7 +42,7 @@ class SelfReviewController extends Controller
 
         $review = SelfReview::create([
             'kakeibo_record_id' => $record->id,
-            'review_comment' => $request->input('review_comment'),
+            'review_comment' => $request->validated('reviewComment'),
         ]);
 
         return response()->json([
@@ -78,7 +68,7 @@ class SelfReviewController extends Controller
         $validated = $request->validated();
 
         $review->update([
-            'review_comment' => $validated['reviewComment'] ?? $review->review_comment,
+            'review_comment' => $validated['reviewComment'],
         ]);
 
         return response()->json([
@@ -86,13 +76,7 @@ class SelfReviewController extends Controller
         ]);
     }
 
-    /**
-     * @param FormRequest $request
-     * @param int $recordId
-     * @param int $id
-     * @return JsonResponse
-     */
-    public function destroy(FormRequest $request, int $recordId, int $id): JsonResponse
+    public function destroy(Request $request, int $recordId, int $id): JsonResponse
     {
         $record = KakeiboRecord::where('id', $recordId)
             ->where('user_id', auth()->id())
