@@ -14,7 +14,7 @@ class SelfReviewUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reviewComment' => ['sometimes', 'string', 'max:250'],
+            'reviewComment' => ['required', 'string', 'max:250'],
         ];
     }
 
