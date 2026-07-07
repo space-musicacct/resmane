@@ -8,7 +8,7 @@ use App\Http\Requests\V1\SelfReviewUpdateRequest;
 use App\Http\Resources\V1\SelfReviewResource;
 use App\Services\V1\SelfReviewService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 
 class SelfReviewController extends Controller
 {

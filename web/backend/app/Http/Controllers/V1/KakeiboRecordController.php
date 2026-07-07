@@ -9,7 +9,7 @@ use App\Http\Resources\V1\KakeiboRecordResource;
 use App\Services\V1\KakeiboRecordService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 
 class KakeiboRecordController extends Controller
 {
