@@ -10,6 +10,10 @@ class Post extends Model
 {
     use SoftDeletes;
 
+    protected $casts = [
+        'is_ai' => 'boolean',
+    ];
+
     protected $fillable = [
         'user_id',
         'kakeibo_record_id',
