@@ -127,10 +127,21 @@ class AuthController extends Controller
      */
     public function logout(Request $request): Response
     {
+        $this->destroy($request);
+
+        return response()->noContent();
+    }
+
+    /**
+     * 現在のセッションを破棄する
+     *
+     * @param Request $request
+     * @return void
+     */
+    public final function destroy(Request $request): void
+    {
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
-        return response()->noContent();
     }
 }
