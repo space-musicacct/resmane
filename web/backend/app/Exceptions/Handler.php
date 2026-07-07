@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -26,6 +27,15 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        $this->renderable(function (QueryException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'サーバー内部でエラーが発生しました',
+                    'errors' => (object) [],
+                ], 500);
+            }
         });
     }
 
