@@ -10,6 +10,7 @@ use App\Repositories\V1\Contracts\UpperLimitSettingRepositoryInterface;
 use App\Repositories\V1\Contracts\UserRepositoryInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -70,16 +71,16 @@ readonly class UserService
             $user = $this->findAuthUserOrFail($sessionUser);
 
             if (isset($validated['loginId']) && $this->userRepository->existsByLoginId($validated['loginId'], $user->id)) {
-                return ['error' => 'このログインIDは既に使用されています', 'status' => 409];
+                return ['error' => 'このログインIDは既に使用されています', 'status' => Response::HTTP_CONFLICT];
             }
 
             if (isset($validated['email']) && $this->userRepository->existsByEmail($validated['email'], $user->id)) {
-                return ['error' => 'このメールアドレスは既に使用されています', 'status' => 409];
+                return ['error' => 'このメールアドレスは既に使用されています', 'status' => Response::HTTP_CONFLICT];
             }
 
             if (isset($validated['password'])) {
                 if (!Hash::check($validated['currentPassword'], $user->password_hash)) {
-                    return ['error' => '現在のパスワードが正しくありません', 'status' => 422];
+                    return ['error' => '現在のパスワードが正しくありません', 'status' => Response::HTTP_UNPROCESSABLE_ENTITY];
                 }
             }
 
@@ -124,7 +125,7 @@ readonly class UserService
             $user = $this->findAuthUserOrFail($sessionUser);
 
             if (!Hash::check($currentPassword, $user->password_hash)) {
-                return ['error' => '現在のパスワードが正しくありません', 'status' => 422];
+                return ['error' => '現在のパスワードが正しくありません', 'status' => Response::HTTP_UNPROCESSABLE_ENTITY];
             }
 
             $recordIds = $this->kakeiboRecordRepository->pluckIdsByUserId($user->id);

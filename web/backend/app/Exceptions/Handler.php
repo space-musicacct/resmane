@@ -5,6 +5,7 @@ namespace App\Exceptions;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -34,7 +35,7 @@ class Handler extends ExceptionHandler
                 return response()->json([
                     'message' => 'サーバー内部でエラーが発生しました',
                     'errors' => (object) [],
-                ], 500);
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
         });
     }

@@ -37,7 +37,7 @@ class SelfReviewController extends Controller
 
         return response()->json([
             'data' => new SelfReviewResource($review),
-        ], 201);
+        ], Response::HTTP_CREATED);
     }
 
     public function update(SelfReviewUpdateRequest $request, int $recordId, int $id): JsonResponse
