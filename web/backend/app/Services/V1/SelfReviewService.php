@@ -39,6 +39,8 @@ readonly class SelfReviewService
     /**
      * 自己レビューを新規投稿する
      *
+     * 排他ロック付きトランザクション内で処理する。
+     *
      * @param int $recordId 家計簿レコードID
      * @param int $userId 認証ユーザーID
      * @param array $validated バリデーション済みリクエストデータ（camelCase）
@@ -47,12 +49,14 @@ readonly class SelfReviewService
      */
     public function create(int $recordId, int $userId, array $validated): SelfReview
     {
-        $this->kakeiboRecordService->findOrFail($recordId, $userId);
+        return DB::transaction(function () use ($recordId, $userId, $validated) {
+            $this->kakeiboRecordService->findOrFailForUpdate($recordId, $userId);
 
-        return $this->repository->create([
-            'kakeibo_record_id' => $recordId,
-            'review_comment' => $validated['reviewComment'],
-        ]);
+            return $this->repository->create([
+                'kakeibo_record_id' => $recordId,
+                'review_comment' => $validated['reviewComment'],
+            ]);
+        });
     }
 
     /**
@@ -70,7 +74,7 @@ readonly class SelfReviewService
     public function update(int $recordId, int $id, int $userId, array $validated): SelfReview
     {
         return DB::transaction(function () use ($recordId, $id, $userId, $validated) {
-            $this->kakeiboRecordService->findOrFail($recordId, $userId);
+            $this->kakeiboRecordService->findOrFailForUpdate($recordId, $userId);
 
             $review = $this->repository->findByIdForUpdate($id, $recordId);
 
@@ -98,7 +102,7 @@ readonly class SelfReviewService
     public function delete(int $recordId, int $id, int $userId): void
     {
         DB::transaction(function () use ($recordId, $id, $userId) {
-            $this->kakeiboRecordService->findOrFail($recordId, $userId);
+            $this->kakeiboRecordService->findOrFailForUpdate($recordId, $userId);
 
             $review = $this->repository->findByIdForUpdate($id, $recordId);
 
