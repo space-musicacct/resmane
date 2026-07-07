@@ -8,7 +8,7 @@ use App\Http\Resources\V1\UserResource;
 use App\Services\V1\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 
 class UserController extends Controller
 {
