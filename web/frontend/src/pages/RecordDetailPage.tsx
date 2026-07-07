@@ -4,6 +4,8 @@ import api, { getCsrfCookie, isApiError } from '../lib/axios'
 import PageCard from '../components/PageCard'
 import LoadingScreen from '../components/LoadingScreen'
 import TabSwitcher from '../components/TabSwitcher'
+// import { Message } from 'postcss'
+
 
 type KakeiboRecord = {
   id: number
@@ -20,6 +22,11 @@ type KakeiboRecord = {
 }
 
 type Tab = 'detail' | 'review'
+type Message = {
+  id: number
+  sender: 'user' | 'ai'
+  text: string
+}
 
 export default function RecordDetailPage() {
   const { id } = useParams()
@@ -29,6 +36,37 @@ export default function RecordDetailPage() {
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('detail')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input,setInput] = useState('')
+
+  const sendMessage = async() => {
+    if (!input.trim()) return
+    const userMessage: Message = {
+      id:Date.now(),
+      sender: 'user',
+      text: input,
+    }
+    setMessages((prev) => [...prev, userMessage])
+
+    try {
+      const res = await api.post('/chat', {
+        message: input,
+        recordId: id,
+      })
+
+    const aiMessage: Message = {
+      id: Date.now() + 1,
+      sender: 'ai',
+      text: res.data.message,
+    }
+
+    setMessages((prev) => [...prev,aiMessage])
+    }catch (err){
+      console.error(err)
+    }
+    setInput('')
+  }
+
 
   const handleDelete = async () => {
     if (!confirm('この記録を削除しますか？')) return
@@ -116,27 +154,61 @@ export default function RecordDetailPage() {
       )}
 
       {activeTab === 'review' && (
-        <p className="py-10 text-center text-sm text-gray-400">
-          自己レビュー &amp; AIフィードバック機能は準備中です
-        </p>
+        <div className="flex h-[700px] flex-col rounded-2xl border bg-white shadow">
+
+          <div className="flex-1 overflow-y-auto space-y-4 p-4">
+            <div className="py-10 text-center text-sm text-gray-400">
+              自己レビュー &amp; AIフィードバック機能は準備中です
+            </div>
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[75%] rounded-2xl px-4 py-3 ${msg.sender === 'user' ? 'bg-blue-200' : 'bg-gray-100'}`}
+                >
+                  {msg.text}
+                </div>
+              </div>
+            ))
+            }
+          </div>
+
+
+          <div className="border-t p-3 flex gap-2">
+
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="入力欄"
+              className="flex-1 rounded-full border px-4 py-2 outline-none focus:border-blue-500"
+            />
+            <button
+              onClick={sendMessage}
+              className="rounded-full bg-blue-500 px-5 text-white">送信
+            </button>
+          </div>
+        </div>
       )}
     </PageCard>
   )
 }
 
 function DetailRow({
-  label,
-  value,
-  bold,
-}: {
-  label: string
-  value: string
-  bold?: boolean
-}) {
-  return (
-    <div className="flex items-start">
-      <p className="w-28 shrink-0 text-sm font-medium">{label}</p>
-      <p className={bold ? 'text-lg font-bold' : 'text-sm'}>{value}</p>
-    </div>
-  )
-}
+      label,
+      value,
+      bold,
+    }: {
+      label: string
+      value: string
+      bold?: boolean
+    }) {
+    return (
+      <div className="flex items-start">
+        <p className="w-28 shrink-0 text-sm font-medium">{label}</p>
+        <p className={bold ? 'text-lg font-bold' : 'text-sm'}>{value}</p>
+      </div>
+    )
+  }
