@@ -40,6 +40,20 @@ class PostRepository implements PostRepositoryInterface
     }
 
     /**
+     * 指定の家計簿レコード内に投稿が存在するか確認する
+     *
+     * @param int $id 投稿ID
+     * @param int $recordId 家計簿レコードID
+     * @return bool
+     */
+    public function existsByIdAndRecordId(int $id, int $recordId): bool
+    {
+        return Post::where('id', $id)
+            ->where('kakeibo_record_id', $recordId)
+            ->exists();
+    }
+
+    /**
      * 指定の家計簿レコードに紐づくAI投稿のうち、指定ステータスのものが存在するか確認する
      *
      * @param int $recordId 家計簿レコードID

@@ -9,6 +9,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * スレッド（投稿・AIメッセージ）に関するビジネスロジックを担当する
@@ -50,6 +51,7 @@ readonly class PostService
      * @param array $validated バリデーション済みリクエストデータ（camelCase）
      * @return array{userPost: Post|null, aiPost: Post}
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function store(int $recordId, int $userId, array $validated): array
     {
@@ -59,6 +61,10 @@ readonly class PostService
             $content = $validated['content'] ?? null;
             $parentId = $validated['parentId'] ?? null;
             $userPost = null;
+
+            if ($parentId !== null && !$this->repository->existsByIdAndRecordId($parentId, $recordId)) {
+                abort(404, 'リプライ先の投稿が見つかりません');
+            }
 
             if ($content === null) {
                 $hasExisting = $this->repository->existsAiPostWithStatuses($recordId, [
