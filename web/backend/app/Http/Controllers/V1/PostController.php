@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class PostController extends Controller
 {
@@ -25,6 +26,6 @@ class PostController extends Controller
      */
     public function store(FormRequest $request, int $recordId): JsonResponse
     {
-        return response()->json(['message' => 'success'], 201);
+        return response()->json(['message' => 'success'], Response::HTTP_CREATED);
     }
 }
