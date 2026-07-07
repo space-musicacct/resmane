@@ -6,22 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\SelfReviewStoreRequest;
 use App\Http\Requests\V1\SelfReviewUpdateRequest;
 use App\Http\Resources\V1\SelfReviewResource;
-use App\Models\KakeiboRecord;
-use App\Models\SelfReview;
+use App\Services\V1\SelfReviewService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class SelfReviewController extends Controller
 {
-    public function index(Request $request, int $recordId): JsonResponse
-    {
-        $records = KakeiboRecord::where('id', $recordId)
-            ->where('user_id', auth()->id())
-            ->firstOrFail();
+    public function __construct(
+        private readonly SelfReviewService $service,
+    ) {}
 
-        $reviews = SelfReview::where('kakeibo_record_id', $records->id)
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+    public function index(int $recordId): JsonResponse
+    {
+        $reviews = $this->service->list($recordId, auth()->id());
 
         return response()->json([
             'data' => SelfReviewResource::collection($reviews->items()),
@@ -36,57 +33,25 @@ class SelfReviewController extends Controller
 
     public function store(SelfReviewStoreRequest $request, int $recordId): JsonResponse
     {
-        $record = KakeiboRecord::where('id', $recordId)
-            ->where('user_id', auth()->id())
-            ->firstOrFail();
-
-        $review = SelfReview::create([
-            'kakeibo_record_id' => $record->id,
-            'review_comment' => $request->validated('reviewComment'),
-        ]);
+        $review = $this->service->create($recordId, auth()->id(), $request->validated());
 
         return response()->json([
             'data' => new SelfReviewResource($review),
-        ], 201);
+        ], Response::HTTP_CREATED);
     }
 
-    /**
-     * @param int $recordId
-     * @param int $id
-     * @return JsonResponse
-     */
     public function update(SelfReviewUpdateRequest $request, int $recordId, int $id): JsonResponse
     {
-        $record = KakeiboRecord::where('id', $recordId)
-            ->where('user_id', auth()->id())
-            ->firstOrFail();
-
-        $review = SelfReview::where('id', $id)
-            ->where('kakeibo_record_id', $record->id)
-            ->firstOrFail();
-
-        $validated = $request->validated();
-
-        $review->update([
-            'review_comment' => $validated['reviewComment'],
-        ]);
+        $review = $this->service->update($recordId, $id, auth()->id(), $request->validated());
 
         return response()->json([
             'data' => new SelfReviewResource($review),
         ]);
     }
 
-    public function destroy(Request $request, int $recordId, int $id): JsonResponse
+    public function destroy(int $recordId, int $id): Response
     {
-        $record = KakeiboRecord::where('id', $recordId)
-            ->where('user_id', auth()->id())
-            ->firstOrFail();
-            
-        $review = SelfReview::where('id', $id)
-            ->where('kakeibo_record_id', $record->id)
-            ->firstOrFail();
-
-        $review->delete();
+        $this->service->delete($recordId, $id, auth()->id());
 
         return response()->noContent();
     }
