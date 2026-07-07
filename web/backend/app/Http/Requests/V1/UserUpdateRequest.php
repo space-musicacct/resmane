@@ -3,6 +3,7 @@
 namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UserUpdateRequest extends FormRequest
 {
@@ -14,9 +15,9 @@ class UserUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'loginId' => ['sometimes', 'string', Rule::unique('users', 'login_id')->ignore(auth()->id())],
-            'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore(auth()->id())],
+            'loginId' => ['sometimes', 'string', 'max:15'],
             'name' => ['sometimes', 'string', 'max:50'],
+            'email' => ['sometimes', 'email', 'max:255'],
             'currentPassword' => ['required_with:password', 'string'],
             'password' => ['nullable', 'string', 'min:8'],
             'passwordConfirmation' => ['required_with:password', 'same:password'],
@@ -26,6 +27,7 @@ class UserUpdateRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'loginId.max' => 'ログインIDは15文字以内で入力してください',
             'name.max' => '名前は50文字以内で入力してください',
             'email.email' => 'メールアドレスの形式が正しくありません',
             'email.max' => 'メールアドレスは255文字以内で入力してください',
