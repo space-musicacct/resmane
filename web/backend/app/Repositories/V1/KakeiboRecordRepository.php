@@ -5,6 +5,7 @@ namespace App\Repositories\V1;
 use App\Models\KakeiboRecord;
 use App\Repositories\V1\Contracts\KakeiboRecordRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -41,15 +42,20 @@ class KakeiboRecordRepository implements KakeiboRecordRepositoryInterface
      *
      * @param int $userId ユーザーID
      * @param string $sortOrder ソート順（'asc' または 'desc'）
+     * @param array $filters 絞り込み条件（from, to, amountTypeId, categoryId）
+     * @param int $perPage 1ページあたりの件数
      * @return LengthAwarePaginator
      */
-    public function paginateByUserId(int $userId, string $sortOrder): LengthAwarePaginator
+    public function paginateByUserId(int $userId, string $sortOrder, array $filters = [], int $perPage = 20): LengthAwarePaginator
     {
-        return KakeiboRecord::where('user_id', $userId)
+        $query = KakeiboRecord::where('user_id', $userId);
+        $this->applyFilters($query, $filters);
+
+        return $query
             ->with(['amountType', 'category'])
             ->orderBy('purchase_date', $sortOrder)
             ->orderBy('id', $sortOrder)
-            ->paginate(20);
+            ->paginate($perPage);
     }
 
     /**
@@ -57,13 +63,32 @@ class KakeiboRecordRepository implements KakeiboRecordRepositoryInterface
      *
      * @param int $userId ユーザーID
      * @param int $amountTypeId 収支区分ID（1: 支出, 2: 収入）
+     * @param array $filters 絞り込み条件（from, to, amountTypeId, categoryId）
      * @return int
      */
-    public function sumByType(int $userId, int $amountTypeId): int
+    public function sumByType(int $userId, int $amountTypeId, array $filters = []): int
     {
-        return (int) KakeiboRecord::where('user_id', $userId)
-            ->where('amount_type_id', $amountTypeId)
-            ->sum('amount');
+        $query = KakeiboRecord::where('user_id', $userId)
+            ->where('amount_type_id', $amountTypeId);
+        $this->applyFilters($query, $filters);
+
+        return (int) $query->sum('amount');
+    }
+
+    private function applyFilters(Builder $query, array $filters): void
+    {
+        if (isset($filters['from'])) {
+            $query->where('purchase_date', '>=', $filters['from']);
+        }
+        if (isset($filters['to'])) {
+            $query->where('purchase_date', '<=', $filters['to']);
+        }
+        if (isset($filters['amountTypeId'])) {
+            $query->where('amount_type_id', $filters['amountTypeId']);
+        }
+        if (isset($filters['categoryId'])) {
+            $query->where('kakeibo_default_category_id', $filters['categoryId']);
+        }
     }
 
     /**

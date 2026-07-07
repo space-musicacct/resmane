@@ -7,6 +7,7 @@ use App\Repositories\V1\Contracts\KakeiboRecordRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * 家計簿レコードのCRUDに関するビジネスロジックを担当する
@@ -25,14 +26,16 @@ readonly class KakeiboRecordService
      *
      * @param int $userId ユーザーID
      * @param string $sortOrder ソート順（'asc' または 'desc'）
+     * @param array $filters 絞り込み条件（from, to, amountTypeId, categoryId）
+     * @param int $perPage 1ページあたりの件数
      * @return array{records: LengthAwarePaginator, totalIncome: int, totalExpense: int}
      */
-    public function list(int $userId, string $sortOrder): array
+    public function list(int $userId, string $sortOrder, array $filters = [], int $perPage = 20): array
     {
         return [
-            'records' => $this->repository->paginateByUserId($userId, $sortOrder),
-            'totalIncome' => $this->repository->sumByType($userId, 2),
-            'totalExpense' => $this->repository->sumByType($userId, 1),
+            'records' => $this->repository->paginateByUserId($userId, $sortOrder, $filters, $perPage),
+            'totalIncome' => $this->repository->sumByType($userId, 2, $filters),
+            'totalExpense' => $this->repository->sumByType($userId, 1, $filters),
         ];
     }
 
@@ -89,6 +92,7 @@ readonly class KakeiboRecordService
      * @param array $validated バリデーション済みリクエストデータ（camelCase）
      * @return KakeiboRecord リレーションをロード済み
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function create(int $userId, array $validated): KakeiboRecord
     {
@@ -97,7 +101,7 @@ readonly class KakeiboRecordService
             'purchase_date' => $validated['purchaseDate'] ?? now()->toDateString(),
             'amount_type_id' => $validated['amountTypeId'],
             'amount' => $validated['amount'],
-            'details' => $validated['details'] ?? null,
+            'details' => $validated['details'],
             'kakeibo_default_category_id' => $validated['kakeiboDefaultCategoryId'],
         ]);
     }
@@ -112,6 +116,7 @@ readonly class KakeiboRecordService
      * @param array $validated バリデーション済みリクエストデータ（camelCase）
      * @return KakeiboRecord リレーションを再ロード済み
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function update(int $id, int $userId, array $validated): KakeiboRecord
     {
@@ -122,7 +127,7 @@ readonly class KakeiboRecordService
                 'purchase_date' => $validated['purchaseDate'] ?? $record->purchase_date,
                 'amount_type_id' => $validated['amountTypeId'] ?? $record->amount_type_id,
                 'amount' => $validated['amount'] ?? $record->amount,
-                'details' => array_key_exists('details', $validated) ? $validated['details'] : $record->details,
+                'details' => $validated['details'],
                 'kakeibo_default_category_id' => $validated['kakeiboDefaultCategoryId'] ?? $record->kakeibo_default_category_id,
             ]);
         });
@@ -137,6 +142,7 @@ readonly class KakeiboRecordService
      * @param int $userId 認証ユーザーID
      * @return void
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function delete(int $id, int $userId): void
     {

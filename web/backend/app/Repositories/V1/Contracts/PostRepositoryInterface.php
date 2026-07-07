@@ -27,6 +27,15 @@ interface PostRepositoryInterface
     public function create(array $data): Post;
 
     /**
+     * 指定の家計簿レコード内に投稿が存在するか確認する
+     *
+     * @param int $id 投稿ID
+     * @param int $recordId 家計簿レコードID
+     * @return bool
+     */
+    public function existsByIdAndRecordId(int $id, int $recordId): bool;
+
+    /**
      * 指定の家計簿レコードに紐づくAI投稿のうち、指定ステータスのものが存在するか確認する
      *
      * @param int $recordId 家計簿レコードID

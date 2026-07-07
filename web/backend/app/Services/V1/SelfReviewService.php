@@ -7,6 +7,7 @@ use App\Repositories\V1\Contracts\SelfReviewRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * 自己レビューのCRUDに関するビジネスロジックを担当する
@@ -46,6 +47,7 @@ readonly class SelfReviewService
      * @param array $validated バリデーション済みリクエストデータ（camelCase）
      * @return SelfReview
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function create(int $recordId, int $userId, array $validated): SelfReview
     {
@@ -70,6 +72,7 @@ readonly class SelfReviewService
      * @param array $validated バリデーション済みリクエストデータ（camelCase）
      * @return SelfReview
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function update(int $recordId, int $id, int $userId, array $validated): SelfReview
     {
@@ -98,6 +101,7 @@ readonly class SelfReviewService
      * @param int $userId 認証ユーザーID
      * @return void
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function delete(int $recordId, int $id, int $userId): void
     {

@@ -32,18 +32,21 @@ interface KakeiboRecordRepositoryInterface
      *
      * @param int $userId ユーザーID
      * @param string $sortOrder ソート順（'asc' または 'desc'）
+     * @param array $filters 絞り込み条件（from, to, amountTypeId, categoryId）
+     * @param int $perPage 1ページあたりの件数
      * @return LengthAwarePaginator
      */
-    public function paginateByUserId(int $userId, string $sortOrder): LengthAwarePaginator;
+    public function paginateByUserId(int $userId, string $sortOrder, array $filters = [], int $perPage = 20): LengthAwarePaginator;
 
     /**
      * ユーザーの指定収支区分の合計金額を取得する
      *
      * @param int $userId ユーザーID
      * @param int $amountTypeId 収支区分ID（1: 支出, 2: 収入）
+     * @param array $filters 絞り込み条件（from, to, amountTypeId, categoryId）
      * @return int
      */
-    public function sumByType(int $userId, int $amountTypeId): int;
+    public function sumByType(int $userId, int $amountTypeId, array $filters = []): int;
 
     /**
      * 家計簿レコードを新規作成する
