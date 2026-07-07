@@ -13,6 +13,17 @@ use Illuminate\Support\Collection;
 class KakeiboRecordRepository implements KakeiboRecordRepositoryInterface
 {
     /**
+     * 家計簿レコードを取得する
+     *
+     * @param int $id 家計簿レコードID
+     * @return KakeiboRecord|null
+     */
+    public function findById(int $id): ?KakeiboRecord
+    {
+        return KakeiboRecord::find($id);
+    }
+
+    /**
      * 排他ロック付きで家計簿レコードを取得する
      *
      * @param int $id 家計簿レコードID

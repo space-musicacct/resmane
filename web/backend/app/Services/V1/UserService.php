@@ -120,12 +120,12 @@ readonly class UserService
      */
     public function destroy(?User $sessionUser, string $currentPassword): ?array
     {
-        if (!$sessionUser || !Hash::check($currentPassword, $sessionUser->password_hash)) {
-            return ['error' => '現在のパスワードが正しくありません', 'status' => 422];
-        }
-
-        DB::transaction(function () use ($sessionUser) {
+        return DB::transaction(function () use ($sessionUser, $currentPassword) {
             $user = $this->findAuthUserOrFail($sessionUser);
+
+            if (!Hash::check($currentPassword, $user->password_hash)) {
+                return ['error' => '現在のパスワードが正しくありません', 'status' => 422];
+            }
 
             $recordIds = $this->kakeiboRecordRepository->pluckIdsByUserId($user->id);
 
@@ -137,8 +137,8 @@ readonly class UserService
 
             $this->upperLimitSettingRepository->deleteByUserId($user->id);
             $this->userRepository->delete($user);
-        });
 
-        return null;
+            return null;
+        });
     }
 }

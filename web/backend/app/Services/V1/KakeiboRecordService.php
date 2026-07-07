@@ -37,10 +37,7 @@ readonly class KakeiboRecordService
     }
 
     /**
-     * 家計簿レコードを取得し、所有権を検証する
-     *
-     * 排他ロック付きで取得するため、トランザクション内での使用を想定する。
-     * トランザクション外で呼んだ場合、ロックは即解放される。
+     * 家計簿レコードを取得し、所有権を検証する（読み取り専用）
      *
      * @param int $id 家計簿レコードID
      * @param int $userId 認証ユーザーID
@@ -48,8 +45,32 @@ readonly class KakeiboRecordService
      */
     public function findOrFail(int $id, int $userId): KakeiboRecord
     {
-        $record = $this->repository->findByIdForUpdate($id);
+        return $this->resolveRecord($this->repository->findById($id), $userId);
+    }
 
+    /**
+     * 排他ロック付きで家計簿レコードを取得し、所有権を検証する
+     *
+     * トランザクション内での使用を想定する。
+     *
+     * @param int $id 家計簿レコードID
+     * @param int $userId 認証ユーザーID
+     * @return KakeiboRecord
+     */
+    public function findOrFailForUpdate(int $id, int $userId): KakeiboRecord
+    {
+        return $this->resolveRecord($this->repository->findByIdForUpdate($id), $userId);
+    }
+
+    /**
+     * レコードの存在確認と所有権検証を行う
+     *
+     * @param KakeiboRecord|null $record
+     * @param int $userId 認証ユーザーID
+     * @return KakeiboRecord
+     */
+    private function resolveRecord(?KakeiboRecord $record, int $userId): KakeiboRecord
+    {
         if (!$record) {
             abort(404, '指定された家計簿レコードが見つかりませんでした');
         }
@@ -76,7 +97,7 @@ readonly class KakeiboRecordService
             'purchase_date' => $validated['purchaseDate'] ?? now()->toDateString(),
             'amount_type_id' => $validated['amountTypeId'],
             'amount' => $validated['amount'],
-            'details' => $validated['details'],
+            'details' => $validated['details'] ?? null,
             'kakeibo_default_category_id' => $validated['kakeiboDefaultCategoryId'],
         ]);
     }
@@ -95,7 +116,7 @@ readonly class KakeiboRecordService
     public function update(int $id, int $userId, array $validated): KakeiboRecord
     {
         return DB::transaction(function () use ($id, $userId, $validated) {
-            $record = $this->findOrFail($id, $userId);
+            $record = $this->findOrFailForUpdate($id, $userId);
 
             return $this->repository->update($record, [
                 'purchase_date' => $validated['purchaseDate'] ?? $record->purchase_date,
@@ -120,7 +141,7 @@ readonly class KakeiboRecordService
     public function delete(int $id, int $userId): void
     {
         DB::transaction(function () use ($id, $userId) {
-            $record = $this->findOrFail($id, $userId);
+            $record = $this->findOrFailForUpdate($id, $userId);
             $this->repository->delete($record);
         });
     }
