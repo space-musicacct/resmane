@@ -55,7 +55,7 @@ class KakeiboRecordController extends Controller
 
         return response()->json([
             'data' => new KakeiboRecordResource($record),
-        ], 201);
+        ], Response::HTTP_CREATED);
     }
 
     public function update(KakeiboRecordUpdateRequest $request, int $id): JsonResponse
