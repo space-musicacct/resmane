@@ -13,7 +13,7 @@ class PostResource extends JsonResource
             'id' => $this->id,
             'userId' => $this->user_id,
             'kakeiboRecordId' => $this->kakeibo_record_id,
-            'isAi' => (bool) $this->is_ai,
+            'isAi' => $this->is_ai,
             'aiStatus' => $this->aiStatus ? [
                 'id' => $this->aiStatus->id,
                 'statusName' => $this->aiStatus->status_name,

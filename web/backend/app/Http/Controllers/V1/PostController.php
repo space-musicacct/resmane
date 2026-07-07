@@ -7,7 +7,6 @@ use App\Http\Requests\V1\PostStoreRequest;
 use App\Http\Resources\V1\PostResource;
 use App\Services\V1\PostService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -23,7 +22,7 @@ class PostController extends Controller
         private readonly PostService $service,
     ) {}
 
-    public function index(Request $request, int $recordId): JsonResponse
+    public function index(int $recordId): JsonResponse
     {
         $posts = $this->service->list($recordId, auth()->id());
 
