@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\KakeiboRecordIndexRequest;
 use App\Http\Requests\V1\KakeiboRecordStoreRequest;
 use App\Http\Requests\V1\KakeiboRecordUpdateRequest;
 use App\Http\Resources\V1\KakeiboRecordResource;
 use App\Services\V1\KakeiboRecordService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class KakeiboRecordController extends Controller
@@ -17,10 +17,20 @@ class KakeiboRecordController extends Controller
         private readonly KakeiboRecordService $service,
     ) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(KakeiboRecordIndexRequest $request): JsonResponse
     {
+        $validated = $request->validated();
         $sortOrder = $request->input('sort', 'desc') === 'asc' ? 'asc' : 'desc';
-        $result = $this->service->list(auth()->id(), $sortOrder);
+        $perPage = (int) ($validated['perPage'] ?? 20);
+
+        $filters = array_filter([
+            'from' => $validated['from'] ?? null,
+            'to' => $validated['to'] ?? null,
+            'amountTypeId' => $validated['amountTypeId'] ?? null,
+            'categoryId' => $validated['categoryId'] ?? null,
+        ], fn ($v) => $v !== null);
+
+        $result = $this->service->list(auth()->id(), $sortOrder, $filters, $perPage);
         $records = $result['records'];
 
         return response()->json([
