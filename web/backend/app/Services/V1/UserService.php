@@ -12,6 +12,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Hash;
+use Throwable;
 
 /**
  * ユーザー情報の編集・退会に関するビジネスロジックを担当する
@@ -64,6 +65,7 @@ readonly class UserService
      * @param array $validated バリデーション済みリクエストデータ（camelCase）
      * @return array{user: User}|array{error: string, status: int} 成功時はuser、失敗時はerrorとstatus
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function update(?User $sessionUser, array $validated): array
     {
@@ -118,6 +120,7 @@ readonly class UserService
      * @param string $currentPassword 確認用の現在のパスワード
      * @return array{error: string, status: int}|null 失敗時はerrorとstatus、成功時はnull
      * @throws QueryException DB操作に失敗した場合
+     * @throws Throwable トランザクション内で例外が発生した場合
      */
     public function destroy(?User $sessionUser, string $currentPassword): ?array
     {
