@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -25,6 +26,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->renderable(function (AuthenticationException $e) {
+            return response()->json([
+                'message' => '認証が必要です',
+            ], Response::HTTP_UNAUTHORIZED);
+        });
+
         $exceptions->renderable(function (QueryException $e, Request $request) {
             if ($request->expectsJson()) {
                 return response()->json([
