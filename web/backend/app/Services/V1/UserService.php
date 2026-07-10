@@ -43,13 +43,13 @@ readonly class UserService
     public function findAuthUserOrFail(?User $sessionUser): User
     {
         if (!$sessionUser) {
-            abort(401, 'ログインが必要です');
+            abort(Response::HTTP_UNAUTHORIZED, 'ログインが必要です');
         }
 
         $user = $this->userRepository->findByIdForUpdate($sessionUser->id);
 
         if (!$user) {
-            abort(401, 'ログインが必要です');
+            abort(Response::HTTP_UNAUTHORIZED, 'ログインが必要です');
         }
 
         return $user;
