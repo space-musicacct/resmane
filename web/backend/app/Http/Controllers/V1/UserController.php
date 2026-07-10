@@ -56,7 +56,7 @@ class UserController extends Controller
             ], $result['status']);
         }
 
-        (new AuthController())->destroy($request);
+        new AuthController()->destroy($request);
 
         return response()->noContent();
     }

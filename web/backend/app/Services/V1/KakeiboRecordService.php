@@ -7,6 +7,7 @@ use App\Repositories\V1\Contracts\KakeiboRecordRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -75,11 +76,11 @@ readonly class KakeiboRecordService
     private function resolveRecord(?KakeiboRecord $record, int $userId): KakeiboRecord
     {
         if (!$record) {
-            abort(404, '指定された家計簿レコードが見つかりませんでした');
+            abort(Response::HTTP_NOT_FOUND, '指定された家計簿レコードが見つかりませんでした');
         }
 
         if ($record->user_id !== $userId) {
-            abort(403, 'このレコードへのアクセス権限がありません');
+            abort(Response::HTTP_FORBIDDEN, 'このレコードへのアクセス権限がありません');
         }
 
         return $record;
