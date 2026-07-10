@@ -7,7 +7,7 @@
 | 層 | 技術 |
 |----|------|
 | フロントエンド | React 18 + TypeScript 5 + Tailwind CSS 3 (Vite 5) |
-| バックエンド | PHP 8.3 + Laravel 13 (API サーバー) |
+| バックエンド | PHP 8.5 + Laravel 13 (API サーバー) |
 | AI / バックグラウンド | Python 3.11 + schedule (常駐 worker) |
 | データベース | MySQL 8.4 |
 | リバースプロキシ | Nginx |
@@ -153,16 +153,17 @@ docker compose build --pull --no-cache frontend
 docker compose up -d
 ```
 
-### Laravel 10 → 13 (2026-07-10)
+### Laravel 10 → 13 / PHP 8.3 → 8.5 (2026-07-10)
 
-Laravel 10（セキュリティサポート終了済み）から Laravel 13 にアップグレードしました。構築済みの環境は以下の手順で更新してください。
+Laravel 10（セキュリティサポート終了済み）から Laravel 13 へ、PHP 8.3 から 8.5 へアップグレードしました。構築済みの環境は以下の手順で更新してください。
 
-#### 1. ブランチを取得してコンテナを再起動
+#### 1. ブランチを取得してコンテナを再ビルド
 
 ```bash
 git pull
 docker compose down
-docker compose up -d --build
+docker compose build --pull --no-cache backend
+docker compose up -d
 ```
 
 #### 2. Composer の依存関係を更新
@@ -200,12 +201,16 @@ docker compose exec backend composer install
 #### 4. 動作確認
 
 ```bash
+docker compose exec backend php -v
+# → PHP 8.5.x と表示されれば OK
+
 docker compose exec backend php artisan --version
 # → Laravel Framework 13.x.x と表示されれば OK
 ```
 
 #### 主な変更点
 
+- **PHP 8.5**: Docker イメージを `php:8.5-fpm-alpine` に変更。Dockerfile の拡張インストールに `install-php-extensions` を採用
 - **アプリケーション構造の刷新**: Laravel 11 で導入されたスリム構造に移行。`app/Http/Kernel.php`・`app/Console/Kernel.php`・`app/Exceptions/Handler.php`・個別 Middleware ファイルは削除され、`bootstrap/app.php` に集約
 - **config ファイルの整理**: カスタマイズのない config ファイル（auth, cache, database 等）は削除し、フレームワーク内蔵のデフォルトを使用
 - **依存パッケージの更新**: Sanctum 4, Tinker 3, PHPUnit 12, Collision 8 等
