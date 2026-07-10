@@ -63,7 +63,7 @@ readonly class PostService
             $userPost = null;
 
             if ($parentId !== null && !$this->repository->existsByIdAndRecordId($parentId, $recordId)) {
-                abort(404, 'リプライ先の投稿が見つかりません');
+                abort(Response::HTTP_NOT_FOUND, 'リプライ先の投稿が見つかりません');
             }
 
             if ($content === null) {

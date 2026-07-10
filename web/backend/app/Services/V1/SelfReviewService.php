@@ -7,6 +7,7 @@ use App\Repositories\V1\Contracts\SelfReviewRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -82,7 +83,7 @@ readonly class SelfReviewService
             $review = $this->repository->findByIdForUpdate($id, $recordId);
 
             if (!$review) {
-                abort(404, '指定された自己レビューが見つかりません');
+                abort(Response::HTTP_NOT_FOUND, '指定された自己レビューが見つかりません');
             }
 
             return $this->repository->update($review, [
@@ -111,7 +112,7 @@ readonly class SelfReviewService
             $review = $this->repository->findByIdForUpdate($id, $recordId);
 
             if (!$review) {
-                abort(404, '指定された自己レビューが見つかりません');
+                abort(Response::HTTP_NOT_FOUND, '指定された自己レビューが見つかりません');
             }
 
             $this->repository->delete($review);
