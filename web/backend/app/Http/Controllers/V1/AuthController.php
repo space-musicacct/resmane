@@ -10,7 +10,7 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -23,7 +23,10 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 class AuthController extends Controller
 {
+    /** @var int ログイン試行の上限回数（超過でロックアウト） */
     private const int MAX_LOGIN_ATTEMPTS = 5;
+
+    /** @var int ロックアウト時間（秒） */
     private const int LOCKOUT_SECONDS = 3600;
 
     /**
@@ -44,14 +47,14 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'このログインIDは既に使用されています',
                 'errors' => (object) [],
-            ], 409);
+            ], Response::HTTP_CONFLICT);
         }
 
         if (User::withTrashed()->where('email', $validated['email'])->exists()) {
             return response()->json([
                 'message' => 'このメールアドレスは既に使用されています',
                 'errors' => (object) [],
-            ], 409);
+            ], Response::HTTP_CONFLICT);
         }
 
         try {
@@ -65,7 +68,7 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'このログインIDまたはメールアドレスは既に使用されています',
                 'errors' => (object) [],
-            ], 409);
+            ], Response::HTTP_CONFLICT);
         }
 
         Auth::login($user);
@@ -73,7 +76,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => new AuthUserResource($user),
-        ], 201);
+        ], Response::HTTP_CREATED);
     }
 
     /**
@@ -95,7 +98,7 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'ログイン試行回数が上限に達しました。' . ceil($seconds / 60) . '分後に再試行してください',
                 'errors' => (object) [],
-            ], 429);
+            ], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
         $validated = $request->validated();
@@ -106,7 +109,7 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'ログインIDまたはパスワードが正しくありません',
                 'errors' => (object) [],
-            ], 401);
+            ], Response::HTTP_UNAUTHORIZED);
         }
 
         RateLimiter::clear($throttleKey);
@@ -127,10 +130,21 @@ class AuthController extends Controller
      */
     public function logout(Request $request): Response
     {
+        $this->destroy($request);
+
+        return response()->noContent();
+    }
+
+    /**
+     * 現在のセッションを破棄する
+     *
+     * @param Request $request
+     * @return void
+     */
+    public final function destroy(Request $request): void
+    {
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
-        return response()->noContent();
     }
 }
