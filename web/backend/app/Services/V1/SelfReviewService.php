@@ -58,6 +58,7 @@ readonly class SelfReviewService
             return $this->repository->create([
                 'kakeibo_record_id' => $recordId,
                 'review_comment' => $validated['reviewComment'],
+                'evaluation' => $validated['evaluation'],
             ]);
         });
     }
@@ -88,6 +89,7 @@ readonly class SelfReviewService
 
             return $this->repository->update($review, [
                 'review_comment' => $validated['reviewComment'],
+                'evaluation' => $validated['evaluation'],
             ]);
         });
     }
