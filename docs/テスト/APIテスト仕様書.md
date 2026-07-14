@@ -57,6 +57,8 @@ tests/Http/
 | 6 | reviews.http | DELETE /api/v1/records/{id}/reviews/{id} | 204, 画面遷移なし確認用 |
 | 7 | records.http | DELETE /api/v1/records/{id} | 204, 紐づくデータも論理削除 |
 | 8 | posts.http | POST /api/v1/records/{id}/posts（content省略, 2回目） | 404, 削除済みレコード |
+| 9 | posts.http | POST /api/v1/records/{id}/posts（別レコード, 1回目） | 201 |
+| 10 | posts.http | POST /api/v1/records/{id}/posts（同レコード, 2回目） | 409, 重複拒否 |
 
 ### シナリオ3: ユーザー情報・退会
 
