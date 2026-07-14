@@ -12,5 +12,6 @@ class SelfReview extends Model
     protected $fillable = [
         'kakeibo_record_id',
         'review_comment',
+        'evaluation',
     ];
 }

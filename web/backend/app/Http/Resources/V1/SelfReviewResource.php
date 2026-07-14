@@ -13,6 +13,7 @@ class SelfReviewResource extends JsonResource
             'id' => $this->id,
             'kakeiboRecordId' => $this->kakeibo_record_id,
             'reviewComment' => $this->review_comment,
+            'evaluation' => $this->evaluation,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];
