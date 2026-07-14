@@ -37,8 +37,8 @@ tests/Http/
 | 6 | records.http | GET /api/v1/records | 家計簿一覧 → 200, 登録したレコードが含まれる |
 | 7 | records.http | GET /api/v1/records/{id} | 家計簿詳細 → 200 |
 | 8 | records.http | PUT /api/v1/records/{id} | 家計簿編集 → 200 |
-| 9 | reviews.http | POST /api/v1/records/{id}/reviews | 自己レビュー投稿 → 201 |
-| 10 | reviews.http | GET /api/v1/records/{id}/reviews | 自己レビュー一覧 → 200 |
+| 9 | reviews.http | POST /api/v1/records/{id}/reviews | 自己レビュー投稿（reviewComment + evaluation）→ 201, evaluation が含まれる |
+| 10 | reviews.http | GET /api/v1/records/{id}/reviews | 自己レビュー一覧 → 200, 各レビューに evaluation が含まれる |
 | 11 | posts.http | POST /api/v1/records/{id}/posts | AIフィードバック要求 → 201 |
 | 12 | posts.http | GET /api/v1/records/{id}/posts | スレッド一覧 → 200, pending の AI投稿が含まれる |
 | 13 | settings.http | PUT /api/v1/settings/limit | 基準値設定 → 200 |
