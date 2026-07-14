@@ -3,30 +3,35 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\KakeiboRecordIndexRequest;
 use App\Http\Requests\V1\KakeiboRecordStoreRequest;
 use App\Http\Requests\V1\KakeiboRecordUpdateRequest;
 use App\Http\Resources\V1\KakeiboRecordResource;
-use App\Models\KakeiboRecord;
+use App\Services\V1\KakeiboRecordService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response;
 
 class KakeiboRecordController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function __construct(
+        private readonly KakeiboRecordService $service,
+    ) {}
+
+    public function index(KakeiboRecordIndexRequest $request): JsonResponse
     {
-        $query = KakeiboRecord::where('user_id', auth()->id());
-
+        $validated = $request->validated();
         $sortOrder = $request->input('sort', 'desc') === 'asc' ? 'asc' : 'desc';
+        $perPage = (int) ($validated['perPage'] ?? 20);
 
-        $records = (clone $query)
-            ->with(['amountType', 'category'])
-            ->orderBy('purchase_date', $sortOrder)
-            ->orderBy('id', $sortOrder)
-            ->paginate(20);
+        $filters = array_filter([
+            'from' => $validated['from'] ?? null,
+            'to' => $validated['to'] ?? null,
+            'amountTypeId' => $validated['amountTypeId'] ?? null,
+            'categoryId' => $validated['categoryId'] ?? null,
+        ], fn ($v) => $v !== null);
 
-        $totalIncome = (clone $query)->where('amount_type_id', 2)->sum('amount');
-        $totalExpense = (clone $query)->where('amount_type_id', 1)->sum('amount');
+        $result = $this->service->list(auth()->id(), $sortOrder, $filters, $perPage);
+        $records = $result['records'];
 
         return response()->json([
             'data' => KakeiboRecordResource::collection($records->items()),
@@ -37,15 +42,15 @@ class KakeiboRecordController extends Controller
                 'total' => $records->total(),
             ],
             'summary' => [
-                'totalIncome' => (int) $totalIncome,
-                'totalExpense' => (int) $totalExpense,
+                'totalIncome' => $result['totalIncome'],
+                'totalExpense' => $result['totalExpense'],
             ],
         ]);
     }
 
     public function show(int $id): JsonResponse
     {
-        $record = $this->findRecordOrFail($id);
+        $record = $this->service->findOrFail($id, auth()->id());
 
         $record->load(['amountType', 'category']);
 
@@ -56,37 +61,16 @@ class KakeiboRecordController extends Controller
 
     public function store(KakeiboRecordStoreRequest $request): JsonResponse
     {
-        $record = KakeiboRecord::create([
-            'user_id' => auth()->id(),
-            'purchase_date' => $request->purchaseDate ?? now()->toDateString(),
-            'amount_type_id' => $request->amountTypeId,
-            'amount' => $request->amount,
-            'details' => $request->details,
-            'kakeibo_default_category_id' => $request->kakeiboDefaultCategoryId,
-        ]);
-
-        $record->load(['amountType', 'category']);
+        $record = $this->service->create(auth()->id(), $request->validated());
 
         return response()->json([
             'data' => new KakeiboRecordResource($record),
-        ], 201);
+        ], Response::HTTP_CREATED);
     }
 
     public function update(KakeiboRecordUpdateRequest $request, int $id): JsonResponse
     {
-        $record = $this->findRecordOrFail($id);
-
-        $validated = $request->validated();
-
-        $record->update([
-            'purchase_date' => $validated['purchaseDate'] ?? $record->purchase_date,
-            'amount_type_id' => $validated['amountTypeId'] ?? $record->amount_type_id,
-            'amount' => $validated['amount'] ?? $record->amount,
-            'details' => array_key_exists('details', $validated) ? $validated['details'] : $record->details,
-            'kakeibo_default_category_id' => $validated['kakeiboDefaultCategoryId'] ?? $record->kakeibo_default_category_id,
-        ]);
-
-        $record->load(['amountType', 'category']);
+        $record = $this->service->update($id, auth()->id(), $request->validated());
 
         return response()->json([
             'data' => new KakeiboRecordResource($record),
@@ -95,25 +79,8 @@ class KakeiboRecordController extends Controller
 
     public function destroy(int $id): Response
     {
-        $record = $this->findRecordOrFail($id);
-
-        $record->delete();
+        $this->service->delete($id, auth()->id());
 
         return response()->noContent();
-    }
-
-    private function findRecordOrFail(int $id): KakeiboRecord
-    {
-        $record = KakeiboRecord::find($id);
-
-        if (!$record) {
-            abort(404, '指定された家計簿レコードが見つかりませんでした');
-        }
-
-        if ($record->user_id !== auth()->id()) {
-            abort(403, 'このレコードへのアクセス権限がありません');
-        }
-
-        return $record;
     }
 }

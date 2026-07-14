@@ -3,50 +3,56 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\V1\SelfReviewStoreRequest;
+use App\Http\Requests\V1\SelfReviewUpdateRequest;
+use App\Http\Resources\V1\SelfReviewResource;
+use App\Services\V1\SelfReviewService;
 use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class SelfReviewController extends Controller
 {
-    /**
-     * @param FormRequest $request
-     * @param int $recordId
-     * @return JsonResponse
-     */
-    public function index(FormRequest $request, int $recordId): JsonResponse
+    public function __construct(
+        private readonly SelfReviewService $service,
+    ) {}
+
+    public function index(int $recordId): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $reviews = $this->service->list($recordId, auth()->id());
+
+        return response()->json([
+            'data' => SelfReviewResource::collection($reviews->items()),
+            'meta' => [
+                'currentPage' => $reviews->currentPage(),
+                'lastPage' => $reviews->lastPage(),
+                'perPage' => $reviews->perPage(),
+                'total' => $reviews->total(),
+            ],
+        ]);
     }
 
-    /**
-     * @param FormRequest $request
-     * @param int $recordId
-     * @return JsonResponse
-     */
-    public function store(FormRequest $request, int $recordId): JsonResponse
+    public function store(SelfReviewStoreRequest $request, int $recordId): JsonResponse
     {
-        return response()->json(['message' => 'success'], 201);
+        $review = $this->service->create($recordId, auth()->id(), $request->validated());
+
+        return response()->json([
+            'data' => new SelfReviewResource($review),
+        ], Response::HTTP_CREATED);
     }
 
-    /**
-     * @param FormRequest $request
-     * @param int $recordId
-     * @param int $id
-     * @return JsonResponse
-     */
-    public function update(FormRequest $request, int $recordId, int $id): JsonResponse
+    public function update(SelfReviewUpdateRequest $request, int $recordId, int $id): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $review = $this->service->update($recordId, $id, auth()->id(), $request->validated());
+
+        return response()->json([
+            'data' => new SelfReviewResource($review),
+        ]);
     }
 
-    /**
-     * @param FormRequest $request
-     * @param int $recordId
-     * @param int $id
-     * @return JsonResponse
-     */
-    public function destroy(FormRequest $request, int $recordId, int $id): JsonResponse
+    public function destroy(int $recordId, int $id): Response
     {
-        return response()->json(null, 204);
+        $this->service->delete($recordId, $id, auth()->id());
+
+        return response()->noContent();
     }
 }
