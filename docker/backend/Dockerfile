@@ -1,15 +1,8 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.5-fpm-alpine
 
-RUN apk add --no-cache \
-    $PHPIZE_DEPS \
-    git \
-    unzip \
-    libzip-dev \
-    icu-dev \
-    oniguruma-dev \
-    linux-headers
+ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
-RUN docker-php-ext-install \
+RUN install-php-extensions \
     pdo_mysql \
     mbstring \
     bcmath \
@@ -18,6 +11,8 @@ RUN docker-php-ext-install \
     zip \
     intl \
     fileinfo
+
+RUN apk add --no-cache git unzip
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

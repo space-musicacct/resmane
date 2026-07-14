@@ -5,20 +5,19 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\UpdateSettingLimitRequest;
 use App\Http\Resources\V1\UpperLimitSettingResource;
-use App\Models\UpperLimitSetting;
+use App\Services\V1\SettingLimitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SettingLimitController extends Controller
 {
-    /**
-     * 基準値設定取得
-     */
+    public function __construct(
+        private readonly SettingLimitService $service,
+    ) {}
+
     public function show(Request $request): JsonResponse
     {
-        $setting = UpperLimitSetting::with('upperLimitType')
-            ->where('user_id', $request->user()->id)
-            ->first();
+        $setting = $this->service->find($request->user()->id);
 
         if (!$setting) {
             return response()->json(['data' => null]);
@@ -27,23 +26,9 @@ class SettingLimitController extends Controller
         return response()->json(['data' => new UpperLimitSettingResource($setting)]);
     }
 
-    /**
-     * 基準値設定更新（upsert）
-     */
     public function update(UpdateSettingLimitRequest $request): JsonResponse
     {
-        $validated = $request->validated();
-
-        $setting = UpperLimitSetting::updateOrCreate(
-            ['user_id' => $request->user()->id],
-            [
-                'upper_limit_type_id' => $validated['upperLimitTypeId'],
-                'max_value' => $validated['maxValue'],
-                'ave_monthly_income' => $validated['aveMonthlyIncome'] ?? null,
-            ]
-        );
-
-        $setting->load('upperLimitType');
+        $setting = $this->service->upsert($request->user()->id, $request->validated());
 
         return response()->json(['data' => new UpperLimitSettingResource($setting)]);
     }

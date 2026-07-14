@@ -14,6 +14,7 @@ class UserUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'loginId' => ['sometimes', 'string', 'max:15'],
             'name' => ['sometimes', 'string', 'max:50'],
             'email' => ['sometimes', 'email', 'max:255'],
             'currentPassword' => ['required_with:password', 'string'],
@@ -25,6 +26,7 @@ class UserUpdateRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'loginId.max' => 'ログインIDは15文字以内で入力してください',
             'name.max' => '名前は50文字以内で入力してください',
             'email.email' => 'メールアドレスの形式が正しくありません',
             'email.max' => 'メールアドレスは255文字以内で入力してください',
