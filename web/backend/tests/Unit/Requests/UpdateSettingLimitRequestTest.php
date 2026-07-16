@@ -1,0 +1,207 @@
+<?php
+
+namespace Tests\Unit\Requests;
+
+use App\Http\Requests\UpdateSettingLimitRequest;
+use Illuminate\Validation\Validator;
+use Illuminate\Support\Facades\Validator as ValidatorFacade;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+/**
+ * 単体テスト仕様書 1.10 UpdateSettingLimitRequest 対応テスト
+ *
+ * upperLimitTypeId によって aveMonthlyIncome の要否が変わる（割合指定=1 の場合は必須）ため、
+ * テストケースごとに必要なフィールドを個別に組み立てる。
+ * DB依存なしで、リクエストの rules() を Validator に直接適用して検証する。
+ */
+class UpdateSettingLimitRequestTest extends TestCase
+{
+    /**
+     * 検証対象のバリデーションルールを取得する。
+     */
+    private function rules(): array
+    {
+        return (new UpdateSettingLimitRequest())->rules();
+    }
+
+    /**
+     * Validator生成共通処理。
+     */
+    private function validator(array $data): Validator
+    {
+        return ValidatorFacade::make(
+            $data,
+            $this->rules()
+        );
+    }
+
+    /**
+     * USL-001: 正常: 固定額指定
+     */
+    #[Test]
+    public function USL_001_固定額指定の場合はバリデーションを通過する(): void
+    {
+        $this->assertValid([
+            'upperLimitTypeId' => 2,
+            'maxValue' => 50000,
+            'aveMonthlyIncome' => null,
+        ]);
+    }
+
+    /**
+     * USL-002: 正常: 割合指定
+     */
+    #[Test]
+    public function USL_002_割合指定の場合はバリデーションを通過する(): void
+    {
+        $this->assertValid([
+            'upperLimitTypeId' => 1,
+            'maxValue' => 30,
+            'aveMonthlyIncome' => 200000,
+        ]);
+    }
+
+    /**
+     * USL-003: 異常: upperLimitTypeId 未入力
+     */
+    #[Test]
+    public function USL_003_upperLimitTypeId未入力の場合はrequiredエラーになる(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => '',
+                'maxValue' => 50000,
+                'aveMonthlyIncome' => null,
+            ],
+            'upperLimitTypeId',
+            'required'
+        );
+    }
+
+    /**
+     * USL-004: 異常: maxValue 未入力
+     */
+    #[Test]
+    public function USL_004_maxValue未入力の場合はrequiredエラーになる(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => 2,
+                'maxValue' => '',
+                'aveMonthlyIncome' => null,
+            ],
+            'maxValue',
+            'required'
+        );
+    }
+
+    /**
+     * USL-005: 異常: maxValue 0
+     */
+    #[Test]
+    public function USL_005_maxValueが0の場合はminエラーになる(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => 2,
+                'maxValue' => 0,
+                'aveMonthlyIncome' => null,
+            ],
+            'maxValue',
+            'min'
+        );
+    }
+
+    /**
+     * USL-006: 異常: 割合指定時に aveMonthlyIncome なし
+     */
+    #[Test]
+    public function USL_006_割合指定時にaveMonthlyIncomeがない場合はrequiredエラーになる(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => 1,
+                'maxValue' => 30,
+                'aveMonthlyIncome' => null,
+            ],
+            'aveMonthlyIncome',
+            'required'
+        );
+    }
+
+    /**
+     * USL-007: 異常: aveMonthlyIncome 0
+     */
+    #[Test]
+    public function USL_007_aveMonthlyIncomeが0の場合はminエラーになる(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => 1,
+                'maxValue' => 30,
+                'aveMonthlyIncome' => 0,
+            ],
+            'aveMonthlyIncome',
+            'min'
+        );
+    }
+
+    /**
+     * USL-008: 境界値: maxValue 1
+     */
+    #[Test]
+    public function USL_008_maxValueが1の場合は通過する(): void
+    {
+        $this->assertValid([
+            'upperLimitTypeId' => 2,
+            'maxValue' => 1,
+            'aveMonthlyIncome' => null,
+        ]);
+    }
+
+    /**
+     * 正常系共通アサーション
+     */
+    private function assertValid(array $data): void
+    {
+        $validator = $this->validator($data);
+
+        $this->assertFalse($validator->fails());
+    }
+
+    /**
+     * 異常系共通アサーション
+     */
+    private function assertInvalid(
+        array $data,
+        string $field,
+        string $rule
+    ): void {
+        $validator = $this->validator($data);
+
+        $this->assertTrue($validator->fails());
+        $this->assertTrue($validator->errors()->has($field));
+
+        $this->assertSame(
+            $rule,
+            $this->firstRule($validator, $field)
+        );
+    }
+
+    /**
+     * 指定フィールドで最初に検出されたルール名を取得する。
+     */
+    private function firstRule(
+        Validator $validator,
+        string $field
+    ): ?string {
+        $failed = $validator->failed();
+
+        if (! isset($failed[$field])) {
+            return null;
+        }
+
+        return strtolower(array_key_first($failed[$field]));
+    }
+}
