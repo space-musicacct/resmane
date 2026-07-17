@@ -2,11 +2,12 @@
 
 namespace Tests\Unit\Requests;
 
-use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\V1\RegisterRequest;
 use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Unit\Concerns\InteractsWithValidation;
 
 /**
  * 単体テスト仕様書 1.1 RegisterRequest 対応テスト
@@ -15,6 +16,8 @@ use Tests\TestCase;
  */
 class RegisterRequestTest extends TestCase
 {
+    use InteractsWithValidation;
+
     /**
      * 検証対象のバリデーションルールを取得する。
      */
@@ -54,9 +57,9 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_001_全フィールド有効な場合はバリデーションを通過する(): void
     {
-        $validator = $this->validator($this->validData());
-
-        $this->assertFalse($validator->fails());
+        $this->assertValid(
+            $this->validData()
+        );
     }
 
     /**
@@ -65,14 +68,8 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_002_loginId未入力の場合はrequiredエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'loginId' => ''
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['loginId' => '']),
             'loginId',
             'required'
         );
@@ -84,14 +81,8 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_003_loginIdが16文字の場合はmaxエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'loginId' => str_repeat('1', 16),
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['loginId' => str_repeat('1', 16)]),
             'loginId',
             'max'
         );
@@ -103,14 +94,8 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_004_email未入力の場合はrequiredエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'email' => '',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['email' => '']),
             'email',
             'required'
         );
@@ -122,14 +107,8 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_005_email形式が不正な場合はemailエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'email' => 'not-email',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['email' => 'not-email']),
             'email',
             'email'
         );
@@ -147,14 +126,8 @@ class RegisterRequestTest extends TestCase
         $email = $localPart . '@example.com';
         $this->assertSame(256, strlen($email));
 
-        $validator = $this->validator(
-            $this->validData([
-                'email' => $email,
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['email' => $email]),
             'email',
             'max'
         );
@@ -166,14 +139,8 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_007_name未入力の場合はrequiredエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'name' => '',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['name' => '']),
             'name',
             'required'
         );
@@ -185,14 +152,8 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_008_nameが51文字の場合はmaxエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'name' => str_repeat('あ', 51),
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['name' => str_repeat('あ', 51)]),
             'name',
             'max'
         );
@@ -204,15 +165,11 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_009_password未入力の場合はrequiredエラーになる(): void
     {
-        $validator = $this->validator(
+        $this->assertInvalid(
             $this->validData([
                 'password' => '',
                 'passwordConfirmation' => '',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+            ]),
             'password',
             'required'
         );
@@ -224,15 +181,11 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_010_passwordが7文字の場合はminエラーになる(): void
     {
-        $validator = $this->validator(
+        $this->assertInvalid(
             $this->validData([
                 'password' => '1234567',
                 'passwordConfirmation' => '1234567',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+            ]),
             'password',
             'min'
         );
@@ -244,15 +197,11 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_011_passwordConfirmationが不一致の場合はsameエラーになる(): void
     {
-        $validator = $this->validator(
+        $this->assertInvalid(
             $this->validData([
                 'password' => 'password123',
                 'passwordConfirmation' => 'different',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+            ]),
             'passwordConfirmation',
             'same'
         );
@@ -264,14 +213,8 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_012_passwordConfirmation未入力の場合はrequiredエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'passwordConfirmation' => '',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['passwordConfirmation' => '']),
             'passwordConfirmation',
             'required'
         );
@@ -283,13 +226,9 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_013_loginIdが15文字の場合はバリデーションを通過する(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'loginId' => str_repeat('1', 15),
-            ])
+        $this->assertValid(
+            $this->validData(['loginId' => str_repeat('1', 15)])
         );
-
-        $this->assertFalse($validator->fails());
     }
 
     /**
@@ -298,14 +237,12 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_014_passwordが8文字の場合はバリデーションを通過する(): void
     {
-        $validator = $this->validator(
+        $this->assertValid(
             $this->validData([
                 'password' => '12345678',
                 'passwordConfirmation' => '12345678',
             ])
         );
-
-        $this->assertFalse($validator->fails());
     }
 
     /**
@@ -314,41 +251,8 @@ class RegisterRequestTest extends TestCase
     #[Test]
     public function UR_015_nameが50文字の場合はバリデーションを通過する(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'name' => str_repeat('あ', 50),
-            ])
+        $this->assertValid(
+            $this->validData(['name' => str_repeat('あ', 50)])
         );
-
-        $this->assertFalse($validator->fails());
-    }
-
-    /**
-     * バリデーションエラー共通アサーション
-     */
-    private function assertValidationError(
-        Validator $validator,
-        string $field,
-        string $rule
-    ): void {
-        $this->assertTrue($validator->fails());
-        $this->assertTrue($validator->errors()->has($field));
-        $this->assertSame($rule, $this->firstRule($validator, $field));
-    }
-
-    /**
-     * 指定フィールドで最初に検出されたルール名を取得する。
-     */
-    private function firstRule(
-        Validator $validator,
-        string $field
-    ): ?string {
-        $failed = $validator->failed();
-
-        if (! isset($failed[$field])) {
-            return null;
-        }
-
-        return strtolower(array_key_first($failed[$field]));
     }
 }

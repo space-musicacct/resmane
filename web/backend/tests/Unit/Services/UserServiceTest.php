@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Hash;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
+use Tests\Unit\Concerns\InteractsWithAbort;
 
 /**
  * 単体テスト仕様書 2.5 UserService 対応テスト
@@ -27,6 +27,8 @@ use Tests\TestCase;
  */
 class UserServiceTest extends TestCase
 {
+    use InteractsWithAbort;
+
     private UserRepositoryInterface&MockInterface $userRepository;
     private KakeiboRecordRepositoryInterface&MockInterface $kakeiboRecordRepository;
     private SelfReviewRepositoryInterface&MockInterface $selfReviewRepository;
@@ -465,16 +467,4 @@ class UserServiceTest extends TestCase
         $this->assertNull($result);
     }
 
-    /**
-     * abort() による HttpException（ステータスコード）を検証する共通アサーション。
-     */
-    private function assertAbort(callable $callback, int $status): void
-    {
-        try {
-            $callback();
-            $this->fail("Expected HttpException with status {$status} was not thrown.");
-        } catch (HttpException $e) {
-            $this->assertSame($status, $e->getStatusCode());
-        }
-    }
 }

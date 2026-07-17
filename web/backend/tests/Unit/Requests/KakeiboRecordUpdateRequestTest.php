@@ -2,21 +2,28 @@
 
 namespace Tests\Unit\Requests;
 
-use App\Http\Requests\KakeiboRecordUpdateRequest;
+use App\Http\Requests\V1\KakeiboRecordUpdateRequest;
 use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Unit\Concerns\InteractsWithValidation;
 
 /**
  * 単体テスト仕様書 1.4 KakeiboRecordUpdateRequest 対応テスト
  *
+ * KakeiboRecordStoreRequest と同一のルールのため、同等のテストケースを実施する。
  * DB依存なしで、リクエストの rules() を Validator に直接適用して検証する。
+ *
+ * NOTE: amountTypeId / kakeiboDefaultCategoryId には DB 上の存在確認・整合性検証
+ * （exists ルール等）が実装されている想定だが、DB に接続しない本テストでは
+ * その部分は検証できない（値が存在すれば通過してしまう）。
+ * exists 制約の検証は結合テスト（tests/Feature/）側でカバーする。
  */
 class KakeiboRecordUpdateRequestTest extends TestCase
-
-class KakeiboRecordUpdateRequestTest extends TestCase
 {
+    use InteractsWithValidation;
+
     /**
      * 検証対象のバリデーションルールを取得する。
      */
@@ -248,48 +255,4 @@ class KakeiboRecordUpdateRequestTest extends TestCase
         );
     }
 
-    /**
-     * 正常系共通アサーション
-     */
-    private function assertValid(array $data): void
-    {
-        $validator = $this->validator($data);
-
-        $this->assertFalse($validator->fails());
-    }
-
-    /**
-     * 異常系共通アサーション
-     */
-    private function assertInvalid(
-        array $data,
-        string $field,
-        string $rule
-    ): void {
-        $validator = $this->validator($data);
-
-        $this->assertTrue($validator->fails());
-        $this->assertTrue($validator->errors()->has($field));
-
-        $this->assertSame(
-            $rule,
-            $this->firstRule($validator, $field)
-        );
-    }
-
-    /**
-     * 指定フィールドで最初に検出されたルール名を取得する。
-     */
-    private function firstRule(
-        Validator $validator,
-        string $field
-    ): ?string {
-        $failed = $validator->failed();
-
-        if (! isset($failed[$field])) {
-            return null;
-        }
-
-        return strtolower(array_key_first($failed[$field]));
-    }
 }

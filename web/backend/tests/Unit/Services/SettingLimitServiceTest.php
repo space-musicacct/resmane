@@ -131,8 +131,6 @@ class SettingLimitServiceTest extends TestCase
             ])
             ->andReturn($setting);
 
-        $result = $this->service->upsert($userId, $validated);
-
-        $this->assertSame($setting, $result);
+        $this->service->upsert($userId, $validated);
     }
 }

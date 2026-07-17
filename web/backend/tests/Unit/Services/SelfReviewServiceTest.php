@@ -2,23 +2,31 @@
 
 namespace Tests\Unit\Services;
 
-use App\Repositories\Contracts\SelfReviewRepositoryInterface;
-use App\Services\KakeiboRecordService;
-use App\Services\SelfReviewService;
+use App\Models\SelfReview;
+use App\Repositories\V1\Contracts\SelfReviewRepositoryInterface;
+use App\Services\V1\KakeiboRecordService;
+use App\Services\V1\SelfReviewService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
+use Tests\Unit\Concerns\InteractsWithAbort;
 
 /**
  * 単体テスト仕様書 2.2 SelfReviewService 対応テスト
  *
  * Repository と KakeiboRecordService をモック化し、DB に依存せず
  * ビジネスロジックのみを検証する。
+ *
+ * create() / update() / delete() は DB::transaction() で包まれているため、
+ * テスト実行環境に有効なDB接続（トランザクション開始・コミットが可能な状態）が必要。
  */
 class SelfReviewServiceTest extends TestCase
 {
+    use InteractsWithAbort;
+
     private SelfReviewRepositoryInterface&MockInterface $repository;
     private KakeiboRecordService&MockInterface $kakeiboRecordService;
     private SelfReviewService $service;
@@ -48,17 +56,15 @@ class SelfReviewServiceTest extends TestCase
     #[Test]
     public function SSR_001_一覧取得でRepositoryのpaginateByRecordIdが呼ばれる(): void
     {
-        $userId = 1;
         $recordId = 10;
+        $userId = 1;
 
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
-        $paginator = Mockery::mock(\Illuminate\Contracts\Pagination\LengthAwarePaginator::class);
+        $paginator = Mockery::mock(LengthAwarePaginator::class);
 
         $this->kakeiboRecordService
             ->shouldReceive('findOrFail')
             ->once()
-            ->with($userId, $recordId)
-            ->andReturn($record);
+            ->with($recordId, $userId);
 
         $this->repository
             ->shouldReceive('paginateByRecordId')
@@ -66,7 +72,7 @@ class SelfReviewServiceTest extends TestCase
             ->with($recordId)
             ->andReturn($paginator);
 
-        $result = $this->service->list($userId, $recordId);
+        $result = $this->service->list($recordId, $userId);
 
         $this->assertSame($paginator, $result);
     }
@@ -77,20 +83,20 @@ class SelfReviewServiceTest extends TestCase
     #[Test]
     public function SSR_002_親レコードが存在しない場合は404になる(): void
     {
-        $userId = 1;
         $recordId = 999;
+        $userId = 1;
 
         $this->kakeiboRecordService
             ->shouldReceive('findOrFail')
             ->once()
-            ->with($userId, $recordId)
+            ->with($recordId, $userId)
             ->andThrow(new HttpException(404));
 
         $this->repository
             ->shouldNotReceive('paginateByRecordId');
 
         $this->assertAbort(
-            fn () => $this->service->list($userId, $recordId),
+            fn () => $this->service->list($recordId, $userId),
             404
         );
     }
@@ -101,10 +107,8 @@ class SelfReviewServiceTest extends TestCase
     #[Test]
     public function SSR_003_createでRepositoryのcreateが呼ばれる(): void
     {
-        $userId = 1;
         $recordId = 10;
-
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
+        $userId = 1;
 
         $validated = [
             'reviewComment' => '良い買い物だった',
@@ -112,22 +116,21 @@ class SelfReviewServiceTest extends TestCase
         ];
 
         $this->kakeiboRecordService
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findOrFailForUpdate')
             ->once()
-            ->with($userId, $recordId)
-            ->andReturn($record);
+            ->with($recordId, $userId);
 
         $this->repository
             ->shouldReceive('create')
             ->once()
-            ->with(Mockery::on(function (array $data) use ($recordId) {
-                return ($data['kakeibo_record_id'] ?? null) === $recordId
-                    && ($data['review_comment'] ?? null) === '良い買い物だった'
-                    && ($data['evaluation'] ?? null) === 3;
-            }))
-            ->andReturn((object) []);
+            ->with([
+                'kakeibo_record_id' => $recordId,
+                'review_comment' => '良い買い物だった',
+                'evaluation' => 3,
+            ])
+            ->andReturn(Mockery::mock(SelfReview::class));
 
-        $this->service->create($userId, $recordId, $validated);
+        $this->service->create($recordId, $userId, $validated);
     }
 
     /**
@@ -136,12 +139,12 @@ class SelfReviewServiceTest extends TestCase
     #[Test]
     public function SSR_004_updateでRepositoryのupdateが呼ばれる(): void
     {
-        $userId = 1;
         $recordId = 10;
-        $reviewId = 20;
+        $id = 20;
+        $userId = 1;
 
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
-        $review = (object) ['id' => $reviewId, 'kakeibo_record_id' => $recordId];
+        $review = Mockery::mock(SelfReview::class)->makePartial();
+        $review->id = $id;
 
         $validated = [
             'reviewComment' => '更新後コメント',
@@ -149,24 +152,26 @@ class SelfReviewServiceTest extends TestCase
         ];
 
         $this->kakeiboRecordService
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findOrFailForUpdate')
             ->once()
-            ->with($userId, $recordId)
-            ->andReturn($record);
+            ->with($recordId, $userId);
 
         $this->repository
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId, $reviewId)
+            ->with($id, $recordId)
             ->andReturn($review);
 
         $this->repository
             ->shouldReceive('update')
             ->once()
-            ->with($review, Mockery::type('array'))
+            ->with($review, [
+                'review_comment' => '更新後コメント',
+                'evaluation' => 4,
+            ])
             ->andReturn($review);
 
-        $this->service->update($userId, $recordId, $reviewId, $validated);
+        $this->service->update($recordId, $id, $userId, $validated);
     }
 
     /**
@@ -175,11 +180,9 @@ class SelfReviewServiceTest extends TestCase
     #[Test]
     public function SSR_005_updateでレビューが存在しない場合は404になる(): void
     {
-        $userId = 1;
         $recordId = 10;
-        $reviewId = 999;
-
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
+        $id = 999;
+        $userId = 1;
 
         $validated = [
             'reviewComment' => '更新後コメント',
@@ -187,22 +190,21 @@ class SelfReviewServiceTest extends TestCase
         ];
 
         $this->kakeiboRecordService
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findOrFailForUpdate')
             ->once()
-            ->with($userId, $recordId)
-            ->andReturn($record);
+            ->with($recordId, $userId);
 
         $this->repository
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId, $reviewId)
+            ->with($id, $recordId)
             ->andReturn(null);
 
         $this->repository
             ->shouldNotReceive('update');
 
         $this->assertAbort(
-            fn () => $this->service->update($userId, $recordId, $reviewId, $validated),
+            fn () => $this->service->update($recordId, $id, $userId, $validated),
             404
         );
     }
@@ -213,23 +215,22 @@ class SelfReviewServiceTest extends TestCase
     #[Test]
     public function SSR_006_deleteでRepositoryのdeleteが呼ばれる(): void
     {
-        $userId = 1;
         $recordId = 10;
-        $reviewId = 20;
+        $id = 20;
+        $userId = 1;
 
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
-        $review = (object) ['id' => $reviewId, 'kakeibo_record_id' => $recordId];
+        $review = Mockery::mock(SelfReview::class)->makePartial();
+        $review->id = $id;
 
         $this->kakeiboRecordService
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findOrFailForUpdate')
             ->once()
-            ->with($userId, $recordId)
-            ->andReturn($record);
+            ->with($recordId, $userId);
 
         $this->repository
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId, $reviewId)
+            ->with($id, $recordId)
             ->andReturn($review);
 
         $this->repository
@@ -237,7 +238,7 @@ class SelfReviewServiceTest extends TestCase
             ->once()
             ->with($review);
 
-        $this->service->delete($userId, $recordId, $reviewId);
+        $this->service->delete($recordId, $id, $userId);
     }
 
     /**
@@ -246,43 +247,28 @@ class SelfReviewServiceTest extends TestCase
     #[Test]
     public function SSR_007_deleteでレビューが存在しない場合は404になる(): void
     {
-        $userId = 1;
         $recordId = 10;
-        $reviewId = 999;
-
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
+        $id = 999;
+        $userId = 1;
 
         $this->kakeiboRecordService
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findOrFailForUpdate')
             ->once()
-            ->with($userId, $recordId)
-            ->andReturn($record);
+            ->with($recordId, $userId);
 
         $this->repository
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId, $reviewId)
+            ->with($id, $recordId)
             ->andReturn(null);
 
         $this->repository
             ->shouldNotReceive('delete');
 
         $this->assertAbort(
-            fn () => $this->service->delete($userId, $recordId, $reviewId),
+            fn () => $this->service->delete($recordId, $id, $userId),
             404
         );
     }
 
-    /**
-     * abort() による HttpException（ステータスコード）を検証する共通アサーション。
-     */
-    private function assertAbort(callable $callback, int $status): void
-    {
-        try {
-            $callback();
-            $this->fail("Expected HttpException with status {$status} was not thrown.");
-        } catch (HttpException $e) {
-            $this->assertSame($status, $e->getStatusCode());
-        }
-    }
 }

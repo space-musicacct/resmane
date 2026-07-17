@@ -2,26 +2,33 @@
 
 namespace Tests\Unit\Services;
 
-use App\Repositories\Contracts\KakeiboRecordRepositoryInterface;
-use App\Services\KakeiboRecordService;
+use App\Models\KakeiboRecord;
+use App\Repositories\V1\Contracts\KakeiboRecordRepositoryInterface;
+use App\Repositories\V1\Contracts\PostRepositoryInterface;
+use App\Repositories\V1\Contracts\SelfReviewRepositoryInterface;
+use App\Services\V1\KakeiboRecordService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
+use Tests\Unit\Concerns\InteractsWithAbort;
 
 /**
  * 単体テスト仕様書 2.1 KakeiboRecordService 対応テスト
  *
- * Repository をモック化し、DB に依存せずビジネスロジックのみを検証する。
+ * Repository群をモック化し、DB に依存せずビジネスロジックのみを検証する。
  *
- * NOTE: KakeiboRecordRepositoryInterface のメソッド名・シグネチャ、
- * および Service 側のメソッド名は実装未確認のため想定で記述している。
- * 実装と差異がある場合は要修正。
+ * update() / delete() は DB::transaction() で包まれているため、
+ * テスト実行環境に有効なDB接続（トランザクション開始・コミットが可能な状態）が必要。
  */
 class KakeiboRecordServiceTest extends TestCase
 {
+    use InteractsWithAbort;
+
     private KakeiboRecordRepositoryInterface&MockInterface $repository;
+    private SelfReviewRepositoryInterface&MockInterface $selfReviewRepository;
+    private PostRepositoryInterface&MockInterface $postRepository;
     private KakeiboRecordService $service;
 
     protected function setUp(): void
@@ -29,7 +36,14 @@ class KakeiboRecordServiceTest extends TestCase
         parent::setUp();
 
         $this->repository = Mockery::mock(KakeiboRecordRepositoryInterface::class);
-        $this->service = new KakeiboRecordService($this->repository);
+        $this->selfReviewRepository = Mockery::mock(SelfReviewRepositoryInterface::class);
+        $this->postRepository = Mockery::mock(PostRepositoryInterface::class);
+
+        $this->service = new KakeiboRecordService(
+            $this->repository,
+            $this->selfReviewRepository,
+            $this->postRepository,
+        );
     }
 
     protected function tearDown(): void
@@ -40,39 +54,50 @@ class KakeiboRecordServiceTest extends TestCase
     }
 
     /**
+     * id, user_id を持つ KakeiboRecord モックを作成する。
+     */
+    private function makeRecord(int $id, int $userId): KakeiboRecord&MockInterface
+    {
+        $record = Mockery::mock(KakeiboRecord::class)->makePartial();
+        $record->id = $id;
+        $record->user_id = $userId;
+
+        return $record;
+    }
+
+    /**
      * SKR-001: list: 一覧取得が正しく動作する
      */
     #[Test]
     public function SKR_001_一覧取得が正しく動作する(): void
     {
         $userId = 1;
-        $filters = [];
+        $sortOrder = 'desc';
+        $filters = ['from' => '2026-06-01'];
+        $perPage = 20;
 
-        $paginator = Mockery::mock(\Illuminate\Contracts\Pagination\LengthAwarePaginator::class);
+        $paginator = Mockery::mock(LengthAwarePaginator::class);
 
         $this->repository
-            ->shouldReceive('paginate')
+            ->shouldReceive('paginateByUserId')
             ->once()
-            ->with($userId, $filters)
+            ->with($userId, $sortOrder, $filters, $perPage)
             ->andReturn($paginator);
 
         $this->repository
-            ->shouldReceive('sumAmountByType')
+            ->shouldReceive('sumByType')
             ->once()
-            ->with($userId, $filters, 'income')
+            ->with($userId, 2, $filters)
             ->andReturn(300000);
 
         $this->repository
-            ->shouldReceive('sumAmountByType')
+            ->shouldReceive('sumByType')
             ->once()
-            ->with($userId, $filters, 'expense')
+            ->with($userId, 1, $filters)
             ->andReturn(150000);
 
-        $result = $this->service->list($userId, $filters);
+        $result = $this->service->list($userId, $sortOrder, $filters, $perPage);
 
-        $this->assertArrayHasKey('records', $result);
-        $this->assertArrayHasKey('totalIncome', $result);
-        $this->assertArrayHasKey('totalExpense', $result);
         $this->assertSame($paginator, $result['records']);
         $this->assertSame(300000, $result['totalIncome']);
         $this->assertSame(150000, $result['totalExpense']);
@@ -84,18 +109,18 @@ class KakeiboRecordServiceTest extends TestCase
     #[Test]
     public function SKR_002_findOrFailで正常取得できる(): void
     {
+        $id = 10;
         $userId = 1;
-        $recordId = 10;
 
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
+        $record = $this->makeRecord($id, $userId);
 
         $this->repository
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findById')
             ->once()
-            ->with($recordId)
+            ->with($id)
             ->andReturn($record);
 
-        $result = $this->service->findOrFail($userId, $recordId);
+        $result = $this->service->findOrFail($id, $userId);
 
         $this->assertSame($record, $result);
     }
@@ -106,17 +131,17 @@ class KakeiboRecordServiceTest extends TestCase
     #[Test]
     public function SKR_003_findOrFailでレコードが存在しない場合は404になる(): void
     {
+        $id = 999;
         $userId = 1;
-        $recordId = 999;
 
         $this->repository
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findById')
             ->once()
-            ->with($recordId)
+            ->with($id)
             ->andReturn(null);
 
         $this->assertAbort(
-            fn () => $this->service->findOrFail($userId, $recordId),
+            fn () => $this->service->findOrFail($id, $userId),
             404
         );
     }
@@ -127,19 +152,19 @@ class KakeiboRecordServiceTest extends TestCase
     #[Test]
     public function SKR_004_findOrFailで他ユーザーのレコードは403になる(): void
     {
+        $id = 10;
         $userId = 1;
-        $recordId = 10;
 
-        $record = (object) ['id' => $recordId, 'user_id' => 999];
+        $record = $this->makeRecord($id, 999);
 
         $this->repository
-            ->shouldReceive('findOrFail')
+            ->shouldReceive('findById')
             ->once()
-            ->with($recordId)
+            ->with($id)
             ->andReturn($record);
 
         $this->assertAbort(
-            fn () => $this->service->findOrFail($userId, $recordId),
+            fn () => $this->service->findOrFail($id, $userId),
             403
         );
     }
@@ -150,18 +175,18 @@ class KakeiboRecordServiceTest extends TestCase
     #[Test]
     public function SKR_005_findOrFailForUpdateで正常取得できる(): void
     {
+        $id = 10;
         $userId = 1;
-        $recordId = 10;
 
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
+        $record = $this->makeRecord($id, $userId);
 
         $this->repository
-            ->shouldReceive('findOrFailForUpdate')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId)
+            ->with($id)
             ->andReturn($record);
 
-        $result = $this->service->findOrFailForUpdate($userId, $recordId);
+        $result = $this->service->findOrFailForUpdate($id, $userId);
 
         $this->assertSame($record, $result);
     }
@@ -172,17 +197,17 @@ class KakeiboRecordServiceTest extends TestCase
     #[Test]
     public function SKR_006_findOrFailForUpdateでレコードが存在しない場合は404になる(): void
     {
+        $id = 999;
         $userId = 1;
-        $recordId = 999;
 
         $this->repository
-            ->shouldReceive('findOrFailForUpdate')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId)
+            ->with($id)
             ->andReturn(null);
 
         $this->assertAbort(
-            fn () => $this->service->findOrFailForUpdate($userId, $recordId),
+            fn () => $this->service->findOrFailForUpdate($id, $userId),
             404
         );
     }
@@ -193,19 +218,19 @@ class KakeiboRecordServiceTest extends TestCase
     #[Test]
     public function SKR_007_findOrFailForUpdateで他ユーザーのレコードは403になる(): void
     {
+        $id = 10;
         $userId = 1;
-        $recordId = 10;
 
-        $record = (object) ['id' => $recordId, 'user_id' => 999];
+        $record = $this->makeRecord($id, 999);
 
         $this->repository
-            ->shouldReceive('findOrFailForUpdate')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId)
+            ->with($id)
             ->andReturn($record);
 
         $this->assertAbort(
-            fn () => $this->service->findOrFailForUpdate($userId, $recordId),
+            fn () => $this->service->findOrFailForUpdate($id, $userId),
             403
         );
     }
@@ -226,28 +251,18 @@ class KakeiboRecordServiceTest extends TestCase
             'kakeiboDefaultCategoryId' => 1,
         ];
 
-        $expected = [
-            'user_id' => $userId,
-            'purchase_date' => '2026-07-01',
-            'amount_type_id' => 1,
-            'amount' => 1000,
-            'details' => 'テスト',
-            'kakeibo_default_category_id' => 1,
-        ];
-
         $this->repository
             ->shouldReceive('create')
             ->once()
-            ->with(Mockery::on(function (array $data) use ($expected) {
-                foreach ($expected as $key => $value) {
-                    if (! array_key_exists($key, $data) || $data[$key] !== $value) {
-                        return false;
-                    }
-                }
-
-                return true;
-            }))
-            ->andReturn((object) $expected);
+            ->with([
+                'user_id' => $userId,
+                'purchase_date' => '2026-07-01',
+                'amount_type_id' => 1,
+                'amount' => 1000,
+                'details' => 'テスト',
+                'kakeibo_default_category_id' => 1,
+            ])
+            ->andReturn($this->makeRecord(100, $userId));
 
         $this->service->create($userId, $validated);
     }
@@ -271,10 +286,8 @@ class KakeiboRecordServiceTest extends TestCase
         $this->repository
             ->shouldReceive('create')
             ->once()
-            ->with(Mockery::on(function (array $data) use ($today) {
-                return ($data['purchase_date'] ?? null) === $today;
-            }))
-            ->andReturn((object) []);
+            ->with(Mockery::on(fn (array $data) => ($data['purchase_date'] ?? null) === $today))
+            ->andReturn($this->makeRecord(100, $userId));
 
         $this->service->create($userId, $validated);
     }
@@ -285,10 +298,14 @@ class KakeiboRecordServiceTest extends TestCase
     #[Test]
     public function SKR_010_updateでRepositoryのupdateが呼ばれる(): void
     {
+        $id = 10;
         $userId = 1;
-        $recordId = 10;
 
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
+        $record = $this->makeRecord($id, $userId);
+        $record->purchase_date = '2026-07-01';
+        $record->amount_type_id = 1;
+        $record->amount = 1000;
+        $record->kakeibo_default_category_id = 1;
 
         $validated = [
             'purchaseDate' => '2026-07-02',
@@ -299,55 +316,59 @@ class KakeiboRecordServiceTest extends TestCase
         ];
 
         $this->repository
-            ->shouldReceive('findOrFailForUpdate')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId)
+            ->with($id)
             ->andReturn($record);
 
         $this->repository
             ->shouldReceive('update')
             ->once()
-            ->with($record, Mockery::type('array'))
+            ->with($record, [
+                'purchase_date' => '2026-07-02',
+                'amount_type_id' => 1,
+                'amount' => 2000,
+                'details' => '更新後',
+                'kakeibo_default_category_id' => 2,
+            ])
             ->andReturn($record);
 
-        $this->service->update($userId, $recordId, $validated);
+        $this->service->update($id, $userId, $validated);
     }
 
     /**
      * SKR-011: delete: 正常削除
      */
     #[Test]
-    public function SKR_011_deleteでRepositoryのdeleteが呼ばれる(): void
+    public function SKR_011_deleteでRepositoryのdeleteと関連データ削除が呼ばれる(): void
     {
+        $id = 10;
         $userId = 1;
-        $recordId = 10;
 
-        $record = (object) ['id' => $recordId, 'user_id' => $userId];
+        $record = $this->makeRecord($id, $userId);
 
         $this->repository
-            ->shouldReceive('findOrFailForUpdate')
+            ->shouldReceive('findByIdForUpdate')
             ->once()
-            ->with($recordId)
+            ->with($id)
             ->andReturn($record);
+
+        $this->selfReviewRepository
+            ->shouldReceive('deleteByRecordIds')
+            ->once()
+            ->with(Mockery::on(fn ($ids) => $ids->all() === [$record->id]));
+
+        $this->postRepository
+            ->shouldReceive('deleteByRecordIds')
+            ->once()
+            ->with(Mockery::on(fn ($ids) => $ids->all() === [$record->id]));
 
         $this->repository
             ->shouldReceive('delete')
             ->once()
             ->with($record);
 
-        $this->service->delete($userId, $recordId);
+        $this->service->delete($id, $userId);
     }
 
-    /**
-     * abort() による HttpException（ステータスコード）を検証する共通アサーション。
-     */
-    private function assertAbort(callable $callback, int $status): void
-    {
-        try {
-            $callback();
-            $this->fail("Expected HttpException with status {$status} was not thrown.");
-        } catch (HttpException $e) {
-            $this->assertSame($status, $e->getStatusCode());
-        }
-    }
 }

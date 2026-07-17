@@ -2,11 +2,12 @@
 
 namespace Tests\Unit\Requests;
 
-use App\Http\Requests\LoginRequest;
+use App\Http\Requests\V1\LoginRequest;
 use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Unit\Concerns\InteractsWithValidation;
 
 /**
  * 単体テスト仕様書 1.2 LoginRequest 対応テスト
@@ -15,6 +16,8 @@ use Tests\TestCase;
  */
 class LoginRequestTest extends TestCase
 {
+    use InteractsWithValidation;
+
     /**
      * 検証対象のバリデーションルールを取得する。
      */
@@ -51,9 +54,9 @@ class LoginRequestTest extends TestCase
     #[Test]
     public function UL_001_全フィールド有効な場合はバリデーションを通過する(): void
     {
-        $validator = $this->validator($this->validData());
-
-        $this->assertFalse($validator->fails());
+        $this->assertValid(
+            $this->validData()
+        );
     }
 
     /**
@@ -62,14 +65,8 @@ class LoginRequestTest extends TestCase
     #[Test]
     public function UL_002_loginId未入力の場合はrequiredエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'loginId' => '',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['loginId' => '']),
             'loginId',
             'required'
         );
@@ -81,45 +78,10 @@ class LoginRequestTest extends TestCase
     #[Test]
     public function UL_003_password未入力の場合はrequiredエラーになる(): void
     {
-        $validator = $this->validator(
-            $this->validData([
-                'password' => '',
-            ])
-        );
-
-        $this->assertValidationError(
-            $validator,
+        $this->assertInvalid(
+            $this->validData(['password' => '']),
             'password',
             'required'
         );
-    }
-
-    /**
-     * バリデーションエラー共通アサーション
-     */
-    private function assertValidationError(
-        Validator $validator,
-        string $field,
-        string $rule
-    ): void {
-        $this->assertTrue($validator->fails());
-        $this->assertTrue($validator->errors()->has($field));
-        $this->assertSame($rule, $this->firstRule($validator, $field));
-    }
-
-    /**
-     * 指定フィールドで最初に検出されたルール名を取得する。
-     */
-    private function firstRule(
-        Validator $validator,
-        string $field
-    ): ?string {
-        $failed = $validator->failed();
-
-        if (! isset($failed[$field])) {
-            return null;
-        }
-
-        return strtolower(array_key_first($failed[$field]));
     }
 }
