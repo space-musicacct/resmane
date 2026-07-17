@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Requests;
 
-use App\Http\Requests\V1\UserUpdateRequest;
+use App\Http\Requests\V1\UpdateSettingLimitRequest;
 use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use PHPUnit\Framework\Attributes\Test;
@@ -10,169 +10,173 @@ use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithValidation;
 
 /**
- * 単体テスト仕様書 1.9 UserUpdateRequest 対応テスト
+ * 単体テスト仕様書 1.10 UpdateSettingLimitRequest 対応テスト
  *
- * 各フィールドは基本的に独立して省略可能なため、テストケースごとに
- * 必要なフィールドのみを入力データとして組み立てる。
+ * upperLimitTypeId によって aveMonthlyIncome の要否が変わる（割合指定=1 の場合は必須）ため、
+ * テストケースごとに必要なフィールドを個別に組み立てる。
  * DB依存なしで、リクエストの rules() を Validator に直接適用して検証する。
  */
-class UserUpdateRequestTest extends TestCase
+class UpdateSettingLimitRequestTest extends TestCase
 {
     use InteractsWithValidation;
 
     /**
-     * 検証対象のバリデーションルールを取得する。
+     * リクエストデータを注入した状態で FormRequest インスタンスを生成する。
+     *
+     * rules() は $this->input('upperLimitTypeId') を参照して動的にルールを
+     * 切り替えるため、new UpdateSettingLimitRequest() のような空インスタンスでは
+     * input() が常に null となり判定できない。
+     * FormRequest::create() でリクエストデータを持たせた状態で生成する。
      */
-    private function rules(): array
+    private function makeRequest(array $data): UpdateSettingLimitRequest
     {
-        return (new UserUpdateRequest())->rules();
+        /** @var UpdateSettingLimitRequest $request */
+        $request = UpdateSettingLimitRequest::create(
+            '/api/v1/settings/limit',
+            'PUT',
+            $data
+        );
+
+        return $request;
     }
 
     /**
      * Validator生成共通処理。
+     *
+     * $data から直接 rules() を組み立てるのではなく、$data を注入した
+     * FormRequest インスタンス経由で rules() を取得することで、
+     * upperLimitTypeId に応じた動的なルール切替を正しく検証する。
      */
     private function validator(array $data): Validator
     {
         return ValidatorFacade::make(
             $data,
-            $this->rules()
+            $this->makeRequest($data)->rules()
         );
     }
 
     /**
-     * UUU-001: 正常: loginId のみ変更
+     * USL-001: 正常: 固定額指定
      */
     #[Test]
-    public function UUU_001_loginIdのみ変更の場合はバリデーションを通過する(): void
+    public function USL_001_固定額指定の場合はバリデーションを通過する(): void
     {
         $this->assertValid([
-            'loginId' => 'newtaro',
+            'upperLimitTypeId' => 2,
+            'maxValue' => 50000,
+            'aveMonthlyIncome' => null,
         ]);
     }
 
     /**
-     * UUU-002: 正常: name のみ変更
+     * USL-002: 正常: 割合指定
      */
     #[Test]
-    public function UUU_002_nameのみ変更の場合はバリデーションを通過する(): void
+    public function USL_002_割合指定の場合はバリデーションを通過する(): void
     {
         $this->assertValid([
-            'name' => '新太郎',
+            'upperLimitTypeId' => 1,
+            'maxValue' => 30,
+            'aveMonthlyIncome' => 200000,
         ]);
     }
 
     /**
-     * UUU-003: 正常: email のみ変更
+     * USL-003: 異常: upperLimitTypeId 未入力
      */
     #[Test]
-    public function UUU_003_emailのみ変更の場合はバリデーションを通過する(): void
-    {
-        $this->assertValid([
-            'email' => 'new@example.com',
-        ]);
-    }
-
-    /**
-     * UUU-004: 正常: パスワード変更
-     */
-    #[Test]
-    public function UUU_004_パスワード変更の場合はバリデーションを通過する(): void
-    {
-        $this->assertValid([
-            'currentPassword' => 'old',
-            'password' => 'newpass123',
-            'passwordConfirmation' => 'newpass123',
-        ]);
-    }
-
-    /**
-     * UUU-005: 異常: loginId 16文字
-     */
-    #[Test]
-    public function UUU_005_loginIdが16文字の場合はmaxエラーになる(): void
-    {
-        $this->assertInvalid(
-            ['loginId' => '1234567890123456'],
-            'loginId',
-            'max'
-        );
-    }
-
-    /**
-     * UUU-006: 異常: name 51文字
-     */
-    #[Test]
-    public function UUU_006_nameが51文字の場合はmaxエラーになる(): void
-    {
-        $this->assertInvalid(
-            ['name' => str_repeat('あ', 51)],
-            'name',
-            'max'
-        );
-    }
-
-    /**
-     * UUU-007: 異常: email 形式不正
-     */
-    #[Test]
-    public function UUU_007_email形式が不正な場合はemailエラーになる(): void
-    {
-        $this->assertInvalid(
-            ['email' => 'invalid'],
-            'email',
-            'email'
-        );
-    }
-
-    /**
-     * UUU-008: 異常: password 指定時に currentPassword なし
-     */
-    #[Test]
-    public function UUU_008_password指定時にcurrentPasswordがない場合はrequired_withエラーになる(): void
+    public function USL_003_upperLimitTypeId未入力の場合はrequiredエラーになる(): void
     {
         $this->assertInvalid(
             [
-                'password' => 'newpass123',
-                'passwordConfirmation' => 'newpass123',
-                'currentPassword' => '',
+                'upperLimitTypeId' => '',
+                'maxValue' => 50000,
+                'aveMonthlyIncome' => null,
             ],
-            'currentPassword',
-            'required_with'
+            'upperLimitTypeId',
+            'required'
         );
     }
 
     /**
-     * UUU-009: 異常: password 7文字
+     * USL-004: 異常: maxValue 未入力
      */
     #[Test]
-    public function UUU_009_passwordが7文字の場合はminエラーになる(): void
+    public function USL_004_maxValue未入力の場合はrequiredエラーになる(): void
     {
         $this->assertInvalid(
             [
-                'currentPassword' => 'old',
-                'password' => '1234567',
-                'passwordConfirmation' => '1234567',
+                'upperLimitTypeId' => 2,
+                'maxValue' => '',
+                'aveMonthlyIncome' => null,
             ],
-            'password',
+            'maxValue',
+            'required'
+        );
+    }
+
+    /**
+     * USL-005: 異常: maxValue 0
+     */
+    #[Test]
+    public function USL_005_maxValueが0の場合はminエラーになる(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => 2,
+                'maxValue' => 0,
+                'aveMonthlyIncome' => null,
+            ],
+            'maxValue',
             'min'
         );
     }
 
     /**
-     * UUU-010: 異常: passwordConfirmation 不一致
+     * USL-006: 異常: 割合指定時に aveMonthlyIncome なし
      */
     #[Test]
-    public function UUU_010_passwordConfirmationが不一致の場合はsameエラーになる(): void
+    public function USL_006_割合指定時にaveMonthlyIncomeがない場合はrequiredエラーになる(): void
     {
         $this->assertInvalid(
             [
-                'currentPassword' => 'old',
-                'password' => 'newpass123',
-                'passwordConfirmation' => 'different',
+                'upperLimitTypeId' => 1,
+                'maxValue' => 30,
+                'aveMonthlyIncome' => null,
             ],
-            'passwordConfirmation',
-            'same'
+            'aveMonthlyIncome',
+            'required'
         );
+    }
+
+    /**
+     * USL-007: 異常: aveMonthlyIncome 0
+     */
+    #[Test]
+    public function USL_007_aveMonthlyIncomeが0の場合はminエラーになる(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => 1,
+                'maxValue' => 30,
+                'aveMonthlyIncome' => 0,
+            ],
+            'aveMonthlyIncome',
+            'min'
+        );
+    }
+
+    /**
+     * USL-008: 境界値: maxValue 1
+     */
+    #[Test]
+    public function USL_008_maxValueが1の場合は通過する(): void
+    {
+        $this->assertValid([
+            'upperLimitTypeId' => 2,
+            'maxValue' => 1,
+            'aveMonthlyIncome' => null,
+        ]);
     }
 
 }
