@@ -2,11 +2,12 @@
 
 namespace Tests\Unit\Requests;
 
-use App\Http\Requests\SelfReviewStoreRequest;
+use App\Http\Requests\V1\SelfReviewStoreRequest;
 use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Unit\Concerns\InteractsWithValidation;
 
 /**
  * 単体テスト仕様書 1.6 SelfReviewStoreRequest 対応テスト
@@ -15,6 +16,8 @@ use Tests\TestCase;
  */
 class SelfReviewStoreRequestTest extends TestCase
 {
+    use InteractsWithValidation;
+
     /**
      * 検証対象のバリデーションルールを取得する。
      */
@@ -198,48 +201,4 @@ class SelfReviewStoreRequestTest extends TestCase
         );
     }
 
-    /**
-     * 正常系共通アサーション
-     */
-    private function assertValid(array $data): void
-    {
-        $validator = $this->validator($data);
-
-        $this->assertFalse($validator->fails());
-    }
-
-    /**
-     * 異常系共通アサーション
-     */
-    private function assertInvalid(
-        array $data,
-        string $field,
-        string $rule
-    ): void {
-        $validator = $this->validator($data);
-
-        $this->assertTrue($validator->fails());
-        $this->assertTrue($validator->errors()->has($field));
-
-        $this->assertSame(
-            $rule,
-            $this->firstRule($validator, $field)
-        );
-    }
-
-    /**
-     * 指定フィールドで最初に検出されたルール名を取得する。
-     */
-    private function firstRule(
-        Validator $validator,
-        string $field
-    ): ?string {
-        $failed = $validator->failed();
-
-        if (! isset($failed[$field])) {
-            return null;
-        }
-
-        return strtolower(array_key_first($failed[$field]));
-    }
 }

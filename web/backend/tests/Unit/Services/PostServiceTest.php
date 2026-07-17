@@ -11,8 +11,8 @@ use Illuminate\Support\Collection;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
+use Tests\Unit\Concerns\InteractsWithAbort;
 
 /**
  * 単体テスト仕様書 2.3 PostService 対応テスト
@@ -27,6 +27,8 @@ use Tests\TestCase;
  */
 class PostServiceTest extends TestCase
 {
+    use InteractsWithAbort;
+
     private PostRepositoryInterface&MockInterface $repository;
     private KakeiboRecordService&MockInterface $kakeiboRecordService;
     private PostService $service;
@@ -430,16 +432,4 @@ class PostServiceTest extends TestCase
         $this->assertSame($userPost->id, $result['aiPost']->parent_id);
     }
 
-    /**
-     * abort() による HttpException（ステータスコード）を検証する共通アサーション。
-     */
-    private function assertAbort(callable $callback, int $status): void
-    {
-        try {
-            $callback();
-            $this->fail("Expected HttpException with status {$status} was not thrown.");
-        } catch (HttpException $e) {
-            $this->assertSame($status, $e->getStatusCode());
-        }
-    }
 }
