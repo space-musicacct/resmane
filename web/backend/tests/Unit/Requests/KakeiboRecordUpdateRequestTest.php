@@ -48,12 +48,15 @@ class KakeiboRecordUpdateRequestTest extends TestCase
 
     /**
      * Validator生成共通処理。
+     *
+     * amountTypeId / kakeiboDefaultCategoryId の exists 制約は DB 参照が必要なため、
+     * DB 接続のない本テストでは除外して検証する（exists 自体の検証は結合テストで行う）。
      */
     private function validator(array $data): Validator
     {
         return ValidatorFacade::make(
             $data,
-            $this->rules()
+            $this->withoutExistsRules($this->rules())
         );
     }
 
@@ -209,7 +212,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
     {
         $this->assertInvalid(
             $this->validData([
-                'purchaseDate' => '2026/07/01',
+                'purchaseDate' => 'invalid-date',
             ]),
             'purchaseDate',
             'date'
