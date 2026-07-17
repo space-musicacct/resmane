@@ -2,7 +2,10 @@
 
 namespace Tests\Unit\Services;
 
+use App\Models\KakeiboRecord;
 use App\Models\SelfReview;
+use App\Repositories\V1\Contracts\KakeiboRecordRepositoryInterface;
+use App\Repositories\V1\Contracts\PostRepositoryInterface;
 use App\Repositories\V1\Contracts\SelfReviewRepositoryInterface;
 use App\Services\V1\KakeiboRecordService;
 use App\Services\V1\SelfReviewService;
@@ -10,15 +13,18 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithAbort;
 
 /**
  * 単体テスト仕様書 2.2 SelfReviewService 対応テスト
  *
- * Repository と KakeiboRecordService をモック化し、DB に依存せず
- * ビジネスロジックのみを検証する。
+ * SelfReviewRepositoryInterface をモック化し、DB に依存せずビジネスロジックのみを検証する。
+ *
+ * KakeiboRecordService は readonly class のため Mockery で直接モック化できない
+ * （readonly class を継承する非 readonly なモッククラスをPHPが許可しないため）。
+ * そのため KakeiboRecordService 自体は実インスタンスとして生成し、その依存先である
+ * KakeiboRecordRepositoryInterface をモック化することで間接的に振る舞いを制御する。
  *
  * create() / update() / delete() は DB::transaction() で包まれているため、
  * テスト実行環境に有効なDB接続（トランザクション開始・コミットが可能な状態）が必要。
@@ -28,7 +34,7 @@ class SelfReviewServiceTest extends TestCase
     use InteractsWithAbort;
 
     private SelfReviewRepositoryInterface&MockInterface $repository;
-    private KakeiboRecordService&MockInterface $kakeiboRecordService;
+    private KakeiboRecordRepositoryInterface&MockInterface $kakeiboRecordRepository;
     private SelfReviewService $service;
 
     protected function setUp(): void
@@ -36,10 +42,17 @@ class SelfReviewServiceTest extends TestCase
         parent::setUp();
 
         $this->repository = Mockery::mock(SelfReviewRepositoryInterface::class);
-        $this->kakeiboRecordService = Mockery::mock(KakeiboRecordService::class);
+        $this->kakeiboRecordRepository = Mockery::mock(KakeiboRecordRepositoryInterface::class);
+
+        $kakeiboRecordService = new KakeiboRecordService(
+            $this->kakeiboRecordRepository,
+            Mockery::mock(SelfReviewRepositoryInterface::class),
+            Mockery::mock(PostRepositoryInterface::class),
+        );
+
         $this->service = new SelfReviewService(
             $this->repository,
-            $this->kakeiboRecordService
+            $kakeiboRecordService
         );
     }
 
@@ -48,6 +61,43 @@ class SelfReviewServiceTest extends TestCase
         Mockery::close();
 
         parent::tearDown();
+    }
+
+    /**
+     * id, user_id を持つ KakeiboRecord モックを作成する。
+     */
+    private function makeRecord(int $id, int $userId): KakeiboRecord&MockInterface
+    {
+        $record = Mockery::mock(KakeiboRecord::class)->makePartial();
+        $record->id = $id;
+        $record->user_id = $userId;
+
+        return $record;
+    }
+
+    /**
+     * KakeiboRecordService::findOrFail() 内部で呼ばれる Repository::findById() をモックする。
+     */
+    private function mockFindById(int $recordId, int $userId): void
+    {
+        $this->kakeiboRecordRepository
+            ->shouldReceive('findById')
+            ->once()
+            ->with($recordId)
+            ->andReturn($this->makeRecord($recordId, $userId));
+    }
+
+    /**
+     * KakeiboRecordService::findOrFailForUpdate() 内部で呼ばれる
+     * Repository::findByIdForUpdate() をモックする。
+     */
+    private function mockFindByIdForUpdate(int $recordId, int $userId): void
+    {
+        $this->kakeiboRecordRepository
+            ->shouldReceive('findByIdForUpdate')
+            ->once()
+            ->with($recordId)
+            ->andReturn($this->makeRecord($recordId, $userId));
     }
 
     /**
@@ -61,10 +111,7 @@ class SelfReviewServiceTest extends TestCase
 
         $paginator = Mockery::mock(LengthAwarePaginator::class);
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFail')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindById($recordId, $userId);
 
         $this->repository
             ->shouldReceive('paginateByRecordId')
@@ -86,11 +133,11 @@ class SelfReviewServiceTest extends TestCase
         $recordId = 999;
         $userId = 1;
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFail')
+        $this->kakeiboRecordRepository
+            ->shouldReceive('findById')
             ->once()
-            ->with($recordId, $userId)
-            ->andThrow(new HttpException(404));
+            ->with($recordId)
+            ->andReturn(null);
 
         $this->repository
             ->shouldNotReceive('paginateByRecordId');
@@ -115,10 +162,9 @@ class SelfReviewServiceTest extends TestCase
             'evaluation' => 3,
         ];
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $createdReview = Mockery::mock(SelfReview::class);
+
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('create')
@@ -128,9 +174,11 @@ class SelfReviewServiceTest extends TestCase
                 'review_comment' => '良い買い物だった',
                 'evaluation' => 3,
             ])
-            ->andReturn(Mockery::mock(SelfReview::class));
+            ->andReturn($createdReview);
 
-        $this->service->create($recordId, $userId, $validated);
+        $result = $this->service->create($recordId, $userId, $validated);
+
+        $this->assertSame($createdReview, $result);
     }
 
     /**
@@ -151,10 +199,7 @@ class SelfReviewServiceTest extends TestCase
             'evaluation' => 4,
         ];
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('findByIdForUpdate')
@@ -171,7 +216,9 @@ class SelfReviewServiceTest extends TestCase
             ])
             ->andReturn($review);
 
-        $this->service->update($recordId, $id, $userId, $validated);
+        $result = $this->service->update($recordId, $id, $userId, $validated);
+
+        $this->assertSame($review, $result);
     }
 
     /**
@@ -189,10 +236,7 @@ class SelfReviewServiceTest extends TestCase
             'evaluation' => 4,
         ];
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('findByIdForUpdate')
@@ -222,10 +266,7 @@ class SelfReviewServiceTest extends TestCase
         $review = Mockery::mock(SelfReview::class)->makePartial();
         $review->id = $id;
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('findByIdForUpdate')
@@ -239,6 +280,10 @@ class SelfReviewServiceTest extends TestCase
             ->with($review);
 
         $this->service->delete($recordId, $id, $userId);
+
+        // Mockery expectation の検証（shouldReceive(...)->once()）が
+        // このテストの主張であることを明示するための assertion。
+        $this->assertTrue(true);
     }
 
     /**
@@ -251,10 +296,7 @@ class SelfReviewServiceTest extends TestCase
         $id = 999;
         $userId = 1;
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('findByIdForUpdate')
@@ -270,5 +312,4 @@ class SelfReviewServiceTest extends TestCase
             404
         );
     }
-
 }

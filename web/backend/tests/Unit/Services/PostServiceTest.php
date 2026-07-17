@@ -3,8 +3,11 @@
 namespace Tests\Unit\Services;
 
 use App\Models\AiStatus;
+use App\Models\KakeiboRecord;
 use App\Models\Post;
+use App\Repositories\V1\Contracts\KakeiboRecordRepositoryInterface;
 use App\Repositories\V1\Contracts\PostRepositoryInterface;
+use App\Repositories\V1\Contracts\SelfReviewRepositoryInterface;
 use App\Services\V1\KakeiboRecordService;
 use App\Services\V1\PostService;
 use Illuminate\Support\Collection;
@@ -17,20 +20,23 @@ use Tests\Unit\Concerns\InteractsWithAbort;
 /**
  * 単体テスト仕様書 2.3 PostService 対応テスト
  *
- * Repository と KakeiboRecordService をモック化し、DB に依存せず
- * ビジネスロジックのみを検証する。
+ * PostRepositoryInterface をモック化し、DB に依存せずビジネスロジックのみを検証する。
+ *
+ * KakeiboRecordService は readonly class のため Mockery で直接モック化できない
+ * （readonly class を継承する非 readonly なモッククラスをPHPが許可しないため）。
+ * そのため KakeiboRecordService 自体は実インスタンスとして生成し、その依存先である
+ * KakeiboRecordRepositoryInterface をモック化することで間接的に振る舞いを制御する。
  *
  * store() は DB::transaction() で包まれているため、テスト実行環境に
  * 有効なDB接続（トランザクション開始・コミットが可能な状態）が必要。
- * Repository・KakeiboRecordService 自体はモック化しているため、
- * 実テーブルへのクエリは発生しない。
+ * Repository はすべてモック化しているため、実テーブルへのクエリは発生しない。
  */
 class PostServiceTest extends TestCase
 {
     use InteractsWithAbort;
 
     private PostRepositoryInterface&MockInterface $repository;
-    private KakeiboRecordService&MockInterface $kakeiboRecordService;
+    private KakeiboRecordRepositoryInterface&MockInterface $kakeiboRecordRepository;
     private PostService $service;
 
     protected function setUp(): void
@@ -38,10 +44,17 @@ class PostServiceTest extends TestCase
         parent::setUp();
 
         $this->repository = Mockery::mock(PostRepositoryInterface::class);
-        $this->kakeiboRecordService = Mockery::mock(KakeiboRecordService::class);
+        $this->kakeiboRecordRepository = Mockery::mock(KakeiboRecordRepositoryInterface::class);
+
+        $kakeiboRecordService = new KakeiboRecordService(
+            $this->kakeiboRecordRepository,
+            Mockery::mock(SelfReviewRepositoryInterface::class),
+            Mockery::mock(PostRepositoryInterface::class),
+        );
+
         $this->service = new PostService(
             $this->repository,
-            $this->kakeiboRecordService
+            $kakeiboRecordService
         );
     }
 
@@ -50,6 +63,58 @@ class PostServiceTest extends TestCase
         Mockery::close();
 
         parent::tearDown();
+    }
+
+    /**
+     * id, user_id を持つ KakeiboRecord モックを作成する。
+     */
+    private function makeRecord(int $id, int $userId): KakeiboRecord&MockInterface
+    {
+        $record = Mockery::mock(KakeiboRecord::class)->makePartial();
+        $record->id = $id;
+        $record->user_id = $userId;
+
+        return $record;
+    }
+
+    /**
+     * KakeiboRecordService::findOrFail() 内部で呼ばれる Repository::findById() をモックする。
+     */
+    private function mockFindById(int $recordId, int $userId): void
+    {
+        $this->kakeiboRecordRepository
+            ->shouldReceive('findById')
+            ->once()
+            ->with($recordId)
+            ->andReturn($this->makeRecord($recordId, $userId));
+    }
+
+    /**
+     * KakeiboRecordService::findOrFailForUpdate() 内部で呼ばれる
+     * Repository::findByIdForUpdate() をモックする。
+     */
+    private function mockFindByIdForUpdate(int $recordId, int $userId): void
+    {
+        $this->kakeiboRecordRepository
+            ->shouldReceive('findByIdForUpdate')
+            ->once()
+            ->with($recordId)
+            ->andReturn($this->makeRecord($recordId, $userId));
+    }
+
+    /**
+     * id, parent_id を持つ Post モックを作成する。
+     *
+     * PostRepositoryInterface::create() の戻り値型が Post のため、
+     * stdClass ではなく Post のモックを返す必要がある。
+     */
+    private function makePost(int $id, ?int $parentId = null): Post&MockInterface
+    {
+        $post = Mockery::mock(Post::class)->makePartial();
+        $post->id = $id;
+        $post->parent_id = $parentId;
+
+        return $post;
     }
 
     /**
@@ -63,10 +128,7 @@ class PostServiceTest extends TestCase
 
         $posts = new Collection([]);
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFail')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindById($recordId, $userId);
 
         $this->repository
             ->shouldReceive('findByRecordId')
@@ -96,10 +158,7 @@ class PostServiceTest extends TestCase
         $userPost = Mockery::mock(Post::class)->makePartial();
         $userPost->id = 100;
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('create')
@@ -125,7 +184,7 @@ class PostServiceTest extends TestCase
                 'is_ai' => 1,
                 'content' => null,
             ])
-            ->andReturn((object) ['id' => 101, 'parent_id' => $userPost->id]);
+            ->andReturn($this->makePost(101, $userPost->id));
 
         $result = $this->service->store($recordId, $userId, $validated);
 
@@ -147,12 +206,9 @@ class PostServiceTest extends TestCase
             'parentId' => null,
         ];
 
-        $aiPost = (object) ['id' => 200, 'parent_id' => null];
+        $aiPost = $this->makePost(200, null);
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('existsAiPostWithStatuses')
@@ -215,10 +271,7 @@ class PostServiceTest extends TestCase
             'parentId' => null,
         ];
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('existsAiPostWithStatuses')
@@ -253,12 +306,9 @@ class PostServiceTest extends TestCase
             'parentId' => null,
         ];
 
-        $newAiPost = (object) ['id' => 301, 'parent_id' => null];
+        $newAiPost = $this->makePost(301, null);
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         // failed は existsAiPostWithStatuses の対象ステータスに含まれないため false
         $this->repository
@@ -305,12 +355,9 @@ class PostServiceTest extends TestCase
             'parentId' => $parentId,
         ];
 
-        $userPost = (object) ['id' => 100];
+        $userPost = $this->makePost(100);
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('existsByIdAndRecordId')
@@ -342,7 +389,7 @@ class PostServiceTest extends TestCase
                 'is_ai' => 1,
                 'content' => null,
             ])
-            ->andReturn((object) ['id' => 101, 'parent_id' => $userPost->id]);
+            ->andReturn($this->makePost(101, $userPost->id));
 
         $result = $this->service->store($recordId, $userId, $validated);
 
@@ -365,10 +412,7 @@ class PostServiceTest extends TestCase
             'parentId' => $parentId,
         ];
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('existsByIdAndRecordId')
@@ -399,12 +443,9 @@ class PostServiceTest extends TestCase
             'parentId' => null,
         ];
 
-        $userPost = (object) ['id' => 555];
+        $userPost = $this->makePost(555);
 
-        $this->kakeiboRecordService
-            ->shouldReceive('findOrFailForUpdate')
-            ->once()
-            ->with($recordId, $userId);
+        $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
             ->shouldReceive('create')
@@ -425,11 +466,10 @@ class PostServiceTest extends TestCase
             ->with(Mockery::on(function (array $data) use ($userPost) {
                 return ($data['parent_id'] ?? null) === $userPost->id;
             }))
-            ->andReturnUsing(fn (array $data) => (object) $data);
+            ->andReturnUsing(fn (array $data) => $this->makePost(999, $data['parent_id'] ?? null));
 
         $result = $this->service->store($recordId, $userId, $validated);
 
         $this->assertSame($userPost->id, $result['aiPost']->parent_id);
     }
-
 }

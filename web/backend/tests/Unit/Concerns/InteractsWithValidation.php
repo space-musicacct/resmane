@@ -42,6 +42,9 @@ trait InteractsWithValidation
 
     /**
      * 指定フィールドで最初に検出されたルール名を取得する。
+     *
+     * Validator::failed() のキーは 'RequiredWith' のような StudlyCase で
+     * 返るため、'required_with' のような snake_case に変換して比較できるようにする。
      */
     private function firstRule(
         Validator $validator,
@@ -53,6 +56,34 @@ trait InteractsWithValidation
             return null;
         }
 
-        return strtolower(array_key_first($failed[$field]));
+        $ruleName = array_key_first($failed[$field]);
+
+        return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $ruleName));
+    }
+
+    /**
+     * rules() から exists 制約（'exists:...' 文字列ルール、および
+     * Rule::exists(...) が返す Illuminate\Validation\Rules\Exists インスタンス）を除外する。
+     *
+     * exists は DB 参照が必要なため、DB 接続のない本テストでは常に fail してしまう。
+     * 単体テスト仕様書の方針（exists の検証は結合テストで行う）に従い、
+     * 単体テストでは exists 以外のルールのみを対象に検証する。
+     */
+    private function withoutExistsRules(array $rules): array
+    {
+        foreach ($rules as $field => $fieldRules) {
+            $rules[$field] = array_values(array_filter(
+                (array) $fieldRules,
+                function ($rule) {
+                    if (is_string($rule)) {
+                        return ! str_starts_with($rule, 'exists:');
+                    }
+
+                    return ! ($rule instanceof \Illuminate\Validation\Rules\Exists);
+                }
+            ));
+        }
+
+        return $rules;
     }
 }

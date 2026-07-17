@@ -251,6 +251,8 @@ class KakeiboRecordServiceTest extends TestCase
             'kakeiboDefaultCategoryId' => 1,
         ];
 
+        $createdRecord = $this->makeRecord(100, $userId);
+
         $this->repository
             ->shouldReceive('create')
             ->once()
@@ -262,9 +264,11 @@ class KakeiboRecordServiceTest extends TestCase
                 'details' => 'テスト',
                 'kakeibo_default_category_id' => 1,
             ])
-            ->andReturn($this->makeRecord(100, $userId));
+            ->andReturn($createdRecord);
 
-        $this->service->create($userId, $validated);
+        $result = $this->service->create($userId, $validated);
+
+        $this->assertSame($createdRecord, $result);
     }
 
     /**
@@ -283,13 +287,17 @@ class KakeiboRecordServiceTest extends TestCase
             'kakeiboDefaultCategoryId' => 1,
         ];
 
+        $createdRecord = $this->makeRecord(100, $userId);
+
         $this->repository
             ->shouldReceive('create')
             ->once()
             ->with(Mockery::on(fn (array $data) => ($data['purchase_date'] ?? null) === $today))
-            ->andReturn($this->makeRecord(100, $userId));
+            ->andReturn($createdRecord);
 
-        $this->service->create($userId, $validated);
+        $result = $this->service->create($userId, $validated);
+
+        $this->assertSame($createdRecord, $result);
     }
 
     /**
@@ -333,7 +341,9 @@ class KakeiboRecordServiceTest extends TestCase
             ])
             ->andReturn($record);
 
-        $this->service->update($id, $userId, $validated);
+        $result = $this->service->update($id, $userId, $validated);
+
+        $this->assertSame($record, $result);
     }
 
     /**
@@ -369,6 +379,10 @@ class KakeiboRecordServiceTest extends TestCase
             ->with($record);
 
         $this->service->delete($id, $userId);
+
+        // delete() は void を返すため、Mockery expectation の検証が
+        // このテストの主張であることを明示するための assertion。
+        $this->assertTrue(true);
     }
 
 }
