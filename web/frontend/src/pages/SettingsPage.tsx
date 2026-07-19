@@ -61,7 +61,7 @@ export default function Setting() {
     try{
       await getCsrfCookie()
 
-      await api.post('/user', {
+      await api.put('/user', {
         name,
         email
       })
