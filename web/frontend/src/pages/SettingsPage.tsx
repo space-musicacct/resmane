@@ -32,13 +32,13 @@ export default function Setting() {
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
 
-  const [errors, ] = useState({
+  const errors = {
     loginId: [] as string[],
     name: [] as string[],
     email: [] as string[],
     password: [] as string[],
     passwordConfirmation: [] as string[],
-  })
+  }
 
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<Tab>('standard')
@@ -61,7 +61,7 @@ export default function Setting() {
     try{
       await getCsrfCookie()
 
-      await api.post('/user', {
+      await api.put('/user', {
         name,
         email
       })
