@@ -65,7 +65,7 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
         self._update_status(job_id, WorkerStatus.COMPLETED)
 
     def mark_failed(self, job_id: int, error: str) -> None:
-        """ジョブを失敗にする。"""
+        """ジョブを失敗にする。PROCESSING のジョブのみ遷移可能。"""
         conn = self._db.get_connection()
         cursor = conn.cursor()
         try:
@@ -73,14 +73,14 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
             cursor.execute(
                 "UPDATE worker_jobs "
                 "SET status = %s, last_error = %s, updated_at = %s "
-                "WHERE id = %s",
-                (WorkerStatus.FAILED, error, now, job_id),
+                "WHERE id = %s AND status = %s",
+                (WorkerStatus.FAILED, error, now, job_id, WorkerStatus.PROCESSING),
             )
         finally:
             cursor.close()
 
     def mark_cancelled(self, job_id: int, reason: str) -> None:
-        """ジョブをキャンセルにする。"""
+        """ジョブをキャンセルにする。PROCESSING のジョブのみ遷移可能。"""
         conn = self._db.get_connection()
         cursor = conn.cursor()
         try:
@@ -88,8 +88,8 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
             cursor.execute(
                 "UPDATE worker_jobs "
                 "SET status = %s, termination_reason = %s, updated_at = %s "
-                "WHERE id = %s",
-                (WorkerStatus.CANCELLED, reason, now, job_id),
+                "WHERE id = %s AND status = %s",
+                (WorkerStatus.CANCELLED, reason, now, job_id, WorkerStatus.PROCESSING),
             )
         finally:
             cursor.close()
@@ -189,8 +189,9 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
         try:
             now = self._now()
             cursor.execute(
-                "UPDATE worker_jobs SET status = %s, updated_at = %s WHERE id = %s",
-                (status, now, job_id),
+                "UPDATE worker_jobs SET status = %s, updated_at = %s "
+                "WHERE id = %s AND status = %s",
+                (status, now, job_id, WorkerStatus.PROCESSING),
             )
         finally:
             cursor.close()

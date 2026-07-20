@@ -236,7 +236,7 @@ WHERE id = ?
 | `mark_failed()`       | ジョブを失敗にする（`last_error` を記録）                   |
 | `mark_cancelled()`    | ジョブをキャンセルにする（`termination_reason` を記録）     |
 | `get_retry_info()`    | `retry_count` と `max_retries` を取得する                   |
-| `increment_retry()`   | `retry_count` をインクリメントし、`last_error` を記録する   |
+| `increment_retry_and_pend()` | `retry_count` をインクリメントし、`RETRY_PENDING` に遷移する |
 | `fetch_stale()`                  | PROCESSING のまま一定時間経過したジョブを取得する           |
 | `cancel_processing_by_post_ids()` | 指定 post_id の PROCESSING ジョブを CANCELLED にする       |
 | `soft_delete_by_post_ids()`      | 指定 post_id の全ジョブに `deleted_at` を設定する           |
@@ -392,7 +392,17 @@ Worker 異常終了で PROCESSING のまま残ったジョブを回収する。
 | `retry_count < max_retries`                                      | PENDING に戻して再投入 |
 | `retry_count >= max_retries`                                     | FAILED にする       |
 
-stale recovery は `posts.deleted_at IS NULL` のみを対象とするため、削除済みの凍結行は拾わない。
+stale recovery は投稿の現在状態を取得し、以下の状態表に基づいて修復する。
+
+| `posts.ai_status_id` | `worker_jobs` の修復                             |
+| --------------------- | ------------------------------------------------ |
+| `PENDING`             | `RETRY_PENDING` へ戻して再 claim 可能にする       |
+| `PROCESSING`          | 投稿を `PENDING` へ、ジョブを `RETRY_PENDING` へ |
+| `COMPLETED`           | ジョブを `COMPLETED` へ                           |
+| `FAILED`              | ジョブを `FAILED` へ                              |
+| 削除済み・存在しない  | `CANCELLED` / `TARGET_DELETED`                   |
+
+「条件付き更新に失敗した = 削除済み」とは限らないため、`get_ai_status()` で投稿の現在状態を確認してから判断する。
 
 ### 6.8 削除同期
 

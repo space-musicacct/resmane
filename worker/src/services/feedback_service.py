@@ -71,27 +71,44 @@ class FeedbackService:
             self._recover_one(job)
 
     def _recover_one(self, job: dict) -> None:
-        """1 件の stale ジョブを回収する。"""
+        """1 件の stale ジョブを状態表に基づいて回収する。"""
         job_id = job["id"]
         post_id = job["post_id"]
 
-        if job["retry_count"] < job["max_retries"]:
-            if self._post_repo.recover_to_pending(post_id):
-                self._job_repo.increment_retry_and_pend(job_id, "stale recovery: worker timeout")
-                logger.info(
-                    "post_id=%d: stale 回収 → PENDING に戻し (%d/%d)",
-                    post_id, job["retry_count"] + 1, job["max_retries"],
-                )
-            else:
-                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
-                logger.info("post_id=%d: stale 回収 → 対象が削除済みのためキャンセル", post_id)
-        else:
-            if not self._post_repo.mark_failed(post_id):
-                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
-                logger.info("post_id=%d: stale 回収 → 対象が削除済みのためキャンセル", post_id)
-            else:
-                self._job_repo.mark_failed(job_id, "stale recovery: max retries exceeded")
-                logger.warning("post_id=%d: stale 回収 → リトライ上限到達", post_id)
+        post_info = self._post_repo.get_ai_status(post_id)
+
+        if post_info is None or post_info["deleted_at"] is not None:
+            self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
+            logger.info("post_id=%d: stale 回収 → 対象が削除済みのためキャンセル", post_id)
+            return
+
+        post_status = post_info["ai_status_id"]
+
+        if post_status == AiStatus.COMPLETED:
+            self._job_repo.mark_completed(job_id)
+            logger.info("post_id=%d: stale 回収 → 投稿が完了済みのためジョブも完了", post_id)
+            return
+
+        if post_status == AiStatus.FAILED:
+            self._job_repo.mark_failed(job_id, "stale recovery: post already failed")
+            logger.info("post_id=%d: stale 回収 → 投稿が失敗済みのためジョブも失敗", post_id)
+            return
+
+        if job["retry_count"] >= job["max_retries"]:
+            self._post_repo.mark_failed(post_id)
+            self._job_repo.mark_failed(job_id, "stale recovery: max retries exceeded")
+            logger.warning("post_id=%d: stale 回収 → リトライ上限到達", post_id)
+            return
+
+        # PENDING or PROCESSING → RETRY_PENDING にして再 claim 可能に
+        if post_status == AiStatus.PROCESSING:
+            self._post_repo.recover_to_pending(post_id)
+
+        self._job_repo.increment_retry_and_pend(job_id, "stale recovery: worker timeout")
+        logger.info(
+            "post_id=%d: stale 回収 → RETRY_PENDING (%d/%d)",
+            post_id, job["retry_count"] + 1, job["max_retries"],
+        )
 
     def process_pending(self) -> None:
         """pending な投稿を全て処理する。"""
@@ -150,12 +167,7 @@ class FeedbackService:
                 logger.info("post_id=%d: AI フィードバック生成完了", post_id)
                 self._job_repo.mark_completed(job_id)
             else:
-                if self._post_repo.is_deleted(post_id):
-                    reason = TerminationReason.TARGET_DELETED
-                    logger.warning("post_id=%d: 書き戻しスキップ (対象が削除済み)", post_id)
-                else:
-                    reason = TerminationReason.STATE_INCONSISTENCY
-                    logger.warning("post_id=%d: 書き戻しスキップ (状態不整合)", post_id)
+                reason = self._classify_write_failure(post_id)
                 self._job_repo.mark_cancelled(job_id, reason)
 
         except Exception as e:
@@ -201,12 +213,21 @@ class FeedbackService:
                     post_id, retry_info["retry_count"] + 1, retry_info["max_retries"],
                 )
             else:
-                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
-                logger.info("post_id=%d: リトライ不可 (対象が削除済み)", post_id)
+                reason = self._classify_write_failure(post_id)
+                self._job_repo.mark_cancelled(job_id, reason)
         else:
             self._post_repo.mark_failed(post_id)
             self._job_repo.mark_failed(job_id, error)
             logger.warning("post_id=%d: リトライ上限到達", post_id)
+
+    def _classify_write_failure(self, post_id: int) -> str:
+        """条件付き UPDATE が失敗した原因を判定する。"""
+        post_info = self._post_repo.get_ai_status(post_id)
+        if post_info is None or post_info["deleted_at"] is not None:
+            logger.warning("post_id=%d: 書き戻しスキップ (対象が削除済み)", post_id)
+            return TerminationReason.TARGET_DELETED
+        logger.warning("post_id=%d: 書き戻しスキップ (状態不整合)", post_id)
+        return TerminationReason.STATE_INCONSISTENCY
 
     def _build_context(self, record_id: int) -> dict | None:
         """AI に渡すコンテキスト情報を組み立てる。"""

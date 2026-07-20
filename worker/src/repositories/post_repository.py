@@ -96,13 +96,9 @@ class PostRepository(PostRepositoryInterface):
         self,
         last_deleted_at: str,
         last_id: int,
-        lookback_sec: int = 5,
         limit: int = 100,
     ) -> list[dict]:
-        """指定した watermark 以降に論理削除された投稿を取得する。
-
-        lookback_sec 秒分を遡って取得し、commit 順逆転による取りこぼしを軽減する。
-        """
+        """指定した watermark 以降に論理削除された投稿を取得する。"""
         conn = self._db.get_connection()
         cursor = conn.cursor(dictionary=True)
         try:
@@ -110,26 +106,25 @@ class PostRepository(PostRepositoryInterface):
                 "SELECT id, deleted_at FROM posts "
                 "WHERE is_ai = 1 "
                 "  AND deleted_at IS NOT NULL "
-                "  AND deleted_at >= DATE_SUB(%s, INTERVAL %s SECOND) "
+                "  AND (deleted_at > %s OR (deleted_at = %s AND id > %s)) "
                 "ORDER BY deleted_at ASC, id ASC "
                 "LIMIT %s",
-                (last_deleted_at, lookback_sec, limit),
+                (last_deleted_at, last_deleted_at, last_id, limit),
             )
             return cursor.fetchall()
         finally:
             cursor.close()
 
-    def is_deleted(self, post_id: int) -> bool:
-        """投稿が論理削除済みかどうかを返す。"""
+    def get_ai_status(self, post_id: int) -> dict | None:
+        """投稿の ai_status_id と deleted_at を取得する。存在しなければ None。"""
         conn = self._db.get_connection()
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute(
-                "SELECT deleted_at FROM posts WHERE id = %s",
+                "SELECT ai_status_id, deleted_at FROM posts WHERE id = %s",
                 (post_id,),
             )
-            row = cursor.fetchone()
-            return row is None or row["deleted_at"] is not None
+            return cursor.fetchone()
         finally:
             cursor.close()
 

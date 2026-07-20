@@ -33,15 +33,14 @@ class PostRepositoryInterface(ABC):
         """
 
     @abstractmethod
-    def is_deleted(self, post_id: int) -> bool:
-        """投稿が論理削除済みかどうかを返す。"""
+    def get_ai_status(self, post_id: int) -> dict | None:
+        """投稿の ai_status_id と deleted_at を取得する。存在しなければ None。"""
 
     @abstractmethod
     def fetch_deleted_since(
         self,
         last_deleted_at: str,
         last_id: int,
-        lookback_sec: int = 5,
         limit: int = 100,
     ) -> list[dict]:
         """指定した watermark 以降に論理削除された投稿を取得する。"""
