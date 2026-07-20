@@ -38,7 +38,11 @@ class PostRepositoryInterface(ABC):
 
     @abstractmethod
     def fetch_deleted_since(
-        self, last_deleted_at: str, last_id: int, limit: int = 100,
+        self,
+        last_deleted_at: str,
+        last_id: int,
+        lookback_sec: int = 5,
+        limit: int = 100,
     ) -> list[dict]:
         """指定した watermark 以降に論理削除された投稿を取得する。"""
 

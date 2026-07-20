@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 SYNC_TABLE = "posts"
 SYNC_BATCH_SIZE = 100
+SYNC_LOOKBACK_SEC = 5
 
 
 class DeleteSyncService:
@@ -35,16 +36,15 @@ class DeleteSyncService:
         self._watermark_repo = watermark_repo
 
     def sync(self) -> None:
-        """削除同期を実行する。失敗時は rollback して次回再実行。"""
+        """増分削除同期を実行する。失敗時は rollback して re-raise。"""
+        self._worker_db.begin_transaction()
         try:
-            self._worker_db.begin_transaction()
-
             watermark = self._watermark_repo.get_for_update(SYNC_TABLE)
             last_deleted_at = watermark["last_deleted_at"]
             last_id = watermark["last_id"]
 
             deleted_posts = self._post_repo.fetch_deleted_since(
-                last_deleted_at, last_id, SYNC_BATCH_SIZE,
+                last_deleted_at, last_id, SYNC_LOOKBACK_SEC, SYNC_BATCH_SIZE,
             )
 
             if not deleted_posts:
@@ -72,4 +72,35 @@ class DeleteSyncService:
 
         except Exception:
             self._worker_db.rollback()
-            logger.exception("削除同期に失敗 (次回ポーリングで再実行)")
+            logger.exception("削除同期に失敗")
+            raise
+
+    def reconcile(self) -> None:
+        """全件照合で取りこぼしを回収する。定期実行用。"""
+        self._worker_db.begin_transaction()
+        try:
+            all_deleted = self._post_repo.fetch_deleted_since(
+                "1970-01-01 00:00:00", 0, 0, 1000,
+            )
+
+            if not all_deleted:
+                self._worker_db.commit()
+                return
+
+            post_ids = [p["id"] for p in all_deleted]
+
+            cancelled = self._job_repo.cancel_processing_by_post_ids(post_ids)
+            soft_deleted = self._job_repo.soft_delete_by_post_ids(post_ids)
+
+            self._worker_db.commit()
+
+            if cancelled > 0 or soft_deleted > 0:
+                logger.info(
+                    "全件照合完了: %d 件検出, %d 件キャンセル, %d 件論理削除",
+                    len(all_deleted), cancelled, soft_deleted,
+                )
+
+        except Exception:
+            self._worker_db.rollback()
+            logger.exception("全件照合に失敗")
+            raise

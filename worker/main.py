@@ -24,6 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 HEALTH_CHECK_PATH = Path("/tmp/worker_healthy")
+RECONCILE_INTERVAL_SEC = 3600
 
 
 def main() -> None:
@@ -60,10 +61,21 @@ def main() -> None:
     def tick() -> None:
         try:
             delete_sync.sync()
+        except Exception:
+            logger.exception("削除同期に失敗、後続処理を中止")
+            return
+
+        try:
             feedback.recover_stale()
             feedback.process_pending()
         except Exception:
-            logger.exception("ポーリング中にエラーが発生")
+            logger.exception("フィードバック処理中にエラーが発生")
+
+    def reconcile() -> None:
+        try:
+            delete_sync.reconcile()
+        except Exception:
+            logger.exception("全件照合に失敗")
 
     logger.info(
         "レスマネ Worker を起動しました (間隔: %d 秒, stale timeout: %d 秒)",
@@ -72,6 +84,7 @@ def main() -> None:
     )
 
     schedule.every(config.poll_interval_sec).seconds.do(tick)
+    schedule.every(RECONCILE_INTERVAL_SEC).seconds.do(reconcile)
 
     while True:
         schedule.run_pending()

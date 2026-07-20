@@ -93,9 +93,16 @@ class PostRepository(PostRepositoryInterface):
             cursor.close()
 
     def fetch_deleted_since(
-        self, last_deleted_at: str, last_id: int, limit: int = 100,
+        self,
+        last_deleted_at: str,
+        last_id: int,
+        lookback_sec: int = 5,
+        limit: int = 100,
     ) -> list[dict]:
-        """指定した watermark 以降に論理削除された投稿を取得する。"""
+        """指定した watermark 以降に論理削除された投稿を取得する。
+
+        lookback_sec 秒分を遡って取得し、commit 順逆転による取りこぼしを軽減する。
+        """
         conn = self._db.get_connection()
         cursor = conn.cursor(dictionary=True)
         try:
@@ -103,10 +110,10 @@ class PostRepository(PostRepositoryInterface):
                 "SELECT id, deleted_at FROM posts "
                 "WHERE is_ai = 1 "
                 "  AND deleted_at IS NOT NULL "
-                "  AND (deleted_at > %s OR (deleted_at = %s AND id > %s)) "
+                "  AND deleted_at >= DATE_SUB(%s, INTERVAL %s SECOND) "
                 "ORDER BY deleted_at ASC, id ASC "
                 "LIMIT %s",
-                (last_deleted_at, last_deleted_at, last_id, limit),
+                (last_deleted_at, lookback_sec, limit),
             )
             return cursor.fetchall()
         finally:

@@ -23,10 +23,19 @@ class SyncWatermarkRepository(SyncWatermarkRepositoryInterface):
         self._db = db
 
     def get_for_update(self, table_name: str) -> dict:
-        """排他ロック付きで watermark を取得する。存在しなければ初期値を返す。"""
+        """排他ロック付きで watermark を取得する。存在しなければ初期行を作成する。"""
         conn = self._db.get_connection()
         cursor = conn.cursor(dictionary=True)
         try:
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute(
+                "INSERT IGNORE INTO sync_watermarks "
+                "(table_name, last_deleted_at, last_id, updated_at) "
+                "VALUES (%s, %s, %s, %s)",
+                (table_name, _INITIAL_WATERMARK["last_deleted_at"],
+                 _INITIAL_WATERMARK["last_id"], now),
+            )
+
             cursor.execute(
                 "SELECT last_deleted_at, last_id FROM sync_watermarks "
                 "WHERE table_name = %s "
@@ -34,8 +43,6 @@ class SyncWatermarkRepository(SyncWatermarkRepositoryInterface):
                 (table_name,),
             )
             row = cursor.fetchone()
-            if row is None:
-                return dict(_INITIAL_WATERMARK)
 
             if hasattr(row["last_deleted_at"], "strftime"):
                 row["last_deleted_at"] = row["last_deleted_at"].strftime(

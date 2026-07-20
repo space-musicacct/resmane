@@ -147,12 +147,13 @@ worker/
 
 `worker_jobs.status` カラムの値。
 
-| 定数         | 値             | 説明                       |
-| ------------ | -------------- | -------------------------- |
-| `PROCESSING` | `"processing"` | 処理中                     |
-| `COMPLETED`  | `"completed"`  | 正常完了                   |
-| `FAILED`     | `"failed"`     | AI 障害による失敗          |
-| `CANCELLED`  | `"cancelled"`  | 対象削除等によるキャンセル |
+| 定数            | 値                | 説明                         |
+| --------------- | ----------------- | ---------------------------- |
+| `PROCESSING`    | `"processing"`    | 処理中                       |
+| `RETRY_PENDING` | `"retry_pending"` | リトライ待ち（次回 claim 可） |
+| `COMPLETED`     | `"completed"`     | 正常完了                     |
+| `FAILED`        | `"failed"`        | AI 障害による失敗            |
+| `CANCELLED`     | `"cancelled"`     | 対象削除等によるキャンセル   |
 
 #### TerminationReason（`src/configs/worker_status.py`）
 
@@ -278,7 +279,7 @@ classDiagram
 | 項目             | 値                                     |
 | ---------------- | -------------------------------------- |
 | エンドポイント   | `{AI_API_URL}/models/{AI_MODEL}:generateContent` |
-| 認証             | API キーをクエリパラメータで送信       |
+| 認証             | `x-goog-api-key` ヘッダーで送信       |
 | タイムアウト     | 60 秒                                 |
 | `maxOutputTokens`| 1500（デフォルト）                     |
 | デフォルトモデル | `gemini-3.5-flash`                     |
@@ -300,10 +301,13 @@ while True:
     sleep(1)
 ```
 
-各ポーリングで以下を順に実行する。
+各ポーリング (30 秒間隔) で以下を順に実行する。削除同期が失敗した場合、後続処理は中止する。
 
-1. **stale recovery** — タイムアウトしたジョブを回収
-2. **process_pending** — 新規 pending を処理
+1. **delete_sync.sync()** — 削除同期を最優先
+2. **feedback.recover_stale()** — タイムアウトしたジョブを回収
+3. **feedback.process_pending()** — 新規 pending を処理
+
+別途、1 時間間隔で `delete_sync.reconcile()` を実行し、commit 順逆転による取りこぼしを全件照合で回収する。
 
 ### 6.2 claim（排他制御）
 
@@ -362,11 +366,21 @@ truncate して不完全な応答を保存するのではなく、FAILED とし�
 
 ### 6.6 リトライ
 
+リトライ時はジョブの状態を `RETRY_PENDING` に遷移させ、stale 判定と区別する。
+
+| 状態           | `posts.ai_status_id` | `worker_jobs.status` | 説明                   |
+| -------------- | --------------------- | -------------------- | ---------------------- |
+| AI 処理中      | `PROCESSING`          | `PROCESSING`         | AI 呼び出し中          |
+| リトライ待ち   | `PENDING`             | `RETRY_PENDING`      | 次回ポーリングで再 claim |
+| 再 claim       | `PROCESSING`          | `PROCESSING`         | `claimed_at` を更新    |
+
 | 条件                             | 動作                                                 |
 | -------------------------------- | ---------------------------------------------------- |
-| AI API 一時エラー / 文字数超過   | `worker_jobs.retry_count` をインクリメント            |
-| `retry_count < max_retries` (3)  | `posts.ai_status_id` を PENDING に戻す → 次のポーリングで再投入 |
-| `retry_count >= max_retries`     | `posts.ai_status_id` を FAILED のまま。ユーザーの手動再試行待ち |
+| AI API 一時エラー / 文字数超過   | `posts` → PENDING、`worker_jobs` → `RETRY_PENDING`   |
+| `retry_count < max_retries` (3)  | 次回ポーリングで `RETRY_PENDING → PROCESSING` の条件付き claim |
+| `retry_count >= max_retries`     | `posts` → FAILED、`worker_jobs` → FAILED。ユーザーの手動再試行待ち |
+
+`upsert()` は `INSERT IGNORE` (初回) → `RETRY_PENDING → PROCESSING` の条件付き UPDATE (リトライ) の 2 段階で原子的に claim する。claim に負けた Worker は共有ジョブを変更しない。
 
 ### 6.7 stale recovery
 
@@ -394,12 +408,15 @@ v0.1 では `posts.deleted_at` の差分同期のみ。現 API 設計では家�
 
 `sync_watermarks` テーブルに `table_name` + `last_deleted_at` + `last_id` の複合 watermark を保存する。時刻のみだと同一時刻の行を取りこぼすため、`deleted_at + id` の複合条件で差分を取得する。
 
+lookback 付きで取得し、commit 順逆転による取りこぼしを軽減する。
+
 ```sql
-WHERE deleted_at > :last_deleted_at
-   OR (deleted_at = :last_deleted_at AND id > :last_id)
+WHERE deleted_at >= DATE_SUB(:last_deleted_at, INTERVAL :lookback_sec SECOND)
 ORDER BY deleted_at, id
 LIMIT :batch_size
 ```
+
+増分同期だけでは長時間の未 commit トランザクションを拾えないため、1 時間間隔で `reconcile()` を実行し、全削除済み AI 投稿を照合する。
 
 #### 処理フロー
 

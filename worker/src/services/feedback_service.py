@@ -77,7 +77,7 @@ class FeedbackService:
 
         if job["retry_count"] < job["max_retries"]:
             if self._post_repo.recover_to_pending(post_id):
-                self._job_repo.increment_retry(job_id, "stale recovery: worker timeout")
+                self._job_repo.increment_retry_and_pend(job_id, "stale recovery: worker timeout")
                 logger.info(
                     "post_id=%d: stale 回収 → PENDING に戻し (%d/%d)",
                     post_id, job["retry_count"] + 1, job["max_retries"],
@@ -171,6 +171,8 @@ class FeedbackService:
         PROCESSING 投稿を照合して回収できる。
         """
         job_id = self._job_repo.upsert(post_id)
+        if job_id is None:
+            return None
 
         self._db.begin_transaction()
         try:
@@ -188,16 +190,19 @@ class FeedbackService:
             raise
 
     def _handle_failure(self, post_id: int, job_id: int, error: str) -> None:
-        """失敗処理。リトライ可能なら PENDING に戻し、上限なら FAILED にする。"""
-        self._job_repo.increment_retry(job_id, error)
+        """失敗処理。リトライ可能なら RETRY_PENDING + PENDING、上限なら FAILED。"""
         retry_info = self._job_repo.get_retry_info(job_id)
 
         if retry_info and retry_info["retry_count"] < retry_info["max_retries"]:
-            self._post_repo.recover_to_pending(post_id)
-            logger.info(
-                "post_id=%d: リトライ予定 (%d/%d)",
-                post_id, retry_info["retry_count"], retry_info["max_retries"],
-            )
+            if self._post_repo.recover_to_pending(post_id):
+                self._job_repo.increment_retry_and_pend(job_id, error)
+                logger.info(
+                    "post_id=%d: リトライ予定 (%d/%d)",
+                    post_id, retry_info["retry_count"] + 1, retry_info["max_retries"],
+                )
+            else:
+                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
+                logger.info("post_id=%d: リトライ不可 (対象が削除済み)", post_id)
         else:
             self._post_repo.mark_failed(post_id)
             self._job_repo.mark_failed(job_id, error)

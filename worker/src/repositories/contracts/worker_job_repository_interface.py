@@ -7,8 +7,8 @@ class WorkerJobRepositoryInterface(ABC):
     """Worker ジョブの作成・ステータス管理の契約。"""
 
     @abstractmethod
-    def upsert(self, post_id: int) -> int:
-        """ジョブを作成または再利用し、ID を返す。"""
+    def upsert(self, post_id: int) -> int | None:
+        """ジョブを原子的に claim する。成功なら ID、失敗なら None。"""
 
     @abstractmethod
     def mark_completed(self, job_id: int) -> None:
@@ -27,8 +27,8 @@ class WorkerJobRepositoryInterface(ABC):
         """retry_count と max_retries を取得する。"""
 
     @abstractmethod
-    def increment_retry(self, job_id: int, error: str) -> None:
-        """retry_count をインクリメントし、last_error を記録する。"""
+    def increment_retry_and_pend(self, job_id: int, error: str) -> None:
+        """retry_count をインクリメントし、ステータスを RETRY_PENDING にする。"""
 
     @abstractmethod
     def fetch_stale(self, timeout_sec: int) -> list[dict]:

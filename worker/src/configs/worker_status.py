@@ -3,6 +3,7 @@
 
 class WorkerStatus:
     PROCESSING = "processing"
+    RETRY_PENDING = "retry_pending"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
