@@ -230,13 +230,22 @@ WHERE id = ?
 
 | メソッド              | 説明                                                       |
 | --------------------- | ---------------------------------------------------------- |
-| `create()`            | ジョブを作成（`status=processing`, `claimed_at=now`）       |
+| `upsert()`            | ジョブを作成または再利用し ID を返す（`post_id` UNIQUE）    |
 | `mark_completed()`    | ジョブを完了にする                                         |
 | `mark_failed()`       | ジョブを失敗にする（`last_error` を記録）                   |
 | `mark_cancelled()`    | ジョブをキャンセルにする（`termination_reason` を記録）     |
 | `get_retry_info()`    | `retry_count` と `max_retries` を取得する                   |
 | `increment_retry()`   | `retry_count` をインクリメントし、`last_error` を記録する   |
-| `fetch_stale()`       | PROCESSING のまま一定時間経過したジョブを取得する           |
+| `fetch_stale()`                  | PROCESSING のまま一定時間経過したジョブを取得する           |
+| `cancel_processing_by_post_ids()` | 指定 post_id の PROCESSING ジョブを CANCELLED にする       |
+| `soft_delete_by_post_ids()`      | 指定 post_id の全ジョブに `deleted_at` を設定する           |
+
+#### SyncWatermarkRepository
+
+| メソッド           | 説明                                                     |
+| ------------------ | -------------------------------------------------------- |
+| `get_for_update()` | 排他ロック付きで watermark を取得する。存在しなければ初期値 |
+| `save()`           | watermark を upsert する                                  |
 
 ### 5.5 Client（`src/clients/`）
 
@@ -300,17 +309,17 @@ while True:
 
 ```mermaid
 flowchart TD
-    A[fetch_pending で一覧取得] --> B[begin_transaction]
-    B --> C[SELECT ... FOR UPDATE<br/>ai_status_id=PENDING<br/>deleted_at IS NULL]
-    C --> D{行が取れた？}
-    D -- No --> E[rollback / スキップ]
-    D -- Yes --> F[UPDATE ai_status_id=PROCESSING]
-    F --> G[commit]
-    G --> H[worker_jobs に INSERT]
+    A[fetch_pending で一覧取得] --> B[worker_jobs を upsert]
+    B --> C[begin_transaction on resmane DB]
+    C --> D[SELECT ... FOR UPDATE<br/>ai_status_id=PENDING<br/>deleted_at IS NULL]
+    D --> E{行が取れた？}
+    E -- No --> F[rollback / ジョブをキャンセル]
+    E -- Yes --> G[UPDATE ai_status_id=PROCESSING]
+    G --> H[commit]
 ```
 
-- `posts` の更新（レスマネ本体 DB）と `worker_jobs` の INSERT（Worker 専用 DB）は別 DB のため、トランザクションを分離する
-- `posts` 側を先に確定させ、その後 `worker_jobs` に INSERT する
+- **worker_jobs を先に永続化**してから posts を更新する。posts 更新前に Worker が停止した場合、worker_jobs から孤立した PROCESSING 投稿を照合して回収できる
+- `posts` の更新（レスマネ本体 DB）と `worker_jobs` の更新（Worker 専用 DB）は別 DB のため、トランザクションを分離する
 - AI 呼び出し中は DB トランザクションも行ロックも保持しない
 
 ### 6.3 初回フィードバック vs 追加チャット
@@ -371,6 +380,55 @@ Worker 異常終了で PROCESSING のまま残ったジョブを回収する。
 
 stale recovery は `posts.deleted_at IS NULL` のみを対象とするため、削除済みの凍結行は拾わない。
 
+### 6.8 削除同期
+
+Laravel DB でユーザー退会・家計簿削除・投稿削除が行われた場合、Worker DB の関連データも同期して論理削除する。
+
+#### 同期対象
+
+v0.1 では `posts.deleted_at` の差分同期のみ。現 API 設計では家計簿削除・退会時にも関連する `posts` が論理削除されるため、`posts` の同期だけで全ケースをカバーできる。
+
+`users` / `kakeibo_records` の個別同期は、将来 Worker DB へユーザー単位・家計簿単位の要約を保存する段階で追加する。
+
+#### watermark 方式
+
+`sync_watermarks` テーブルに `table_name` + `last_deleted_at` + `last_id` の複合 watermark を保存する。時刻のみだと同一時刻の行を取りこぼすため、`deleted_at + id` の複合条件で差分を取得する。
+
+```sql
+WHERE deleted_at > :last_deleted_at
+   OR (deleted_at = :last_deleted_at AND id > :last_id)
+ORDER BY deleted_at, id
+LIMIT :batch_size
+```
+
+#### 処理フロー
+
+```mermaid
+flowchart TD
+    A[begin_transaction on Worker DB] --> B[watermark を FOR UPDATE]
+    B --> C[Laravel DB から削除済み posts の差分取得]
+    C --> D{差分あり？}
+    D -- No --> E[commit して終了]
+    D -- Yes --> F[処理中ジョブを CANCELLED / TARGET_DELETED に]
+    F --> G[対応する全 worker_jobs に deleted_at を設定]
+    G --> H[watermark を更新]
+    H --> I[commit]
+```
+
+- watermark 取得から watermark 更新まで Worker DB 側で単一トランザクション
+- 失敗時は rollback して次回ポーリングで再実行（冪等）
+- `COMPLETED` / `FAILED` のジョブは `status` を変えず `deleted_at` のみ設定
+
+#### ポーリング順
+
+```python
+delete_sync_service.sync()         # 1. 削除同期を最優先
+feedback_service.recover_stale()   # 2. タイムアウト分を回収
+feedback_service.process_pending() # 3. 新規 pending を処理
+```
+
+削除同期の直後にユーザーが削除する競合は残るため、`save_response()` の条件付き UPDATE も引き続き必要。
+
 ---
 
 ## 7. Worker 専用テーブル
@@ -391,9 +449,21 @@ stale recovery は `posts.deleted_at IS NULL` のみを対象とするため、�
 | `updated_at`       | DATETIME         |                                |
 | `deleted_at`       | DATETIME NULL    | 論理削除                       |
 
-INDEX: `post_id`, `status`
+UNIQUE: `post_id` / INDEX: `status`
 
-### 7.2 マイグレーションルール
+### 7.2 sync_watermarks
+
+| カラム            | 型               | 説明                                   |
+| ----------------- | ---------------- | -------------------------------------- |
+| `id`              | BIGINT UNSIGNED PK | AUTO_INCREMENT                        |
+| `table_name`      | VARCHAR(64)      | 同期対象テーブル名（UNIQUE）           |
+| `last_deleted_at` | DATETIME         | 前回同期した最後の `deleted_at`（初期値 1970-01-01） |
+| `last_id`         | BIGINT UNSIGNED  | 前回同期した最後の `id`（初期値 0）     |
+| `updated_at`      | DATETIME         |                                        |
+
+UNIQUE: `table_name`
+
+### 7.3 マイグレーションルール
 
 - マイグレーションファイルは `worker/src/databases/migrations/` に連番（`001_`, `002_`, …）で配置する
 - **1 度でも実行 または GitHub に push した時点で immutable**。それ以前（開発中・未適用）なら書き直し可

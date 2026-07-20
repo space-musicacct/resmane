@@ -33,3 +33,11 @@ class WorkerJobRepositoryInterface(ABC):
     @abstractmethod
     def fetch_stale(self, timeout_sec: int) -> list[dict]:
         """PROCESSING のまま timeout_sec 秒経過したジョブを取得する。"""
+
+    @abstractmethod
+    def cancel_processing_by_post_ids(self, post_ids: list[int]) -> int:
+        """指定 post_id の PROCESSING ジョブを CANCELLED にする。"""
+
+    @abstractmethod
+    def soft_delete_by_post_ids(self, post_ids: list[int]) -> int:
+        """指定 post_id の全ジョブに deleted_at を設定する。"""

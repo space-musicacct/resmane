@@ -37,6 +37,12 @@ class PostRepositoryInterface(ABC):
         """投稿が論理削除済みかどうかを返す。"""
 
     @abstractmethod
+    def fetch_deleted_since(
+        self, last_deleted_at: str, last_id: int, limit: int = 100,
+    ) -> list[dict]:
+        """指定した watermark 以降に論理削除された投稿を取得する。"""
+
+    @abstractmethod
     def recover_to_pending(self, post_id: int) -> bool:
         """PROCESSING かつ未削除の投稿を PENDING に戻す。
 

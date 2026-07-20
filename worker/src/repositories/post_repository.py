@@ -92,6 +92,26 @@ class PostRepository(PostRepositoryInterface):
         finally:
             cursor.close()
 
+    def fetch_deleted_since(
+        self, last_deleted_at: str, last_id: int, limit: int = 100,
+    ) -> list[dict]:
+        """指定した watermark 以降に論理削除された投稿を取得する。"""
+        conn = self._db.get_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT id, deleted_at FROM posts "
+                "WHERE is_ai = 1 "
+                "  AND deleted_at IS NOT NULL "
+                "  AND (deleted_at > %s OR (deleted_at = %s AND id > %s)) "
+                "ORDER BY deleted_at ASC, id ASC "
+                "LIMIT %s",
+                (last_deleted_at, last_deleted_at, last_id, limit),
+            )
+            return cursor.fetchall()
+        finally:
+            cursor.close()
+
     def is_deleted(self, post_id: int) -> bool:
         """投稿が論理削除済みかどうかを返す。"""
         conn = self._db.get_connection()

@@ -12,7 +12,9 @@ from src.databases.resmane_worker_database import ResmaneWorkerDatabase
 from src.repositories.post_repository import PostRepository
 from src.repositories.kakeibo_context_repository import KakeiboContextRepository
 from src.repositories.worker_job_repository import WorkerJobRepository
+from src.repositories.sync_watermark_repository import SyncWatermarkRepository
 from src.clients.gemini_client import GeminiClient
+from src.services.delete_sync_service import DeleteSyncService
 from src.services.feedback_service import FeedbackService
 
 logging.basicConfig(
@@ -32,13 +34,21 @@ def main() -> None:
     post_repo = PostRepository(db)
     context_repo = KakeiboContextRepository(db)
     job_repo = WorkerJobRepository(worker_db)
+    watermark_repo = SyncWatermarkRepository(worker_db)
     ai_client = GeminiClient(
         api_key=config.ai_api_key,
         api_url=config.ai_api_url,
         model=config.ai_model,
     )
 
-    service = FeedbackService(
+    delete_sync = DeleteSyncService(
+        worker_db=worker_db,
+        post_repo=post_repo,
+        job_repo=job_repo,
+        watermark_repo=watermark_repo,
+    )
+
+    feedback = FeedbackService(
         config=config,
         db=db,
         post_repo=post_repo,
@@ -49,8 +59,9 @@ def main() -> None:
 
     def tick() -> None:
         try:
-            service.recover_stale()
-            service.process_pending()
+            delete_sync.sync()
+            feedback.recover_stale()
+            feedback.process_pending()
         except Exception:
             logger.exception("ポーリング中にエラーが発生")
 

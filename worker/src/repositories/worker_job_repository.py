@@ -130,6 +130,49 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
         finally:
             cursor.close()
 
+    def cancel_processing_by_post_ids(self, post_ids: list[int]) -> int:
+        """指定 post_id の PROCESSING ジョブを CANCELLED にする。"""
+        if not post_ids:
+            return 0
+        conn = self._db.get_connection()
+        cursor = conn.cursor()
+        try:
+            now = self._now()
+            placeholders = ", ".join(["%s"] * len(post_ids))
+            cursor.execute(
+                f"UPDATE worker_jobs "
+                f"SET status = %s, termination_reason = %s, updated_at = %s "
+                f"WHERE post_id IN ({placeholders}) "
+                f"  AND status = %s "
+                f"  AND deleted_at IS NULL",
+                [WorkerStatus.CANCELLED, "target_deleted", now]
+                + post_ids
+                + [WorkerStatus.PROCESSING],
+            )
+            return cursor.rowcount
+        finally:
+            cursor.close()
+
+    def soft_delete_by_post_ids(self, post_ids: list[int]) -> int:
+        """指定 post_id の全ジョブに deleted_at を設定する。"""
+        if not post_ids:
+            return 0
+        conn = self._db.get_connection()
+        cursor = conn.cursor()
+        try:
+            now = self._now()
+            placeholders = ", ".join(["%s"] * len(post_ids))
+            cursor.execute(
+                f"UPDATE worker_jobs "
+                f"SET deleted_at = %s, updated_at = %s "
+                f"WHERE post_id IN ({placeholders}) "
+                f"  AND deleted_at IS NULL",
+                [now, now] + post_ids,
+            )
+            return cursor.rowcount
+        finally:
+            cursor.close()
+
     def _update_status(self, job_id: int, status: str) -> None:
         conn = self._db.get_connection()
         cursor = conn.cursor()
