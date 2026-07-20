@@ -10,4 +10,5 @@ class WorkerStatus:
 
 class TerminationReason:
     TARGET_DELETED = "target_deleted"
+    STATE_INCONSISTENCY = "state_inconsistency"
     MAX_RETRIES_EXCEEDED = "max_retries_exceeded"

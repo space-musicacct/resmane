@@ -60,6 +60,8 @@ class FeedbackService:
 
     def recover_stale(self) -> None:
         """PROCESSING のままタイムアウトしたジョブを回収する。"""
+        if self._config.stale_timeout_sec <= 0:
+            return
         stale_jobs = self._job_repo.fetch_stale(self._config.stale_timeout_sec)
         if not stale_jobs:
             return
@@ -74,16 +76,22 @@ class FeedbackService:
         post_id = job["post_id"]
 
         if job["retry_count"] < job["max_retries"]:
-            self._post_repo.update_status(post_id, AiStatus.PENDING)
-            self._job_repo.increment_retry(job_id, "stale recovery: worker timeout")
-            logger.info(
-                "post_id=%d: stale 回収 → PENDING に戻し (%d/%d)",
-                post_id, job["retry_count"] + 1, job["max_retries"],
-            )
+            if self._post_repo.recover_to_pending(post_id):
+                self._job_repo.increment_retry(job_id, "stale recovery: worker timeout")
+                logger.info(
+                    "post_id=%d: stale 回収 → PENDING に戻し (%d/%d)",
+                    post_id, job["retry_count"] + 1, job["max_retries"],
+                )
+            else:
+                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
+                logger.info("post_id=%d: stale 回収 → 対象が削除済みのためキャンセル", post_id)
         else:
-            self._post_repo.mark_failed(post_id)
-            self._job_repo.mark_failed(job_id, "stale recovery: max retries exceeded")
-            logger.warning("post_id=%d: stale 回収 → リトライ上限到達", post_id)
+            if not self._post_repo.mark_failed(post_id):
+                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
+                logger.info("post_id=%d: stale 回収 → 対象が削除済みのためキャンセル", post_id)
+            else:
+                self._job_repo.mark_failed(job_id, "stale recovery: max retries exceeded")
+                logger.warning("post_id=%d: stale 回収 → リトライ上限到達", post_id)
 
     def process_pending(self) -> None:
         """pending な投稿を全て処理する。"""
@@ -125,6 +133,11 @@ class FeedbackService:
                 system_instruction=system_instruction,
             )
 
+            if not response or not response.strip():
+                logger.warning("post_id=%d: AI 応答が空", post_id)
+                self._handle_failure(post_id, job_id, "empty ai response")
+                return
+
             if len(response) > CONTENT_MAX_LENGTH:
                 logger.warning(
                     "post_id=%d: AI 応答が %d 文字で上限 %d 文字を超過",
@@ -137,34 +150,42 @@ class FeedbackService:
                 logger.info("post_id=%d: AI フィードバック生成完了", post_id)
                 self._job_repo.mark_completed(job_id)
             else:
-                logger.warning("post_id=%d: 書き戻しスキップ (削除済み or 状態不整合)", post_id)
-                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
+                if self._post_repo.is_deleted(post_id):
+                    reason = TerminationReason.TARGET_DELETED
+                    logger.warning("post_id=%d: 書き戻しスキップ (対象が削除済み)", post_id)
+                else:
+                    reason = TerminationReason.STATE_INCONSISTENCY
+                    logger.warning("post_id=%d: 書き戻しスキップ (状態不整合)", post_id)
+                self._job_repo.mark_cancelled(job_id, reason)
 
         except Exception as e:
             logger.exception("post_id=%d: AI フィードバック生成に失敗", post_id)
-            self._handle_failure(post_id, job_id, str(e))
+            safe_error = self._sanitize_error(e)
+            self._handle_failure(post_id, job_id, safe_error)
 
     def _claim(self, post_id: int) -> int | None:
-        """pending → processing に確保し、worker_jobs を作成する。
+        """pending → processing に確保し、worker_jobs を永続化する。
 
-        posts の更新 (レスマネ本体 DB) と worker_jobs の INSERT (Worker 専用 DB) は
-        別 DB のためトランザクションを分離する。posts 側を先に確定させる。
+        worker_jobs を先に永続化してから posts を更新する。
+        posts 更新前に Worker が停止した場合、worker_jobs から孤立した
+        PROCESSING 投稿を照合して回収できる。
         """
+        job_id = self._job_repo.upsert(post_id)
+
         self._db.begin_transaction()
         try:
             row = self._post_repo.find_for_update(post_id)
             if row is None:
                 self._db.rollback()
+                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
                 return None
 
             self._post_repo.update_status(post_id, AiStatus.PROCESSING)
             self._db.commit()
+            return job_id
         except Exception:
             self._db.rollback()
             raise
-
-        job_id = self._job_repo.create(post_id)
-        return job_id
 
     def _handle_failure(self, post_id: int, job_id: int, error: str) -> None:
         """失敗処理。リトライ可能なら PENDING に戻し、上限なら FAILED にする。"""
@@ -172,7 +193,7 @@ class FeedbackService:
         retry_info = self._job_repo.get_retry_info(job_id)
 
         if retry_info and retry_info["retry_count"] < retry_info["max_retries"]:
-            self._post_repo.update_status(post_id, AiStatus.PENDING)
+            self._post_repo.recover_to_pending(post_id)
             logger.info(
                 "post_id=%d: リトライ予定 (%d/%d)",
                 post_id, retry_info["retry_count"], retry_info["max_retries"],
@@ -244,3 +265,11 @@ class FeedbackService:
             f"- 内容: {record['details'] or '(なし)'}\n"
         )
         return SYSTEM_INSTRUCTION + record_context
+
+    @staticmethod
+    def _sanitize_error(e: Exception) -> str:
+        """エラーメッセージから API キー等の機密情報を除去する。"""
+        error_type = type(e).__name__
+        if hasattr(e, "response") and e.response is not None:
+            return f"{error_type}: HTTP {e.response.status_code}"
+        return error_type

@@ -92,6 +92,37 @@ class PostRepository(PostRepositoryInterface):
         finally:
             cursor.close()
 
+    def is_deleted(self, post_id: int) -> bool:
+        """投稿が論理削除済みかどうかを返す。"""
+        conn = self._db.get_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT deleted_at FROM posts WHERE id = %s",
+                (post_id,),
+            )
+            row = cursor.fetchone()
+            return row is None or row["deleted_at"] is not None
+        finally:
+            cursor.close()
+
+    def recover_to_pending(self, post_id: int) -> bool:
+        """PROCESSING かつ未削除の投稿を PENDING に戻す。"""
+        conn = self._db.get_connection()
+        cursor = conn.cursor()
+        try:
+            now = self._now()
+            cursor.execute(
+                "UPDATE posts SET ai_status_id = %s, updated_at = %s "
+                "WHERE id = %s "
+                "  AND deleted_at IS NULL "
+                "  AND ai_status_id = %s",
+                (AiStatus.PENDING, now, post_id, AiStatus.PROCESSING),
+            )
+            return cursor.rowcount > 0
+        finally:
+            cursor.close()
+
     @staticmethod
     def _now() -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")

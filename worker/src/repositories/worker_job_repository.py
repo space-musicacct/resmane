@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timezone
 
-from src.configs.worker_status import TerminationReason, WorkerStatus
+from src.configs.worker_status import WorkerStatus
 from src.databases.resmane_worker_database import ResmaneWorkerDatabase
 from src.repositories.contracts.worker_job_repository_interface import (
     WorkerJobRepositoryInterface,
@@ -18,12 +18,29 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
     def __init__(self, db: ResmaneWorkerDatabase) -> None:
         self._db = db
 
-    def create(self, post_id: int) -> int:
-        """ジョブを作成し、ID を返す。"""
+    def upsert(self, post_id: int) -> int:
+        """ジョブを作成または再利用し、ID を返す。"""
         conn = self._db.get_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
         try:
             now = self._now()
+            cursor.execute(
+                "SELECT id FROM worker_jobs "
+                "WHERE post_id = %s AND deleted_at IS NULL",
+                (post_id,),
+            )
+            row = cursor.fetchone()
+
+            if row:
+                cursor.execute(
+                    "UPDATE worker_jobs "
+                    "SET status = %s, claimed_at = %s, last_error = NULL, "
+                    "    termination_reason = NULL, updated_at = %s "
+                    "WHERE id = %s",
+                    (WorkerStatus.PROCESSING, now, now, row["id"]),
+                )
+                return row["id"]
+
             cursor.execute(
                 "INSERT INTO worker_jobs "
                 "(post_id, status, claimed_at, created_at, updated_at) "

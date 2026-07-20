@@ -45,7 +45,7 @@ class GeminiClient(AiClientInterface):
         response = requests.post(
             url,
             json=body,
-            params={"key": self._api_key},
+            headers={"x-goog-api-key": self._api_key},
             timeout=60,
         )
         response.raise_for_status()

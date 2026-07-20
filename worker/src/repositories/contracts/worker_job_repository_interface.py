@@ -7,8 +7,8 @@ class WorkerJobRepositoryInterface(ABC):
     """Worker ジョブの作成・ステータス管理の契約。"""
 
     @abstractmethod
-    def create(self, post_id: int) -> int:
-        """ジョブを作成し、ID を返す。"""
+    def upsert(self, post_id: int) -> int:
+        """ジョブを作成または再利用し、ID を返す。"""
 
     @abstractmethod
     def mark_completed(self, job_id: int) -> None:

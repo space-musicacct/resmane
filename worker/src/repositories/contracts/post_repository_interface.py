@@ -31,3 +31,14 @@ class PostRepositoryInterface(ABC):
 
         対象が削除済み or processing 以外なら更新せず False を返す。
         """
+
+    @abstractmethod
+    def is_deleted(self, post_id: int) -> bool:
+        """投稿が論理削除済みかどうかを返す。"""
+
+    @abstractmethod
+    def recover_to_pending(self, post_id: int) -> bool:
+        """PROCESSING かつ未削除の投稿を PENDING に戻す。
+
+        条件に合致しなければ False を返す。
+        """

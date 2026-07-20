@@ -45,7 +45,7 @@ class KakeiboContextRepository(KakeiboContextRepositoryInterface):
                 "SELECT id, review_comment, evaluation, created_at "
                 "FROM self_reviews "
                 "WHERE kakeibo_record_id = %s AND deleted_at IS NULL "
-                "ORDER BY created_at ASC",
+                "ORDER BY created_at ASC, id ASC",
                 (kakeibo_record_id,),
             )
             return cursor.fetchall()
@@ -63,7 +63,7 @@ class KakeiboContextRepository(KakeiboContextRepositoryInterface):
                 "WHERE kakeibo_record_id = %s "
                 "  AND deleted_at IS NULL "
                 "  AND (is_ai = 0 OR (is_ai = 1 AND ai_status_id = 3)) "
-                "ORDER BY created_at ASC",
+                "ORDER BY created_at ASC, id ASC",
                 (kakeibo_record_id,),
             )
             return cursor.fetchall()
