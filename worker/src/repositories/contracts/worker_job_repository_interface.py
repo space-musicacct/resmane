@@ -7,28 +7,30 @@ class WorkerJobRepositoryInterface(ABC):
     """Worker ジョブの作成・ステータス管理の契約。"""
 
     @abstractmethod
-    def upsert(self, post_id: int) -> int | None:
-        """ジョブを原子的に claim する。成功なら ID、失敗なら None。"""
+    def upsert(self, post_id: int) -> tuple[int, int] | None:
+        """ジョブを原子的に claim する。成功なら (job_id, claim_version)、失敗なら None。"""
 
     @abstractmethod
-    def mark_completed(self, job_id: int) -> None:
-        """ジョブを完了にする。"""
+    def mark_completed(self, job_id: int, claim_version: int) -> bool:
+        """ジョブを完了にする。所有権が一致しなければ False。"""
 
     @abstractmethod
-    def mark_failed(self, job_id: int, error: str) -> None:
-        """ジョブを失敗にする。"""
+    def mark_failed(self, job_id: int, claim_version: int, error: str) -> bool:
+        """ジョブを失敗にする。所有権が一致しなければ False。"""
 
     @abstractmethod
-    def mark_cancelled(self, job_id: int, reason: str) -> None:
-        """ジョブをキャンセルにする。"""
+    def mark_cancelled(self, job_id: int, claim_version: int, reason: str) -> bool:
+        """ジョブをキャンセルにする。所有権が一致しなければ False。"""
 
     @abstractmethod
     def get_retry_info(self, job_id: int) -> dict | None:
         """retry_count と max_retries を取得する。"""
 
     @abstractmethod
-    def increment_retry_and_pend(self, job_id: int, error: str) -> None:
-        """retry_count をインクリメントし、ステータスを RETRY_PENDING にする。"""
+    def increment_retry_and_pend(
+        self, job_id: int, claim_version: int, error: str,
+    ) -> bool:
+        """retry_count をインクリメントし、RETRY_PENDING にする。所有権が一致しなければ False。"""
 
     @abstractmethod
     def fetch_stale(self, timeout_sec: int) -> list[dict]:

@@ -380,7 +380,13 @@ truncate して不完全な応答を保存するのではなく、FAILED とし�
 | `retry_count < max_retries` (3)  | 次回ポーリングで `RETRY_PENDING → PROCESSING` の条件付き claim |
 | `retry_count >= max_retries`     | `posts` → FAILED、`worker_jobs` → FAILED。ユーザーの手動再試行待ち |
 
-`upsert()` は `INSERT IGNORE` (初回) → `RETRY_PENDING → PROCESSING` の条件付き UPDATE (リトライ) の 2 段階で原子的に claim する。claim に負けた Worker は共有ジョブを変更しない。
+`upsert()` は `INSERT IGNORE` (初回、`claim_version=1`) → `RETRY_PENDING → PROCESSING` の条件付き UPDATE (リトライ、`claim_version` インクリメント) の 2 段階で原子的に claim する。claim に負けた Worker は共有ジョブを変更しない。
+
+#### 所有権確認 (claim_version)
+
+全てのジョブ更新操作 (`mark_completed` / `mark_failed` / `mark_cancelled` / `increment_retry_and_pend`) は `WHERE id = ? AND status = 'processing' AND claim_version = ?` で所有権を確認する。古い Worker が stale recovery 後のジョブを上書きすることを防ぐ。
+
+条件付き更新が失敗した場合 (`rowcount = 0`)、`_reeval_and_sync()` で投稿の最新状態を再取得し、状態表に基づいてジョブを同期する。
 
 ### 6.7 stale recovery
 
@@ -418,15 +424,16 @@ v0.1 では `posts.deleted_at` の差分同期のみ。現 API 設計では家�
 
 `sync_watermarks` テーブルに `table_name` + `last_deleted_at` + `last_id` の複合 watermark を保存する。時刻のみだと同一時刻の行を取りこぼすため、`deleted_at + id` の複合条件で差分を取得する。
 
-lookback 付きで取得し、commit 順逆転による取りこぼしを軽減する。
+複合カーソル (`deleted_at + id`) で差分を取得する。
 
 ```sql
-WHERE deleted_at >= DATE_SUB(:last_deleted_at, INTERVAL :lookback_sec SECOND)
+WHERE deleted_at > :last_deleted_at
+   OR (deleted_at = :last_deleted_at AND id > :last_id)
 ORDER BY deleted_at, id
 LIMIT :batch_size
 ```
 
-増分同期だけでは長時間の未 commit トランザクションを拾えないため、1 時間間隔で `reconcile()` を実行し、全削除済み AI 投稿を照合する。
+増分同期だけでは commit 順逆転（Tx A が Tx B より先に削除したが後に commit）を拾えないため、1 時間間隔で `reconcile()` を実行し、全削除済み AI 投稿をページング付きで全件照合する。
 
 #### 処理フロー
 
@@ -467,6 +474,7 @@ feedback_service.process_pending() # 3. 新規 pending を処理
 | `id`               | BIGINT UNSIGNED PK | AUTO_INCREMENT                |
 | `post_id`          | BIGINT UNSIGNED  | 対象の `posts.id`              |
 | `status`           | VARCHAR(20)      | WorkerStatus 定数              |
+| `claim_version`    | INT UNSIGNED     | claim のたびにインクリメント。所有権確認に使用 |
 | `claimed_at`       | DATETIME         | processing に切り替えた時刻    |
 | `retry_count`      | INT UNSIGNED     | 現在のリトライ回数（デフォルト 0） |
 | `max_retries`      | INT UNSIGNED     | リトライ上限（デフォルト 3）   |

@@ -18,27 +18,27 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
     def __init__(self, db: ResmaneWorkerDatabase) -> None:
         self._db = db
 
-    def upsert(self, post_id: int) -> int | None:
-        """ジョブを原子的に claim する。成功なら ID、失敗なら None。"""
+    def upsert(self, post_id: int) -> tuple[int, int] | None:
+        """ジョブを原子的に claim する。成功なら (job_id, claim_version)、失敗なら None。"""
         conn = self._db.get_connection()
         cursor = conn.cursor(dictionary=True)
         try:
             now = self._now()
 
-            # 初回: INSERT IGNORE で重複時はスキップ
             cursor.execute(
                 "INSERT IGNORE INTO worker_jobs "
-                "(post_id, status, claimed_at, created_at, updated_at) "
-                "VALUES (%s, %s, %s, %s, %s)",
+                "(post_id, status, claim_version, claimed_at, created_at, updated_at) "
+                "VALUES (%s, %s, 1, %s, %s, %s)",
                 (post_id, WorkerStatus.PROCESSING, now, now, now),
             )
             if cursor.rowcount == 1:
-                return cursor.lastrowid
+                return (cursor.lastrowid, 1)
 
-            # リトライ: RETRY_PENDING → PROCESSING の条件付き UPDATE
             cursor.execute(
                 "UPDATE worker_jobs "
-                "SET status = %s, claimed_at = %s, last_error = NULL, "
+                "SET status = %s, "
+                "    claim_version = claim_version + 1, "
+                "    claimed_at = %s, last_error = NULL, "
                 "    termination_reason = NULL, updated_at = %s "
                 "WHERE post_id = %s "
                 "  AND status = %s "
@@ -48,24 +48,25 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
             )
             if cursor.rowcount == 1:
                 cursor.execute(
-                    "SELECT id FROM worker_jobs "
+                    "SELECT id, claim_version FROM worker_jobs "
                     "WHERE post_id = %s AND deleted_at IS NULL",
                     (post_id,),
                 )
                 row = cursor.fetchone()
-                return row["id"] if row else None
+                return (row["id"], row["claim_version"]) if row else None
 
-            # claim 失敗 (他 Worker が処理中 or 完了済み)
             return None
         finally:
             cursor.close()
 
-    def mark_completed(self, job_id: int) -> None:
-        """ジョブを完了にする。"""
-        self._update_status(job_id, WorkerStatus.COMPLETED)
+    def mark_completed(self, job_id: int, claim_version: int) -> bool:
+        """ジョブを完了にする。所有権が一致しなければ False。"""
+        return self._update_with_ownership(
+            job_id, claim_version, WorkerStatus.COMPLETED,
+        )
 
-    def mark_failed(self, job_id: int, error: str) -> None:
-        """ジョブを失敗にする。PROCESSING のジョブのみ遷移可能。"""
+    def mark_failed(self, job_id: int, claim_version: int, error: str) -> bool:
+        """ジョブを失敗にする。所有権が一致しなければ False。"""
         conn = self._db.get_connection()
         cursor = conn.cursor()
         try:
@@ -73,14 +74,16 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
             cursor.execute(
                 "UPDATE worker_jobs "
                 "SET status = %s, last_error = %s, updated_at = %s "
-                "WHERE id = %s AND status = %s",
-                (WorkerStatus.FAILED, error, now, job_id, WorkerStatus.PROCESSING),
+                "WHERE id = %s AND status = %s AND claim_version = %s",
+                (WorkerStatus.FAILED, error, now,
+                 job_id, WorkerStatus.PROCESSING, claim_version),
             )
+            return cursor.rowcount > 0
         finally:
             cursor.close()
 
-    def mark_cancelled(self, job_id: int, reason: str) -> None:
-        """ジョブをキャンセルにする。PROCESSING のジョブのみ遷移可能。"""
+    def mark_cancelled(self, job_id: int, claim_version: int, reason: str) -> bool:
+        """ジョブをキャンセルにする。所有権が一致しなければ False。"""
         conn = self._db.get_connection()
         cursor = conn.cursor()
         try:
@@ -88,9 +91,11 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
             cursor.execute(
                 "UPDATE worker_jobs "
                 "SET status = %s, termination_reason = %s, updated_at = %s "
-                "WHERE id = %s AND status = %s",
-                (WorkerStatus.CANCELLED, reason, now, job_id, WorkerStatus.PROCESSING),
+                "WHERE id = %s AND status = %s AND claim_version = %s",
+                (WorkerStatus.CANCELLED, reason, now,
+                 job_id, WorkerStatus.PROCESSING, claim_version),
             )
+            return cursor.rowcount > 0
         finally:
             cursor.close()
 
@@ -107,8 +112,10 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
         finally:
             cursor.close()
 
-    def increment_retry_and_pend(self, job_id: int, error: str) -> None:
-        """retry_count をインクリメントし、ステータスを RETRY_PENDING にする。"""
+    def increment_retry_and_pend(
+        self, job_id: int, claim_version: int, error: str,
+    ) -> bool:
+        """retry_count をインクリメントし、RETRY_PENDING にする。"""
         conn = self._db.get_connection()
         cursor = conn.cursor()
         try:
@@ -117,9 +124,11 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
                 "UPDATE worker_jobs "
                 "SET retry_count = retry_count + 1, status = %s, "
                 "    last_error = %s, updated_at = %s "
-                "WHERE id = %s",
-                (WorkerStatus.RETRY_PENDING, error, now, job_id),
+                "WHERE id = %s AND status = %s AND claim_version = %s",
+                (WorkerStatus.RETRY_PENDING, error, now,
+                 job_id, WorkerStatus.PROCESSING, claim_version),
             )
+            return cursor.rowcount > 0
         finally:
             cursor.close()
 
@@ -129,7 +138,7 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute(
-                "SELECT id, post_id, retry_count, max_retries "
+                "SELECT id, post_id, retry_count, max_retries, claim_version "
                 "FROM worker_jobs "
                 "WHERE status = %s "
                 "  AND deleted_at IS NULL "
@@ -183,16 +192,19 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
         finally:
             cursor.close()
 
-    def _update_status(self, job_id: int, status: str) -> None:
+    def _update_with_ownership(
+        self, job_id: int, claim_version: int, status: str,
+    ) -> bool:
         conn = self._db.get_connection()
         cursor = conn.cursor()
         try:
             now = self._now()
             cursor.execute(
                 "UPDATE worker_jobs SET status = %s, updated_at = %s "
-                "WHERE id = %s AND status = %s",
-                (status, now, job_id, WorkerStatus.PROCESSING),
+                "WHERE id = %s AND status = %s AND claim_version = %s",
+                (status, now, job_id, WorkerStatus.PROCESSING, claim_version),
             )
+            return cursor.rowcount > 0
         finally:
             cursor.close()
 

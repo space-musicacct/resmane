@@ -74,41 +74,63 @@ class FeedbackService:
         """1 件の stale ジョブを状態表に基づいて回収する。"""
         job_id = job["id"]
         post_id = job["post_id"]
+        cv = job["claim_version"]
 
         post_info = self._post_repo.get_ai_status(post_id)
 
         if post_info is None or post_info["deleted_at"] is not None:
-            self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
+            self._job_repo.mark_cancelled(job_id, cv, TerminationReason.TARGET_DELETED)
             logger.info("post_id=%d: stale 回収 → 対象が削除済みのためキャンセル", post_id)
             return
 
         post_status = post_info["ai_status_id"]
 
         if post_status == AiStatus.COMPLETED:
-            self._job_repo.mark_completed(job_id)
+            self._job_repo.mark_completed(job_id, cv)
             logger.info("post_id=%d: stale 回収 → 投稿が完了済みのためジョブも完了", post_id)
             return
 
         if post_status == AiStatus.FAILED:
-            self._job_repo.mark_failed(job_id, "stale recovery: post already failed")
+            self._job_repo.mark_failed(job_id, cv, "stale recovery: post already failed")
             logger.info("post_id=%d: stale 回収 → 投稿が失敗済みのためジョブも失敗", post_id)
             return
 
         if job["retry_count"] >= job["max_retries"]:
-            self._post_repo.mark_failed(post_id)
-            self._job_repo.mark_failed(job_id, "stale recovery: max retries exceeded")
-            logger.warning("post_id=%d: stale 回収 → リトライ上限到達", post_id)
+            if self._post_repo.mark_failed(post_id):
+                self._job_repo.mark_failed(job_id, cv, "stale recovery: max retries exceeded")
+                logger.warning("post_id=%d: stale 回収 → リトライ上限到達", post_id)
+            else:
+                self._reeval_and_sync(job_id, post_id, cv)
             return
 
         # PENDING or PROCESSING → RETRY_PENDING にして再 claim 可能に
         if post_status == AiStatus.PROCESSING:
-            self._post_repo.recover_to_pending(post_id)
+            if not self._post_repo.recover_to_pending(post_id):
+                self._reeval_and_sync(job_id, post_id, cv)
+                return
 
-        self._job_repo.increment_retry_and_pend(job_id, "stale recovery: worker timeout")
-        logger.info(
-            "post_id=%d: stale 回収 → RETRY_PENDING (%d/%d)",
-            post_id, job["retry_count"] + 1, job["max_retries"],
-        )
+        if self._job_repo.increment_retry_and_pend(job_id, cv, "stale recovery: worker timeout"):
+            logger.info(
+                "post_id=%d: stale 回収 → RETRY_PENDING (%d/%d)",
+                post_id, job["retry_count"] + 1, job["max_retries"],
+            )
+
+    def _reeval_and_sync(self, job_id: int, post_id: int, cv: int) -> None:
+        """条件付き更新失敗時に最新状態を再取得してジョブを同期する。"""
+        post_info = self._post_repo.get_ai_status(post_id)
+
+        if post_info is None or post_info["deleted_at"] is not None:
+            self._job_repo.mark_cancelled(job_id, cv, TerminationReason.TARGET_DELETED)
+            logger.info("post_id=%d: 再評価 → 削除済みのためキャンセル", post_id)
+        elif post_info["ai_status_id"] == AiStatus.COMPLETED:
+            self._job_repo.mark_completed(job_id, cv)
+            logger.info("post_id=%d: 再評価 → 完了済み", post_id)
+        elif post_info["ai_status_id"] == AiStatus.FAILED:
+            self._job_repo.mark_failed(job_id, cv, "reeval: post already failed")
+            logger.info("post_id=%d: 再評価 → 失敗済み", post_id)
+        else:
+            self._job_repo.mark_cancelled(job_id, cv, TerminationReason.STATE_INCONSISTENCY)
+            logger.warning("post_id=%d: 再評価 → 状態不整合のためキャンセル", post_id)
 
     def process_pending(self) -> None:
         """pending な投稿を全て処理する。"""
@@ -126,16 +148,18 @@ class FeedbackService:
         record_id = post["kakeibo_record_id"]
         parent_id = post["parent_id"]
 
-        job_id = self._claim(post_id)
-        if job_id is None:
+        claim = self._claim(post_id)
+        if claim is None:
             return
+
+        job_id, cv = claim
 
         try:
             context = self._build_context(record_id)
             if context is None:
                 logger.warning("post_id=%d: 家計簿レコードが見つかりません", post_id)
                 self._post_repo.mark_failed(post_id)
-                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
+                self._job_repo.mark_cancelled(job_id, cv, TerminationReason.TARGET_DELETED)
                 return
 
             is_followup = parent_id is not None
@@ -152,7 +176,7 @@ class FeedbackService:
 
             if not response or not response.strip():
                 logger.warning("post_id=%d: AI 応答が空", post_id)
-                self._handle_failure(post_id, job_id, "empty ai response")
+                self._handle_failure(post_id, job_id, cv, "empty ai response")
                 return
 
             if len(response) > CONTENT_MAX_LENGTH:
@@ -160,65 +184,64 @@ class FeedbackService:
                     "post_id=%d: AI 応答が %d 文字で上限 %d 文字を超過",
                     post_id, len(response), CONTENT_MAX_LENGTH,
                 )
-                self._handle_failure(post_id, job_id, "content exceeded max length")
+                self._handle_failure(post_id, job_id, cv, "content exceeded max length")
                 return
 
             if self._post_repo.save_response(post_id, response):
                 logger.info("post_id=%d: AI フィードバック生成完了", post_id)
-                self._job_repo.mark_completed(job_id)
+                self._job_repo.mark_completed(job_id, cv)
             else:
                 reason = self._classify_write_failure(post_id)
-                self._job_repo.mark_cancelled(job_id, reason)
+                self._job_repo.mark_cancelled(job_id, cv, reason)
 
         except Exception as e:
             logger.exception("post_id=%d: AI フィードバック生成に失敗", post_id)
             safe_error = self._sanitize_error(e)
-            self._handle_failure(post_id, job_id, safe_error)
+            self._handle_failure(post_id, job_id, cv, safe_error)
 
-    def _claim(self, post_id: int) -> int | None:
-        """pending → processing に確保し、worker_jobs を永続化する。
-
-        worker_jobs を先に永続化してから posts を更新する。
-        posts 更新前に Worker が停止した場合、worker_jobs から孤立した
-        PROCESSING 投稿を照合して回収できる。
-        """
-        job_id = self._job_repo.upsert(post_id)
-        if job_id is None:
+    def _claim(self, post_id: int) -> tuple[int, int] | None:
+        """pending → processing に確保し、worker_jobs を永続化する。"""
+        result = self._job_repo.upsert(post_id)
+        if result is None:
             return None
+
+        job_id, cv = result
 
         self._db.begin_transaction()
         try:
             row = self._post_repo.find_for_update(post_id)
             if row is None:
                 self._db.rollback()
-                self._job_repo.mark_cancelled(job_id, TerminationReason.TARGET_DELETED)
+                reason = self._classify_write_failure(post_id)
+                self._job_repo.mark_cancelled(job_id, cv, reason)
                 return None
 
             self._post_repo.update_status(post_id, AiStatus.PROCESSING)
             self._db.commit()
-            return job_id
+            return (job_id, cv)
         except Exception:
             self._db.rollback()
             raise
 
-    def _handle_failure(self, post_id: int, job_id: int, error: str) -> None:
+    def _handle_failure(self, post_id: int, job_id: int, cv: int, error: str) -> None:
         """失敗処理。リトライ可能なら RETRY_PENDING + PENDING、上限なら FAILED。"""
         retry_info = self._job_repo.get_retry_info(job_id)
 
         if retry_info and retry_info["retry_count"] < retry_info["max_retries"]:
             if self._post_repo.recover_to_pending(post_id):
-                self._job_repo.increment_retry_and_pend(job_id, error)
+                self._job_repo.increment_retry_and_pend(job_id, cv, error)
                 logger.info(
                     "post_id=%d: リトライ予定 (%d/%d)",
                     post_id, retry_info["retry_count"] + 1, retry_info["max_retries"],
                 )
             else:
-                reason = self._classify_write_failure(post_id)
-                self._job_repo.mark_cancelled(job_id, reason)
+                self._reeval_and_sync(job_id, post_id, cv)
         else:
-            self._post_repo.mark_failed(post_id)
-            self._job_repo.mark_failed(job_id, error)
-            logger.warning("post_id=%d: リトライ上限到達", post_id)
+            if self._post_repo.mark_failed(post_id):
+                self._job_repo.mark_failed(job_id, cv, error)
+                logger.warning("post_id=%d: リトライ上限到達", post_id)
+            else:
+                self._reeval_and_sync(job_id, post_id, cv)
 
     def _classify_write_failure(self, post_id: int) -> str:
         """条件付き UPDATE が失敗した原因を判定する。"""
