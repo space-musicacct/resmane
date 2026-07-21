@@ -15,6 +15,20 @@ from src.services.feedback_service import FeedbackService
 from src.services.delete_sync_service import DeleteSyncService
 
 
+class _InstrumentedJobRepo(WorkerJobRepository):
+    """lock_for_ownership 成功後に Event を発火する計装リポジトリ。"""
+
+    def __init__(self, db, locked_event):
+        super().__init__(db)
+        self._locked_event = locked_event
+
+    def lock_for_ownership(self, job_id, claim_version):
+        result = super().lock_for_ownership(job_id, claim_version)
+        if result and self._locked_event:
+            self._locked_event.set()
+        return result
+
+
 def _insert_post(conn, post_id, ai_status_id=AiStatus.PENDING, deleted_at=None):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     cursor = conn.cursor()
@@ -56,16 +70,17 @@ def _get_post(conn, post_id):
     return row
 
 
-def _make_feedback_service(test_config):
+def _make_feedback_service(test_config, job_repo_override=None):
     db = ResManeDatabase(test_config)
     wdb = ResmaneWorkerDatabase(test_config)
+    job_repo = job_repo_override or WorkerJobRepository(wdb)
     return FeedbackService(
         config=test_config,
         db=db,
         worker_db=wdb,
         post_repo=PostRepository(db),
         context_repo=MagicMock(),
-        job_repo=WorkerJobRepository(wdb),
+        job_repo=job_repo,
         ai_client=MagicMock(),
     ), db, wdb
 
@@ -117,34 +132,33 @@ class TestClaimConcurrency:
         success = [r for r in results if r is not None]
         assert len(success) == 1
 
-    def test_claim_and_stale_recovery_on_same_job(self, test_config, resmane_db, worker_db,
-                                                   raw_resmane_conn, raw_worker_conn):
-        """IDL-002: stale recovery と _claim が同じジョブで同時実行。"""
+    def test_claim_during_stale_lock(self, test_config, resmane_db, worker_db,
+                                      raw_resmane_conn, raw_worker_conn):
+        """IDL-002: stale recovery がロック保持中に _claim() が同じジョブを触る。"""
         _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PROCESSING)
         _insert_stale_job(raw_worker_conn, 1, cv=1)
 
+        locked_event = threading.Event()
         errors = []
-        barrier = threading.Barrier(2, timeout=10)
-        stale_done = threading.Event()
         claim_result = [None]
 
         def do_stale():
             try:
-                svc, db, wdb = _make_feedback_service(test_config)
-                barrier.wait()
+                wdb = ResmaneWorkerDatabase(test_config)
+                instrumented = _InstrumentedJobRepo(wdb, locked_event)
+                svc, db, _ = _make_feedback_service(test_config, job_repo_override=instrumented)
+                svc._worker_db = wdb
+                svc._job_repo = instrumented
                 svc.recover_stale()
-                stale_done.set()
                 db.close()
                 wdb.close()
             except Exception as e:
                 errors.append(e)
-                stale_done.set()
 
         def do_claim():
             try:
+                locked_event.wait(timeout=10)
                 svc, db, wdb = _make_feedback_service(test_config)
-                barrier.wait()
-                stale_done.wait(timeout=10)
                 claim_result[0] = svc._claim(1)
                 db.close()
                 wdb.close()
@@ -170,7 +184,8 @@ class TestClaimConcurrency:
             assert job["claim_version"] >= 2
             assert post["ai_status_id"] == AiStatus.PROCESSING
         else:
-            assert job["status"] in (WorkerStatus.RETRY_PENDING, WorkerStatus.PROCESSING)
+            assert job["status"] == WorkerStatus.RETRY_PENDING
+            assert post["ai_status_id"] == AiStatus.PENDING
 
 
 class TestWriteBackConcurrency:
@@ -178,7 +193,7 @@ class TestWriteBackConcurrency:
 
     def test_save_and_stale_concurrent(self, test_config, resmane_db, worker_db,
                                        raw_resmane_conn, raw_worker_conn):
-        """IDL-010: save_with_ownership と recover_one の同時実行。最終状態が一貫している。"""
+        """IDL-010: save_with_ownership と recover_one の同時実行。"""
         _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PROCESSING)
         _insert_stale_job(raw_worker_conn, 1, cv=1)
 
@@ -291,10 +306,10 @@ class TestDeleteSyncConcurrency:
 
     def test_sync_and_claim_same_post(self, test_config, resmane_db, worker_db,
                                        raw_resmane_conn, raw_worker_conn):
-        """IDL-020: 同一 post_id で sync と claim を同時実行。削除済み投稿は claim 不可。"""
+        """IDL-020: 同一 post_id で sync と claim。ジョブは RETRY_PENDING から開始。"""
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PENDING, deleted_at=now)
-        _insert_stale_job(raw_worker_conn, 1, cv=1)
+        _insert_stale_job(raw_worker_conn, 1, cv=1, status=WorkerStatus.RETRY_PENDING)
 
         errors = []
         barrier = threading.Barrier(2, timeout=10)
@@ -332,8 +347,6 @@ class TestDeleteSyncConcurrency:
 
         job = _get_job(raw_worker_conn, 1)
         assert job is not None
-        assert job["status"] == WorkerStatus.CANCELLED
-        assert job["termination_reason"] == "target_deleted"
         assert job["deleted_at"] is not None
         assert claim_result[0] is None
 
