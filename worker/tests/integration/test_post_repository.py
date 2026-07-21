@@ -121,6 +121,30 @@ class TestConditionalUpdate:
         assert repo.recover_to_pending(1) is False
 
 
+class TestFindForUpdate:
+    """IPR-020, IPR-021"""
+
+    def test_locks_pending_row(self, resmane_db, raw_resmane_conn):
+        """IPR-020: PENDING な行をロック。"""
+        _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PENDING)
+        repo = PostRepository(resmane_db)
+        resmane_db.begin_transaction()
+        row = repo.find_for_update(1)
+        resmane_db.rollback()
+        assert row is not None
+        assert row["id"] == 1
+
+    def test_deleted_returns_none(self, resmane_db, raw_resmane_conn):
+        """IPR-021: 削除済みなら None。"""
+        _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PENDING,
+                     deleted_at="2026-07-21 00:00:00")
+        repo = PostRepository(resmane_db)
+        resmane_db.begin_transaction()
+        row = repo.find_for_update(1)
+        resmane_db.rollback()
+        assert row is None
+
+
 class TestFetchDeletedSince:
     """IPR-030 〜 IPR-032"""
 

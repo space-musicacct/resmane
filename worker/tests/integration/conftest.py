@@ -1,6 +1,7 @@
 """結合テスト用 fixture。テスト専用 DB にテーブルを作成し、各テストで TRUNCATE する。"""
 
 import os
+from pathlib import Path
 
 import mysql.connector
 import pytest
@@ -15,6 +16,23 @@ TEST_DB_HOST = os.environ.get("WORKER_DB_HOST", "db")
 TEST_DB_PORT = int(os.environ.get("WORKER_DB_PORT", "3306"))
 TEST_DB_USER = os.environ.get("WORKER_OWN_DB_USER", "resmane_worker")
 TEST_DB_PASSWORD = os.environ.get("WORKER_OWN_DB_PASSWORD", "")
+
+_PRODUCTION_DB_NAMES = {"resmane", "resmane_worker"}
+_MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "src" / "databases" / "migrations"
+
+
+def _validate_test_db_names():
+    """テスト DB 名が本番 DB でないことを検証する。"""
+    for name, label in [(RESMANE_TEST_DB, "RESMANE_TEST_DB"), (WORKER_TEST_DB, "WORKER_TEST_DB")]:
+        if not name.endswith("_test"):
+            raise RuntimeError(f"{label}='{name}' は '_test' で終わっていません")
+        if name in _PRODUCTION_DB_NAMES:
+            raise RuntimeError(f"{label}='{name}' は本番 DB 名です")
+    if RESMANE_TEST_DB == WORKER_TEST_DB:
+        raise RuntimeError("RESMANE_TEST_DB と WORKER_TEST_DB が同じ名前です")
+
+
+_validate_test_db_names()
 
 _RESMANE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS ai_statuses (
@@ -90,34 +108,6 @@ CREATE TABLE IF NOT EXISTS posts (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 """
 
-_WORKER_TABLES_SQL = """
-CREATE TABLE IF NOT EXISTS worker_jobs (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    post_id BIGINT UNSIGNED NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'processing',
-    claim_version INT UNSIGNED NOT NULL DEFAULT 0,
-    claimed_at DATETIME NOT NULL,
-    retry_count INT UNSIGNED NOT NULL DEFAULT 0,
-    max_retries INT UNSIGNED NOT NULL DEFAULT 3,
-    last_error TEXT NULL,
-    termination_reason VARCHAR(40) NULL,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
-    deleted_at DATETIME NULL,
-    UNIQUE KEY uq_worker_jobs_post_id (post_id),
-    INDEX idx_worker_jobs_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS sync_watermarks (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    table_name VARCHAR(64) NOT NULL,
-    last_deleted_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
-    last_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    updated_at DATETIME NOT NULL,
-    UNIQUE KEY uq_sync_watermarks_table_name (table_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-"""
-
 _SEED_SQL = """
 INSERT IGNORE INTO ai_statuses (id, status_name) VALUES
     (1, 'pending'), (2, 'processing'), (3, 'completed'), (4, 'failed');
@@ -145,6 +135,26 @@ def _exec_multi(conn, sql):
         if statement:
             cursor = conn.cursor()
             cursor.execute(statement)
+            cursor.close()
+    conn.commit()
+
+
+def _apply_migrations(conn):
+    """migration ファイルを番号順に適用する。既存オブジェクトはスキップする。"""
+    migration_files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
+    for f in migration_files:
+        sql = f.read_text(encoding="utf-8").strip()
+        if not sql:
+            continue
+        cursor = conn.cursor()
+        try:
+            cursor.execute(sql)
+        except mysql.connector.errors.ProgrammingError as e:
+            if e.errno in (1060, 1061):
+                pass
+            else:
+                raise
+        finally:
             cursor.close()
     conn.commit()
 
@@ -196,7 +206,7 @@ def setup_databases(test_config):
         password=test_config.worker_own_db_password,
         charset="utf8mb4",
     )
-    _exec_multi(worker_conn, _WORKER_TABLES_SQL)
+    _apply_migrations(worker_conn)
     worker_conn.close()
 
 

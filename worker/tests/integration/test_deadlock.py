@@ -2,8 +2,7 @@
 
 import threading
 from datetime import datetime, timezone, timedelta
-
-import mysql.connector
+from unittest.mock import MagicMock
 
 from src.configs.ai_status import AiStatus
 from src.configs.worker_status import WorkerStatus
@@ -11,15 +10,19 @@ from src.databases.resmane_database import ResManeDatabase
 from src.databases.resmane_worker_database import ResmaneWorkerDatabase
 from src.repositories.post_repository import PostRepository
 from src.repositories.worker_job_repository import WorkerJobRepository
+from src.services.feedback_service import FeedbackService
+from src.services.delete_sync_service import DeleteSyncService
+from src.repositories.sync_watermark_repository import SyncWatermarkRepository
 
 
-def _insert_post(conn, post_id, ai_status_id=AiStatus.PENDING):
+def _insert_post(conn, post_id, ai_status_id=AiStatus.PENDING, deleted_at=None):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO posts (id, user_id, kakeibo_record_id, ai_status_id, "
-        "is_ai, created_at, updated_at) VALUES (%s, 1, 1, %s, 1, %s, %s)",
-        (post_id, ai_status_id, now, now),
+        "is_ai, created_at, updated_at, deleted_at) "
+        "VALUES (%s, 1, 1, %s, 1, %s, %s, %s)",
+        (post_id, ai_status_id, now, now, deleted_at),
     )
     cursor.close()
 
@@ -34,6 +37,25 @@ def _insert_job(conn, post_id, status=WorkerStatus.PROCESSING, cv=1, claimed_at=
         (post_id, status, cv, claimed_at or now, now, now),
     )
     cursor.close()
+
+
+def _make_service(test_config):
+    db = ResManeDatabase(test_config)
+    wdb = ResmaneWorkerDatabase(test_config)
+    return FeedbackService(
+        config=test_config,
+        db=db,
+        worker_db=wdb,
+        post_repo=PostRepository(db),
+        context_repo=MagicMock(),
+        job_repo=WorkerJobRepository(wdb),
+        ai_client=MagicMock(),
+    ), db, wdb
+
+
+def _assert_threads_finished(*threads):
+    for t in threads:
+        assert not t.is_alive(), f"Thread {t.name} がデッドロックまたはタイムアウト"
 
 
 class TestClaimConcurrency:
@@ -55,13 +77,14 @@ class TestClaimConcurrency:
             except Exception as e:
                 errors.append(e)
 
-        t1 = threading.Thread(target=claim_worker, args=(0,))
-        t2 = threading.Thread(target=claim_worker, args=(1,))
+        t1 = threading.Thread(target=claim_worker, args=(0,), name="worker-A")
+        t2 = threading.Thread(target=claim_worker, args=(1,), name="worker-B")
         t1.start()
         t2.start()
         t1.join(timeout=10)
         t2.join(timeout=10)
 
+        _assert_threads_finished(t1, t2)
         assert not errors, f"エラー発生: {errors}"
         success = [r for r in results if r is not None]
         assert len(success) == 1, f"一方だけ成功すべき: {results}"
@@ -69,39 +92,38 @@ class TestClaimConcurrency:
     def test_claim_and_stale_concurrent(self, test_config, resmane_db, worker_db,
                                         raw_resmane_conn, raw_worker_conn):
         """IDL-002: claim と stale recovery の同時実行。"""
-        _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PENDING)
+        _insert_post(raw_resmane_conn, 1)
         old = (datetime.now(timezone.utc) - timedelta(seconds=400)).strftime("%Y-%m-%d %H:%M:%S")
         _insert_job(raw_worker_conn, 1, status=WorkerStatus.RETRY_PENDING, cv=1, claimed_at=old)
 
         errors = []
-        claim_result = [None]
-        stale_result = [None]
 
         def do_claim():
             try:
                 wdb = ResmaneWorkerDatabase(test_config)
                 repo = WorkerJobRepository(wdb)
-                claim_result[0] = repo.upsert(1)
+                repo.upsert(1)
                 wdb.close()
             except Exception as e:
                 errors.append(e)
 
         def do_stale():
             try:
-                wdb = ResmaneWorkerDatabase(test_config)
-                repo = WorkerJobRepository(wdb)
-                stale_result[0] = repo.fetch_stale(300)
+                svc, db, wdb = _make_service(test_config)
+                svc.recover_stale()
+                db.close()
                 wdb.close()
             except Exception as e:
                 errors.append(e)
 
-        t1 = threading.Thread(target=do_claim)
-        t2 = threading.Thread(target=do_stale)
+        t1 = threading.Thread(target=do_claim, name="claimer")
+        t2 = threading.Thread(target=do_stale, name="stale-recovery")
         t1.start()
         t2.start()
         t1.join(timeout=10)
         t2.join(timeout=10)
 
+        _assert_threads_finished(t1, t2)
         assert not errors, f"デッドロック発生: {errors}"
 
 
@@ -110,7 +132,7 @@ class TestWriteBackConcurrency:
 
     def test_save_and_stale_concurrent(self, test_config, resmane_db, worker_db,
                                        raw_resmane_conn, raw_worker_conn):
-        """IDL-010: save_response と stale recovery の同時実行。"""
+        """IDL-010: save_with_ownership と recover_one の同時実行。"""
         _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PROCESSING)
         old = (datetime.now(timezone.utc) - timedelta(seconds=400)).strftime("%Y-%m-%d %H:%M:%S")
         _insert_job(raw_worker_conn, 1, cv=1, claimed_at=old)
@@ -119,40 +141,33 @@ class TestWriteBackConcurrency:
 
         def do_save():
             try:
-                wdb = ResmaneWorkerDatabase(test_config)
-                wdb.begin_transaction()
-                repo = WorkerJobRepository(wdb)
-                repo.lock_for_ownership(1, 1)
-                db = ResManeDatabase(test_config)
-                post_repo = PostRepository(db)
-                post_repo.save_response(1, "AI応答")
-                repo.mark_completed(1, 1)
-                wdb.commit()
-                wdb.close()
+                svc, db, wdb = _make_service(test_config)
+                svc._save_with_ownership(1, 1, 1, "AI応答")
                 db.close()
+                wdb.close()
             except Exception as e:
                 errors.append(e)
 
         def do_stale():
             try:
-                wdb = ResmaneWorkerDatabase(test_config)
-                wdb.begin_transaction()
-                repo = WorkerJobRepository(wdb)
-                locked = repo.lock_for_ownership(1, 1)
-                if locked:
-                    repo.increment_retry_and_pend(1, 1, "stale")
-                wdb.commit()
+                svc, db, wdb = _make_service(test_config)
+                svc._recover_one({
+                    "id": 1, "post_id": 1, "retry_count": 0,
+                    "max_retries": 3, "claim_version": 1,
+                })
+                db.close()
                 wdb.close()
             except Exception as e:
                 errors.append(e)
 
-        t1 = threading.Thread(target=do_save)
-        t2 = threading.Thread(target=do_stale)
+        t1 = threading.Thread(target=do_save, name="save-worker")
+        t2 = threading.Thread(target=do_stale, name="stale-worker")
         t1.start()
         t2.start()
         t1.join(timeout=10)
         t2.join(timeout=10)
 
+        _assert_threads_finished(t1, t2)
         assert not errors, f"デッドロック発生: {errors}"
 
     def test_old_worker_mark_completed(self, test_config, worker_db, raw_worker_conn):
@@ -171,13 +186,14 @@ class TestWriteBackConcurrency:
             except Exception as e:
                 errors.append(e)
 
-        t1 = threading.Thread(target=mark, args=(0, 1))
-        t2 = threading.Thread(target=mark, args=(1, 2))
+        t1 = threading.Thread(target=mark, args=(0, 1), name="old-cv")
+        t2 = threading.Thread(target=mark, args=(1, 2), name="new-cv")
         t1.start()
         t2.start()
         t1.join(timeout=10)
         t2.join(timeout=10)
 
+        _assert_threads_finished(t1, t2)
         assert not errors
         assert results[0] is False
         assert results[1] is True
@@ -192,27 +208,105 @@ class TestWriteBackConcurrency:
 
         def old_worker_failure():
             try:
-                wdb = ResmaneWorkerDatabase(test_config)
-                wdb.begin_transaction()
-                repo = WorkerJobRepository(wdb)
-                locked = repo.lock_for_ownership(1, 1)
-                if locked:
-                    db = ResManeDatabase(test_config)
-                    post_repo = PostRepository(db)
-                    post_repo.recover_to_pending(1)
-                    db.close()
-                wdb.commit()
+                svc, db, wdb = _make_service(test_config)
+                svc._handle_failure(1, 1, 1, "old worker error")
+                db.close()
                 wdb.close()
             except Exception as e:
                 errors.append(e)
 
-        t = threading.Thread(target=old_worker_failure)
+        t = threading.Thread(target=old_worker_failure, name="old-worker")
         t.start()
         t.join(timeout=10)
 
+        _assert_threads_finished(t)
         assert not errors
+
         cursor = raw_resmane_conn.cursor(dictionary=True)
         cursor.execute("SELECT ai_status_id FROM posts WHERE id = 1")
         row = cursor.fetchone()
         cursor.close()
-        assert row["ai_status_id"] == AiStatus.PROCESSING, "投稿が PROCESSING のまま"
+        assert row["ai_status_id"] == AiStatus.PROCESSING
+
+
+class TestDeleteSyncConcurrency:
+    """IDL-020, IDL-021"""
+
+    def test_sync_and_claim_concurrent(self, test_config, resmane_db, worker_db,
+                                       raw_resmane_conn, raw_worker_conn):
+        """IDL-020: sync と claim の同時実行。"""
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PENDING,
+                     deleted_at=now)
+        _insert_post(raw_resmane_conn, 2, ai_status_id=AiStatus.PENDING)
+
+        errors = []
+
+        def do_sync():
+            try:
+                db = ResManeDatabase(test_config)
+                wdb = ResmaneWorkerDatabase(test_config)
+                svc = DeleteSyncService(
+                    worker_db=wdb,
+                    post_repo=PostRepository(db),
+                    job_repo=WorkerJobRepository(wdb),
+                    watermark_repo=SyncWatermarkRepository(wdb),
+                )
+                svc.sync()
+                db.close()
+                wdb.close()
+            except Exception as e:
+                errors.append(e)
+
+        def do_claim():
+            try:
+                wdb = ResmaneWorkerDatabase(test_config)
+                repo = WorkerJobRepository(wdb)
+                repo.upsert(2)
+                wdb.close()
+            except Exception as e:
+                errors.append(e)
+
+        t1 = threading.Thread(target=do_sync, name="sync")
+        t2 = threading.Thread(target=do_claim, name="claim")
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        _assert_threads_finished(t1, t2)
+        assert not errors, f"デッドロック発生: {errors}"
+
+    def test_two_syncs_concurrent(self, test_config, resmane_db, worker_db,
+                                   raw_resmane_conn):
+        """IDL-021: 2 sync の同時実行。watermark の FOR UPDATE で直列化。"""
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        _insert_post(raw_resmane_conn, 1, deleted_at=now)
+
+        errors = []
+
+        def do_sync():
+            try:
+                db = ResManeDatabase(test_config)
+                wdb = ResmaneWorkerDatabase(test_config)
+                svc = DeleteSyncService(
+                    worker_db=wdb,
+                    post_repo=PostRepository(db),
+                    job_repo=WorkerJobRepository(wdb),
+                    watermark_repo=SyncWatermarkRepository(wdb),
+                )
+                svc.sync()
+                db.close()
+                wdb.close()
+            except Exception as e:
+                errors.append(e)
+
+        t1 = threading.Thread(target=do_sync, name="sync-A")
+        t2 = threading.Thread(target=do_sync, name="sync-B")
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+        _assert_threads_finished(t1, t2)
+        assert not errors, f"デッドロック発生: {errors}"
