@@ -227,7 +227,7 @@ BG 設計書の状態表（§6.7）を結合テストで網羅的に検証する
 | ID | テスト名 | 前提条件 | 期待結果 |
 |----|---------|---------|---------|
 | IKC-030 | 固定額設定を取得 | type=固定額, max_value=50000 | max_value=50000, type_name=固定額 |
-| IKC-031 | 割合設定を取得 (タイプ名付き) | type=割合, ave_monthly_income=200000 | type_name=割合, upper_limit_type_id=1 |
+| IKC-031 | 割合設定を取得 (タイプ名・基準収入付き) | type=割合, ave_monthly_income=200000 | type_name=割合, upper_limit_type_id=1, ave_monthly_income=200000 |
 | IKC-032 | 未設定なら None | 設定なし | None |
 | IKC-033 | 削除済みなら None | deleted_at あり | None |
 | IKC-034 | 設定は有効でもタイプが削除済みなら None | upper_limit_types.deleted_at あり | None |

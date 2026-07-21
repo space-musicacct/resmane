@@ -144,7 +144,7 @@ def _insert_upper_limit(conn, user_id, type_id, max_value, ave_income=None, dele
 
 
 class TestFetchUpperLimit:
-    """IKC-030 〜 IKC-033"""
+    """IKC-030 〜 IKC-035"""
 
     def test_fixed_amount(self, resmane_db, raw_resmane_conn):
         """IKC-030: 固定額設定を取得。"""
@@ -181,14 +181,14 @@ class TestFetchUpperLimit:
         cursor = raw_resmane_conn.cursor()
         cursor.execute("UPDATE upper_limit_types SET deleted_at = NOW() WHERE id = 2")
         cursor.close()
-
-        _insert_upper_limit(raw_resmane_conn, 1, 2, 50000)
-        repo = KakeiboContextRepository(resmane_db)
-        assert repo.fetch_upper_limit(1) is None
-
-        cursor = raw_resmane_conn.cursor()
-        cursor.execute("UPDATE upper_limit_types SET deleted_at = NULL WHERE id = 2")
-        cursor.close()
+        try:
+            _insert_upper_limit(raw_resmane_conn, 1, 2, 50000)
+            repo = KakeiboContextRepository(resmane_db)
+            assert repo.fetch_upper_limit(1) is None
+        finally:
+            cursor = raw_resmane_conn.cursor()
+            cursor.execute("UPDATE upper_limit_types SET deleted_at = NULL WHERE id = 2")
+            cursor.close()
 
     def test_other_user_excluded(self, resmane_db, raw_resmane_conn):
         """IKC-035: 別ユーザーの設定を取得しない。"""
