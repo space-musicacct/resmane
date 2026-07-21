@@ -129,3 +129,97 @@ class TestFetchThread:
         result = repo.fetch_thread(1)
         ids = [r["id"] for r in result]
         assert ids == sorted(ids)
+
+
+def _insert_upper_limit(conn, user_id, type_id, max_value, ave_income=None, deleted_at=None):
+    now = "2026-07-21 10:00:00"
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO upper_limit_settings "
+        "(user_id, upper_limit_type_id, max_value, ave_monthly_income, "
+        "created_at, updated_at, deleted_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (user_id, type_id, max_value, ave_income, now, now, deleted_at),
+    )
+    cursor.close()
+
+
+def _insert_income_record(conn, user_id, purchase_date, amount, deleted_at=None):
+    now = "2026-07-21 10:00:00"
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO kakeibo_records "
+        "(user_id, purchase_date, amount_type_id, amount, "
+        "kakeibo_default_category_id, created_at, updated_at, deleted_at) "
+        "VALUES (%s, %s, 2, %s, 3, %s, %s, %s)",
+        (user_id, purchase_date, amount, now, now, deleted_at),
+    )
+    cursor.close()
+
+
+class TestFetchUpperLimit:
+    """IKC-030 〜 IKC-033"""
+
+    def test_fixed_amount(self, resmane_db, raw_resmane_conn):
+        """IKC-030: 固定額設定を取得。"""
+        _insert_upper_limit(raw_resmane_conn, 1, 2, 50000)
+        repo = KakeiboContextRepository(resmane_db)
+        result = repo.fetch_upper_limit(1)
+        assert result is not None
+        assert result["max_value"] == 50000
+        assert result["type_name"] == "固定額"
+
+    def test_percentage(self, resmane_db, raw_resmane_conn):
+        """IKC-031: 割合設定を取得 (タイプ名付き)。"""
+        _insert_upper_limit(raw_resmane_conn, 1, 1, 30, ave_income=200000)
+        repo = KakeiboContextRepository(resmane_db)
+        result = repo.fetch_upper_limit(1)
+        assert result is not None
+        assert result["type_name"] == "割合"
+        assert result["upper_limit_type_id"] == 1
+
+    def test_not_set(self, resmane_db):
+        """IKC-032: 未設定なら None。"""
+        repo = KakeiboContextRepository(resmane_db)
+        assert repo.fetch_upper_limit(1) is None
+
+    def test_deleted(self, resmane_db, raw_resmane_conn):
+        """IKC-033: 削除済みなら None。"""
+        _insert_upper_limit(raw_resmane_conn, 1, 2, 50000, deleted_at="2026-07-21 00:00:00")
+        repo = KakeiboContextRepository(resmane_db)
+        assert repo.fetch_upper_limit(1) is None
+
+
+class TestFetchMonthlyIncome:
+    """IKC-040 〜 IKC-044"""
+
+    def test_monthly_income(self, resmane_db, raw_resmane_conn):
+        """IKC-040: 先月の収入合計。"""
+        _insert_income_record(raw_resmane_conn, 1, "2026-06-15", 100000)
+        _insert_income_record(raw_resmane_conn, 1, "2026-06-25", 50000)
+        repo = KakeiboContextRepository(resmane_db)
+        assert repo.fetch_monthly_income(1, 2026, 6) == 150000
+
+    def test_no_income(self, resmane_db):
+        """IKC-041: 収入なしなら 0。"""
+        repo = KakeiboContextRepository(resmane_db)
+        assert repo.fetch_monthly_income(1, 2026, 6) == 0
+
+    def test_excludes_expense(self, resmane_db, raw_resmane_conn):
+        """IKC-042: 支出は含まない。"""
+        cursor = raw_resmane_conn.cursor()
+        cursor.execute(
+            "INSERT INTO kakeibo_records "
+            "(user_id, purchase_date, amount_type_id, amount, "
+            "kakeibo_default_category_id, created_at, updated_at) "
+            "VALUES (1, '2026-06-15', 1, 5000, 1, NOW(), NOW())",
+        )
+        cursor.close()
+        repo = KakeiboContextRepository(resmane_db)
+        assert repo.fetch_monthly_income(1, 2026, 6) == 0
+
+    def test_excludes_deleted(self, resmane_db, raw_resmane_conn):
+        """IKC-043: 削除済みレコードは含まない。"""
+        _insert_income_record(raw_resmane_conn, 1, "2026-06-15", 100000,
+                             deleted_at="2026-07-21 00:00:00")
+        repo = KakeiboContextRepository(resmane_db)
+        assert repo.fetch_monthly_income(1, 2026, 6) == 0

@@ -17,3 +17,11 @@ class KakeiboContextRepositoryInterface(ABC):
     @abstractmethod
     def fetch_thread(self, kakeibo_record_id: int) -> list[dict]:
         """家計簿レコードに紐づく既存の投稿履歴を取得する。"""
+
+    @abstractmethod
+    def fetch_upper_limit(self, user_id: int) -> dict | None:
+        """ユーザーの上限設定をタイプ名付きで取得する。未設定なら None。"""
+
+    @abstractmethod
+    def fetch_monthly_income(self, user_id: int, year: int, month: int) -> int:
+        """指定月の収入合計を返す。レコードがなければ 0。"""

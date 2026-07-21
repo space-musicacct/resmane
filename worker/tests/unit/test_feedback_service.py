@@ -40,10 +40,11 @@ def _make_service(
     )
 
 
-def _make_context():
-    return {
+def _make_context(**overrides):
+    ctx = {
         "record": {
             "id": 1,
+            "user_id": 1,
             "purchase_date": date(2026, 7, 1),
             "amount": 1500,
             "details": "コンビニでお昼",
@@ -54,7 +55,11 @@ def _make_context():
             {"evaluation": 3, "review_comment": "ちょっと贅沢"},
         ],
         "thread": [],
+        "upper_limit": None,
+        "monthly_income": 0,
     }
+    ctx.update(overrides)
+    return ctx
 
 
 # =========================================================
@@ -136,6 +141,8 @@ class TestProcessOneSuccess:
         context_repo.fetch_record.return_value = _make_context()["record"]
         context_repo.fetch_self_reviews.return_value = []
         context_repo.fetch_thread.return_value = []
+        context_repo.fetch_upper_limit.return_value = None
+        context_repo.fetch_monthly_income.return_value = 0
         ai_client = MagicMock()
         ai_client.generate.return_value = "良い買い物ですね"
         job_repo = MagicMock()
@@ -163,6 +170,8 @@ class TestProcessOneSuccess:
             {"id": 1, "is_ai": 0, "content": "アドバイスほしい"},
             {"id": 2, "is_ai": 1, "content": "承知しました"},
         ]
+        context_repo.fetch_upper_limit.return_value = None
+        context_repo.fetch_monthly_income.return_value = 0
         ai_client = MagicMock()
         ai_client.generate.return_value = "追加アドバイス"
         post_repo = MagicMock()
@@ -196,6 +205,8 @@ class TestProcessOneSuccess:
         context_repo.fetch_record.return_value = _make_context()["record"]
         context_repo.fetch_self_reviews.return_value = []
         context_repo.fetch_thread.return_value = []
+        context_repo.fetch_upper_limit.return_value = None
+        context_repo.fetch_monthly_income.return_value = 0
         job_repo = MagicMock()
         job_repo.lock_for_ownership.return_value = True
         worker_db = MagicMock()
@@ -227,6 +238,8 @@ class TestProcessOneFailure:
         context_repo.fetch_record.return_value = _make_context()["record"]
         context_repo.fetch_self_reviews.return_value = []
         context_repo.fetch_thread.return_value = []
+        context_repo.fetch_upper_limit.return_value = None
+        context_repo.fetch_monthly_income.return_value = 0
         job_repo = MagicMock()
         job_repo.lock_for_ownership.return_value = True
         job_repo.get_retry_info.return_value = {"retry_count": 0, "max_retries": 3}
@@ -642,3 +655,100 @@ class TestSanitizeError:
         e = RuntimeError("something")
         result = FeedbackService._sanitize_error(e)
         assert result == "RuntimeError"
+
+
+# =========================================================
+# 3.9 上限設定
+# =========================================================
+
+class TestUpperLimit:
+    """UFS-080 〜 UFS-085"""
+
+    def test_initial_with_fixed_amount(self):
+        """UFS-080: 固定額の上限情報が含まれる。"""
+        svc = _make_service()
+        ctx = _make_context(
+            upper_limit={
+                "upper_limit_type_id": 2, "type_name": "固定額",
+                "max_value": 50000, "ave_monthly_income": None,
+            },
+        )
+        messages = svc._build_initial_messages(ctx)
+        content = messages[0]["content"]
+        assert "支出上限設定" in content
+        assert "固定額" in content
+        assert "50,000円" in content
+
+    def test_initial_with_percentage(self):
+        """UFS-081: 割合の上限情報 (先月収入あり)。"""
+        svc = _make_service()
+        ctx = _make_context(
+            upper_limit={
+                "upper_limit_type_id": 1, "type_name": "割合",
+                "max_value": 30, "ave_monthly_income": 200000,
+            },
+            monthly_income=200000,
+        )
+        messages = svc._build_initial_messages(ctx)
+        content = messages[0]["content"]
+        assert "割合" in content
+        assert "30%" in content
+        assert "200,000円" in content
+        assert "60,000円" in content
+
+    def test_initial_no_upper_limit(self):
+        """UFS-082: 上限設定なしの場合は上限セクションなし。"""
+        svc = _make_service()
+        ctx = _make_context(upper_limit=None)
+        messages = svc._build_initial_messages(ctx)
+        content = messages[0]["content"]
+        assert "支出上限設定" not in content
+
+    def test_followup_instruction_with_upper_limit(self):
+        """UFS-083: 追加チャットの system_instruction に上限情報。"""
+        svc = _make_service()
+        ctx = _make_context(
+            upper_limit={
+                "upper_limit_type_id": 2, "type_name": "固定額",
+                "max_value": 30000, "ave_monthly_income": None,
+            },
+        )
+        instruction = svc._build_followup_instruction(ctx)
+        assert "支出上限設定" in instruction
+        assert "30,000円" in instruction
+
+    def test_percentage_with_zero_income(self):
+        """UFS-084: 割合で収入がゼロの場合。"""
+        svc = _make_service()
+        ctx = _make_context(
+            upper_limit={
+                "upper_limit_type_id": 1, "type_name": "割合",
+                "max_value": 30, "ave_monthly_income": 200000,
+            },
+            monthly_income=0,
+        )
+        messages = svc._build_initial_messages(ctx)
+        content = messages[0]["content"]
+        assert "0円" in content
+
+    def test_build_context_includes_upper_limit(self):
+        """UFS-085: _build_context に upper_limit と monthly_income が含まれる。"""
+        context_repo = MagicMock()
+        context_repo.fetch_record.return_value = {
+            "id": 1, "user_id": 1, "purchase_date": date(2026, 7, 1),
+            "amount": 1500, "details": "test", "amount_type_name": "支出",
+            "category_name": "飲食",
+        }
+        context_repo.fetch_self_reviews.return_value = []
+        context_repo.fetch_thread.return_value = []
+        context_repo.fetch_upper_limit.return_value = {
+            "upper_limit_type_id": 2, "type_name": "固定額",
+            "max_value": 50000, "ave_monthly_income": None,
+        }
+
+        svc = _make_service(context_repo=context_repo)
+        ctx = svc._build_context(1)
+
+        assert ctx["upper_limit"] is not None
+        assert ctx["upper_limit"]["max_value"] == 50000
+        context_repo.fetch_upper_limit.assert_called_once_with(1)

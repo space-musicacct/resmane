@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class KakeiboContextRepository(KakeiboContextRepositoryInterface):
-    """家計簿レコード・自己レビュー・スレッド履歴の取得を担当する。"""
+    """家計簿レコード・自己レビュー・スレッド履歴・上限設定の取得を担当する。"""
 
     def __init__(self, db: ResManeDatabase) -> None:
         self._db = db
@@ -22,7 +22,7 @@ class KakeiboContextRepository(KakeiboContextRepositoryInterface):
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute(
-                "SELECT kr.id, kr.purchase_date, kr.amount, kr.details, "
+                "SELECT kr.id, kr.user_id, kr.purchase_date, kr.amount, kr.details, "
                 "  at.type_name AS amount_type_name, "
                 "  kdc.category_name "
                 "FROM kakeibo_records kr "
@@ -67,5 +67,42 @@ class KakeiboContextRepository(KakeiboContextRepositoryInterface):
                 (kakeibo_record_id,),
             )
             return cursor.fetchall()
+        finally:
+            cursor.close()
+
+    def fetch_upper_limit(self, user_id: int) -> dict | None:
+        """ユーザーの上限設定をタイプ名付きで取得する。"""
+        conn = self._db.get_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT uls.max_value, uls.ave_monthly_income, "
+                "  ult.id AS upper_limit_type_id, ult.type_name "
+                "FROM upper_limit_settings uls "
+                "JOIN upper_limit_types ult ON uls.upper_limit_type_id = ult.id "
+                "WHERE uls.user_id = %s AND uls.deleted_at IS NULL",
+                (user_id,),
+            )
+            return cursor.fetchone()
+        finally:
+            cursor.close()
+
+    def fetch_monthly_income(self, user_id: int, year: int, month: int) -> int:
+        """指定月の収入合計を返す。"""
+        conn = self._db.get_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT COALESCE(SUM(amount), 0) AS total "
+                "FROM kakeibo_records "
+                "WHERE user_id = %s "
+                "  AND amount_type_id = 2 "
+                "  AND YEAR(purchase_date) = %s "
+                "  AND MONTH(purchase_date) = %s "
+                "  AND deleted_at IS NULL",
+                (user_id, year, month),
+            )
+            row = cursor.fetchone()
+            return row["total"] if row else 0
         finally:
             cursor.close()
