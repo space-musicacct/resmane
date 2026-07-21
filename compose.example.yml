@@ -104,7 +104,7 @@ services:
       - --collation-server=utf8mb4_unicode_ci
     volumes:
       - db_data:/var/lib/mysql
-      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # cp init.example.sql init.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
       interval: 10s
