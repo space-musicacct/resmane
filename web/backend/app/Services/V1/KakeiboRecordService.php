@@ -4,6 +4,8 @@ namespace App\Services\V1;
 
 use App\Models\KakeiboRecord;
 use App\Repositories\V1\Contracts\KakeiboRecordRepositoryInterface;
+use App\Repositories\V1\Contracts\PostRepositoryInterface;
+use App\Repositories\V1\Contracts\SelfReviewRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -17,9 +19,13 @@ readonly class KakeiboRecordService
 {
     /**
      * @param KakeiboRecordRepositoryInterface $repository
+     * @param SelfReviewRepositoryInterface $selfReviewRepository
+     * @param PostRepositoryInterface $postRepository
      */
     public function __construct(
         private KakeiboRecordRepositoryInterface $repository,
+        private SelfReviewRepositoryInterface $selfReviewRepository,
+        private PostRepositoryInterface $postRepository,
     ) {}
 
     /**
@@ -149,6 +155,9 @@ readonly class KakeiboRecordService
     {
         DB::transaction(function () use ($id, $userId) {
             $record = $this->findOrFailForUpdate($id, $userId);
+            $recordIds = collect([$record->id]);
+            $this->selfReviewRepository->deleteByRecordIds($recordIds);
+            $this->postRepository->deleteByRecordIds($recordIds);
             $this->repository->delete($record);
         });
     }

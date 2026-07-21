@@ -44,6 +44,7 @@ cd resmane
 cp compose.example.yml compose.yml
 cp .env.example .env
 cp web/backend/.env.example web/backend/.env
+cp docker/db/init.example.sql docker/db/init.sql
 
 # 3. コンテナをビルド・起動
 docker compose up -d --build

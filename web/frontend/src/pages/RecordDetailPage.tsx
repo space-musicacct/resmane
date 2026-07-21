@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { getCsrfCookie, isApiError } from '../lib/axios'
 import PageCard from '../components/PageCard'
@@ -19,16 +19,13 @@ type KakeiboRecord = {
   updatedAt: string
 }
 
-type ReviewForm = {
-  postDate: string
-  evaluation: number
-  reviewContent: string
-  categoryId: string
-}
-
-type ReviewTextFieldName = 'postDate' | 'reviewContent' | 'categoryId'
-
 type Tab = 'detail' | 'review'
+
+type Message = {
+  id: number
+  sender: 'user' | 'ai'
+  text: string
+}
 
 export default function RecordDetailPage() {
   const { id } = useParams()
@@ -39,23 +36,38 @@ export default function RecordDetailPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('detail')
 
-  const [reviewForm, setReviewForm] = useState<ReviewForm>({
-    postDate: '',
-    evaluation: 0,
-    reviewContent: '',
-    categoryId: '',
-  })
+  const [reviewComment, setReviewComment] = useState('')
+  const [evaluation, setEvaluation] = useState(0)
 
-  const handleReviewChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const name = e.target.name as ReviewTextFieldName
-    const value = e.target.value
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
 
-    setReviewForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+  const sendMessage = async () => {
+    if (!input.trim()) return
+    const userMessage: Message = {
+      id: Date.now(),
+      sender: 'user',
+      text: input,
+    }
+    setMessages((prev) => [...prev, userMessage])
+
+    try {
+      const res = await api.post('/chat', {
+        message: input,
+        recordId: id,
+      })
+
+      const aiMessage: Message = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: res.data.message,
+      }
+
+      setMessages((prev) => [...prev, aiMessage])
+    } catch (err) {
+      console.error(err)
+    }
+    setInput('')
   }
 
   const handleDelete = async () => {
@@ -153,67 +165,93 @@ export default function RecordDetailPage() {
       )}
 
       {activeTab === 'review' && (
-        <div className="space-y-5">
-          <InputRow
-            label="投稿日"
-            name="postDate"
-            type="date"
-            value={reviewForm.postDate}
-            onChange={handleReviewChange}
-          />
+        <div className="flex flex-col gap-6">
+          {/* 自己レビュー投稿フォーム */}
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium mb-1">評価</label>
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setEvaluation(star)}
+                    className={`flex-1 text-5xl ${
+                      star <= evaluation
+                        ? 'text-yellow-400'
+                        : 'text-gray-300 hover:text-yellow-300'
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <InputRow
-            label="家計簿ID"
-            name="kakeiboId"
-            type="text"
-            value={String(record.id)}
-            disabled
-          />
+            <div>
+              <label className="block text-sm font-medium mb-1">自己レビュー</label>
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="この支出について振り返りを入力してください（250文字以内）"
+                rows={14}
+                maxLength={250}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              />
+            </div>
 
-          <StarRatingRow
-            label="評価"
-            value={reviewForm.evaluation}
-            onChange={(value) => {
-              setReviewForm((prev) => ({
-                ...prev,
-                evaluation: value,
-              }))
-            }}
-          />
-
-          <TextAreaRow
-            label="内容"
-            name="reviewContent"
-            value={reviewForm.reviewContent}
-            onChange={handleReviewChange}
-            placeholder="この支出について振り返りを入力してください"
-          />
-
-          <SelectRow
-            label="カテゴリー"
-            name="categoryId"
-            value={reviewForm.categoryId}
-            onChange={handleReviewChange}
-            options={[
-              { value: '', label: '選択してください' },
-              { value: '1', label: '食費' },
-              { value: '2', label: '日用品' },
-              { value: '3', label: '交通費' },
-              { value: '4', label: '娯楽' },
-              { value: '5', label: 'その他' },
-            ]}
-          />
-
-          <div className="mt-8 flex gap-3">
             <button
               type="button"
-              className="flex-1 rounded-2xl border border-blue-500 py-3 font-bold text-blue-600 hover:bg-blue-50"
+              className="w-full rounded-2xl border border-blue-500 py-3 font-bold text-blue-600 hover:bg-blue-50"
               onClick={() => {
-                console.log(reviewForm)
+                console.log({ evaluation, reviewComment })
               }}
             >
               保存
             </button>
+          </div>
+
+          {/* AIフィードバック チャットUI */}
+          <div className="flex min-h-[460px] flex-col rounded-2xl border bg-white shadow">
+            <div className="h-[350px] overflow-y-auto space-y-4 p-4">
+              {messages.length === 0 && (
+                <div className="py-10 text-center text-sm text-gray-400">
+                  AIフィードバックはまだありません
+                </div>
+              )}
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[75%] rounded-2xl px-4 py-3 ${msg.sender === 'user' ? 'bg-blue-200' : 'bg-gray-100'}`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t p-3 flex flex-col gap-2">
+              <textarea
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value)
+                  e.target.style.height = 'auto'
+                  e.target.style.height = `${e.target.scrollHeight}px`
+                }}
+                placeholder="メッセージを入力"
+                rows={1}
+                className="w-full resize-none rounded-xl border px-4 py-2 outline-none focus:border-blue-500"
+              />
+              <button
+                onClick={sendMessage}
+                className="self-end rounded-full bg-blue-500 px-5 py-2 text-white"
+              >
+                送信
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -234,138 +272,6 @@ function DetailRow({
     <div className="flex items-start">
       <p className="w-28 shrink-0 text-sm font-medium">{label}</p>
       <p className={bold ? 'text-lg font-bold' : 'text-sm'}>{value}</p>
-    </div>
-  )
-}
-
-function InputRow({
-  label,
-  name,
-  type,
-  value,
-  onChange,
-  placeholder,
-  disabled,
-}: {
-  label: string
-  name: string
-  type: string
-  value: string
-  onChange?: (e: ChangeEvent<HTMLInputElement>) => void
-  placeholder?: string
-  disabled?: boolean
-}) {
-  return (
-    <div className="flex items-start">
-      <label className="w-28 shrink-0 text-sm font-medium">{label}</label>
-
-      <input
-        name={name}
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-100"
-      />
-    </div>
-  )
-}
-
-function TextAreaRow({
-  label,
-  name,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string
-  name: string
-  value: string
-  onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void
-  placeholder?: string
-}) {
-  return (
-    <div className="flex items-start">
-      <label className="w-28 shrink-0 text-sm font-medium">{label}</label>
-
-      <textarea
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        rows={4}
-        className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-      />
-    </div>
-  )
-}
-
-function StarRatingRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: number
-  onChange: (value: number) => void
-}) {
-  return (
-    <div className="flex items-start">
-      <p className="w-28 shrink-0 text-sm font-medium">{label}</p>
-
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            onClick={() => onChange(star)}
-            className={
-              star <= value
-                ? 'text-2xl text-yellow-400'
-                : 'text-2xl text-gray-300 hover:text-yellow-300'
-            }
-          >
-            ★
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function SelectRow({
-  label,
-  name,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  name: string
-  value: string
-  onChange: (e: ChangeEvent<HTMLSelectElement>) => void
-  options: {
-    value: string
-    label: string
-  }[]
-}) {
-  return (
-    <div className="flex items-start">
-      <label className="w-28 shrink-0 text-sm font-medium">{label}</label>
-
-      <select
-        name={name}
-        value={value}
-        onChange={onChange}
-        className="w-40 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
     </div>
   )
 }
