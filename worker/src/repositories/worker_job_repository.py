@@ -18,6 +18,21 @@ class WorkerJobRepository(WorkerJobRepositoryInterface):
     def __init__(self, db: ResmaneWorkerDatabase) -> None:
         self._db = db
 
+    def lock_for_ownership(self, job_id: int, claim_version: int) -> bool:
+        """SELECT FOR UPDATE で所有権を検証する。トランザクション内で呼ぶこと。"""
+        conn = self._db.get_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(
+                "SELECT id FROM worker_jobs "
+                "WHERE id = %s AND status = %s AND claim_version = %s "
+                "FOR UPDATE",
+                (job_id, WorkerStatus.PROCESSING, claim_version),
+            )
+            return cursor.fetchone() is not None
+        finally:
+            cursor.close()
+
     def upsert(self, post_id: int) -> tuple[int, int] | None:
         """ジョブを原子的に claim する。成功なら (job_id, claim_version)、失敗なら None。"""
         conn = self._db.get_connection()

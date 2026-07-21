@@ -7,6 +7,10 @@ class WorkerJobRepositoryInterface(ABC):
     """Worker ジョブの作成・ステータス管理の契約。"""
 
     @abstractmethod
+    def lock_for_ownership(self, job_id: int, claim_version: int) -> bool:
+        """SELECT FOR UPDATE で所有権を検証する。トランザクション内で呼ぶこと。"""
+
+    @abstractmethod
     def upsert(self, post_id: int) -> tuple[int, int] | None:
         """ジョブを原子的に claim する。成功なら (job_id, claim_version)、失敗なら None。"""
 

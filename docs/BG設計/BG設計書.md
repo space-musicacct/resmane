@@ -384,9 +384,16 @@ truncate して不完全な応答を保存するのではなく、FAILED とし�
 
 #### 所有権確認 (claim_version)
 
-全てのジョブ更新操作 (`mark_completed` / `mark_failed` / `mark_cancelled` / `increment_retry_and_pend`) は `WHERE id = ? AND status = 'processing' AND claim_version = ?` で所有権を確認する。古い Worker が stale recovery 後のジョブを上書きすることを防ぐ。
+Laravel DB を変更する全てのパスで、以下のロック順を統一する。
 
-条件付き更新が失敗した場合 (`rowcount = 0`)、`_reeval_and_sync()` で投稿の最新状態を再取得し、状態表に基づいてジョブを同期する。
+1. Worker DB: `begin_transaction()` → `lock_for_ownership(job_id, claim_version)` で `SELECT ... FOR UPDATE`
+2. 所有権確認成功 → Laravel DB の条件付き更新 (`save_response` / `recover_to_pending` / `mark_failed`)
+3. Worker DB: ジョブの状態遷移 (`mark_completed` / `increment_retry_and_pend` 等)
+4. Worker DB: `commit()`
+
+所有権確認に失敗した場合は `rollback()` して Laravel DB に一切触れない。これにより、古い Worker が stale recovery 後のジョブや他の Worker の処理中投稿を書き換えることを防ぐ。
+
+AI 呼び出し中にロックは保持しない。ロック保持は結果書き戻しの短いトランザクションのみ。
 
 ### 6.7 stale recovery
 

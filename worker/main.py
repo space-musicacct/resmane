@@ -52,6 +52,7 @@ def main() -> None:
     feedback = FeedbackService(
         config=config,
         db=db,
+        worker_db=worker_db,
         post_repo=post_repo,
         context_repo=context_repo,
         job_repo=job_repo,
