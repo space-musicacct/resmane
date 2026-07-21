@@ -174,7 +174,7 @@ class TestClaimConcurrency:
         t_claim.start()
 
         assert locked_event.wait(timeout=10), "stale がロック取得できなかった"
-        assert not t_claim.join(timeout=1) or True
+        t_claim.join(timeout=1)
         assert t_claim.is_alive(), "claim がロック保持中に完了してはいけない"
 
         release_event.set()
