@@ -230,3 +230,5 @@ BG 設計書の状態表（§6.7）を結合テストで網羅的に検証する
 | IKC-031 | 割合設定を取得 (タイプ名付き) | type=割合, ave_monthly_income=200000 | type_name=割合, upper_limit_type_id=1 |
 | IKC-032 | 未設定なら None | 設定なし | None |
 | IKC-033 | 削除済みなら None | deleted_at あり | None |
+| IKC-034 | 設定は有効でもタイプが削除済みなら None | upper_limit_types.deleted_at あり | None |
+| IKC-035 | 別ユーザーの設定を取得しない | user_id=999 の設定 | user_id=1 で None |

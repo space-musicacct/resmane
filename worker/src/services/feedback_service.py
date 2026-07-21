@@ -415,7 +415,7 @@ class FeedbackService:
 
         if upper_limit["upper_limit_type_id"] == 1:
             ave_income = upper_limit["ave_monthly_income"] or 0
-            limit_amount = int(ave_income * upper_limit["max_value"] / 100)
+            limit_amount = ave_income * upper_limit["max_value"] // 100
             return (
                 f"\n【支出上限設定】\n"
                 f"タイプ: {upper_limit['type_name']} ({upper_limit['max_value']}%)\n"
