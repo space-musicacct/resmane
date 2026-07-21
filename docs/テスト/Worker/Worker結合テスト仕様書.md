@@ -190,3 +190,34 @@ BG 設計書の状態表（§6.7）を結合テストで網羅的に検証する
 | IST-011 | posts PROCESSING 後、AI 呼び出し前 | post=PROCESSING, job=PROCESSING | stale recovery → post=PENDING, job=RETRY_PENDING |
 | IST-012 | AI 完了後、save_response 前 | post=PROCESSING, job=PROCESSING | stale recovery → post=PENDING, job=RETRY_PENDING |
 | IST-013 | save_response 後、mark_completed 前 | post=COMPLETED, job=PROCESSING | stale recovery → job=COMPLETED |
+
+---
+
+## 7. KakeiboContextRepository 結合テスト
+
+テストクラス: `tests/integration/test_kakeibo_context_repository.py`
+
+### 7.1 fetch_record
+
+| ID | テスト名 | 前提条件 | 期待結果 |
+|----|---------|---------|---------|
+| IKC-001 | カテゴリ名・収支区分名付きで取得 | シーダーデータ | amount, category_name, amount_type_name が正しい |
+| IKC-002 | 存在しないレコード | id=999 | None |
+| IKC-003 | 削除済みレコード | deleted_at あり | None |
+
+### 7.2 fetch_self_reviews
+
+| ID | テスト名 | 前提条件 | 期待結果 |
+|----|---------|---------|---------|
+| IKC-010 | 自己レビューを取得 | レビュー 2 件 | 2 件、review_comment が正しい |
+| IKC-011 | 削除済みレビュー除外 | deleted_at あり | 0 件 |
+| IKC-012 | レビューなし | レビュー未登録 | 空リスト |
+
+### 7.3 fetch_thread
+
+| ID | テスト名 | 前提条件 | 期待結果 |
+|----|---------|---------|---------|
+| IKC-020 | ユーザー投稿 + completed AI 投稿 | 2 投稿 | 2 件、is_ai が正しい |
+| IKC-021 | pending AI 投稿は除外 | ai_status_id=PENDING | 0 件 |
+| IKC-022 | 削除済み投稿は除外 | deleted_at あり | 0 件 |
+| IKC-023 | created_at, id の昇順 | 同一時刻の 3 投稿 | id 昇順 |

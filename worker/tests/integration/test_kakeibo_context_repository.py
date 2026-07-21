@@ -115,9 +115,16 @@ class TestFetchThread:
 
     def test_ordered_by_created_at_and_id(self, resmane_db, raw_resmane_conn):
         """IKC-023: created_at, id の昇順。"""
-        _insert_post(raw_resmane_conn, 3, is_ai=0, content="third")
-        _insert_post(raw_resmane_conn, 1, is_ai=0, content="first")
-        _insert_post(raw_resmane_conn, 2, is_ai=0, content="second")
+        fixed_time = "2026-07-21 10:00:00"
+        cursor = raw_resmane_conn.cursor()
+        for pid, content in [(3, "third"), (1, "first"), (2, "second")]:
+            cursor.execute(
+                "INSERT INTO posts (id, user_id, kakeibo_record_id, is_ai, "
+                "content, created_at, updated_at) "
+                "VALUES (%s, 1, 1, 0, %s, %s, %s)",
+                (pid, content, fixed_time, fixed_time),
+            )
+        cursor.close()
         repo = KakeiboContextRepository(resmane_db)
         result = repo.fetch_thread(1)
         ids = [r["id"] for r in result]
