@@ -124,15 +124,42 @@ class TestConditionalUpdate:
 class TestFindForUpdate:
     """IPR-020, IPR-021"""
 
-    def test_locks_pending_row(self, resmane_db, raw_resmane_conn):
-        """IPR-020: PENDING な行をロック。"""
+    def test_locks_pending_row(self, resmane_db, raw_resmane_conn, test_config):
+        """IPR-020: PENDING な行をロックし、別接続がブロックされる。"""
+        import threading
+        import mysql.connector
+
         _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PENDING)
         repo = PostRepository(resmane_db)
         resmane_db.begin_transaction()
         row = repo.find_for_update(1)
-        resmane_db.rollback()
         assert row is not None
-        assert row["id"] == 1
+
+        blocked = threading.Event()
+        acquired = threading.Event()
+
+        def other_thread():
+            conn2 = mysql.connector.connect(
+                host=test_config.db_host, port=test_config.db_port,
+                database=test_config.db_name, user=test_config.db_user,
+                password=test_config.db_password, charset="utf8mb4",
+            )
+            conn2.start_transaction()
+            cursor = conn2.cursor()
+            blocked.set()
+            cursor.execute("SELECT id FROM posts WHERE id = 1 FOR UPDATE")
+            acquired.set()
+            conn2.rollback()
+            conn2.close()
+
+        t = threading.Thread(target=other_thread)
+        t.start()
+        blocked.wait(timeout=5)
+        assert not acquired.wait(timeout=1), "別接続がブロックされていない"
+
+        resmane_db.rollback()
+        t.join(timeout=5)
+        assert acquired.is_set()
 
     def test_deleted_returns_none(self, resmane_db, raw_resmane_conn):
         """IPR-021: 削除済みなら None。"""

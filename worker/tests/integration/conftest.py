@@ -140,21 +140,19 @@ def _exec_multi(conn, sql):
 
 
 def _apply_migrations(conn):
-    """migration ファイルを番号順に適用する。既存オブジェクトはスキップする。"""
+    """毎回 DROP → migration 順適用で、migration ファイル自体の正しさを検証する。"""
+    cursor = conn.cursor()
+    cursor.execute("DROP TABLE IF EXISTS sync_watermarks")
+    cursor.execute("DROP TABLE IF EXISTS worker_jobs")
+    cursor.close()
+    conn.commit()
+
     migration_files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
     for f in migration_files:
         sql = f.read_text(encoding="utf-8").strip()
-        if not sql:
-            continue
-        cursor = conn.cursor()
-        try:
+        if sql:
+            cursor = conn.cursor()
             cursor.execute(sql)
-        except mysql.connector.errors.ProgrammingError as e:
-            if e.errno in (1060, 1061):
-                pass
-            else:
-                raise
-        finally:
             cursor.close()
     conn.commit()
 

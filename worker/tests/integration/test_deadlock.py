@@ -10,9 +10,9 @@ from src.databases.resmane_database import ResManeDatabase
 from src.databases.resmane_worker_database import ResmaneWorkerDatabase
 from src.repositories.post_repository import PostRepository
 from src.repositories.worker_job_repository import WorkerJobRepository
+from src.repositories.sync_watermark_repository import SyncWatermarkRepository
 from src.services.feedback_service import FeedbackService
 from src.services.delete_sync_service import DeleteSyncService
-from src.repositories.sync_watermark_repository import SyncWatermarkRepository
 
 
 def _insert_post(conn, post_id, ai_status_id=AiStatus.PENDING, deleted_at=None):
@@ -27,19 +27,20 @@ def _insert_post(conn, post_id, ai_status_id=AiStatus.PENDING, deleted_at=None):
     cursor.close()
 
 
-def _insert_job(conn, post_id, status=WorkerStatus.PROCESSING, cv=1, claimed_at=None):
+def _insert_stale_job(conn, post_id, cv=1, status=WorkerStatus.PROCESSING):
+    old = (datetime.now(timezone.utc) - timedelta(seconds=400)).strftime("%Y-%m-%d %H:%M:%S")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO worker_jobs "
         "(post_id, status, claim_version, claimed_at, created_at, updated_at) "
         "VALUES (%s, %s, %s, %s, %s, %s)",
-        (post_id, status, cv, claimed_at or now, now, now),
+        (post_id, status, cv, old, now, now),
     )
     cursor.close()
 
 
-def _make_service(test_config):
+def _make_feedback_service(test_config):
     db = ResManeDatabase(test_config)
     wdb = ResmaneWorkerDatabase(test_config)
     return FeedbackService(
@@ -50,6 +51,17 @@ def _make_service(test_config):
         context_repo=MagicMock(),
         job_repo=WorkerJobRepository(wdb),
         ai_client=MagicMock(),
+    ), db, wdb
+
+
+def _make_delete_sync_service(test_config):
+    db = ResManeDatabase(test_config)
+    wdb = ResmaneWorkerDatabase(test_config)
+    return DeleteSyncService(
+        worker_db=wdb,
+        post_repo=PostRepository(db),
+        job_repo=WorkerJobRepository(wdb),
+        watermark_repo=SyncWatermarkRepository(wdb),
     ), db, wdb
 
 
@@ -87,37 +99,39 @@ class TestClaimConcurrency:
         _assert_threads_finished(t1, t2)
         assert not errors, f"エラー発生: {errors}"
         success = [r for r in results if r is not None]
-        assert len(success) == 1, f"一方だけ成功すべき: {results}"
+        assert len(success) == 1
 
-    def test_claim_and_stale_concurrent(self, test_config, resmane_db, worker_db,
-                                        raw_resmane_conn, raw_worker_conn):
-        """IDL-002: claim と stale recovery の同時実行。"""
-        _insert_post(raw_resmane_conn, 1)
-        old = (datetime.now(timezone.utc) - timedelta(seconds=400)).strftime("%Y-%m-%d %H:%M:%S")
-        _insert_job(raw_worker_conn, 1, status=WorkerStatus.RETRY_PENDING, cv=1, claimed_at=old)
+    def test_claim_and_stale_recovery_on_same_job(self, test_config, resmane_db, worker_db,
+                                                   raw_resmane_conn, raw_worker_conn):
+        """IDL-002: stale recovery と再 claim が同じジョブで同時実行。"""
+        _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PROCESSING)
+        _insert_stale_job(raw_worker_conn, 1, cv=1)
 
         errors = []
-
-        def do_claim():
-            try:
-                wdb = ResmaneWorkerDatabase(test_config)
-                repo = WorkerJobRepository(wdb)
-                repo.upsert(1)
-                wdb.close()
-            except Exception as e:
-                errors.append(e)
+        barrier = threading.Barrier(2, timeout=10)
 
         def do_stale():
             try:
-                svc, db, wdb = _make_service(test_config)
+                svc, db, wdb = _make_feedback_service(test_config)
+                barrier.wait()
                 svc.recover_stale()
                 db.close()
                 wdb.close()
             except Exception as e:
                 errors.append(e)
 
-        t1 = threading.Thread(target=do_claim, name="claimer")
-        t2 = threading.Thread(target=do_stale, name="stale-recovery")
+        def do_reclaim():
+            try:
+                wdb = ResmaneWorkerDatabase(test_config)
+                repo = WorkerJobRepository(wdb)
+                barrier.wait()
+                repo.upsert(1)
+                wdb.close()
+            except Exception as e:
+                errors.append(e)
+
+        t1 = threading.Thread(target=do_stale, name="stale")
+        t2 = threading.Thread(target=do_reclaim, name="reclaim")
         t1.start()
         t2.start()
         t1.join(timeout=10)
@@ -125,6 +139,12 @@ class TestClaimConcurrency:
 
         _assert_threads_finished(t1, t2)
         assert not errors, f"デッドロック発生: {errors}"
+
+        cursor = raw_worker_conn.cursor(dictionary=True)
+        cursor.execute("SELECT status FROM worker_jobs WHERE post_id = 1")
+        row = cursor.fetchone()
+        cursor.close()
+        assert row["status"] in (WorkerStatus.PROCESSING, WorkerStatus.RETRY_PENDING)
 
 
 class TestWriteBackConcurrency:
@@ -134,14 +154,15 @@ class TestWriteBackConcurrency:
                                        raw_resmane_conn, raw_worker_conn):
         """IDL-010: save_with_ownership と recover_one の同時実行。"""
         _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PROCESSING)
-        old = (datetime.now(timezone.utc) - timedelta(seconds=400)).strftime("%Y-%m-%d %H:%M:%S")
-        _insert_job(raw_worker_conn, 1, cv=1, claimed_at=old)
+        _insert_stale_job(raw_worker_conn, 1, cv=1)
 
         errors = []
+        barrier = threading.Barrier(2, timeout=10)
 
         def do_save():
             try:
-                svc, db, wdb = _make_service(test_config)
+                svc, db, wdb = _make_feedback_service(test_config)
+                barrier.wait()
                 svc._save_with_ownership(1, 1, 1, "AI応答")
                 db.close()
                 wdb.close()
@@ -150,7 +171,8 @@ class TestWriteBackConcurrency:
 
         def do_stale():
             try:
-                svc, db, wdb = _make_service(test_config)
+                svc, db, wdb = _make_feedback_service(test_config)
+                barrier.wait()
                 svc._recover_one({
                     "id": 1, "post_id": 1, "retry_count": 0,
                     "max_retries": 3, "claim_version": 1,
@@ -172,7 +194,7 @@ class TestWriteBackConcurrency:
 
     def test_old_worker_mark_completed(self, test_config, worker_db, raw_worker_conn):
         """IDL-011: 旧 cv と新 cv の mark_completed 競合。"""
-        _insert_job(raw_worker_conn, 1, cv=2)
+        _insert_stale_job(raw_worker_conn, 1, cv=2)
 
         errors = []
         results = [None, None]
@@ -202,13 +224,13 @@ class TestWriteBackConcurrency:
                                                 raw_resmane_conn, raw_worker_conn):
         """IDL-012: 旧 Worker の _handle_failure が新 claim を破壊しない。"""
         _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PROCESSING)
-        _insert_job(raw_worker_conn, 1, cv=2)
+        _insert_stale_job(raw_worker_conn, 1, cv=2)
 
         errors = []
 
         def old_worker_failure():
             try:
-                svc, db, wdb = _make_service(test_config)
+                svc, db, wdb = _make_feedback_service(test_config)
                 svc._handle_failure(1, 1, 1, "old worker error")
                 db.close()
                 wdb.close()
@@ -232,26 +254,20 @@ class TestWriteBackConcurrency:
 class TestDeleteSyncConcurrency:
     """IDL-020, IDL-021"""
 
-    def test_sync_and_claim_concurrent(self, test_config, resmane_db, worker_db,
+    def test_sync_and_claim_same_post(self, test_config, resmane_db, worker_db,
                                        raw_resmane_conn, raw_worker_conn):
-        """IDL-020: sync と claim の同時実行。"""
+        """IDL-020: sync と claim が同じ post_id で同時実行。"""
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PENDING,
-                     deleted_at=now)
-        _insert_post(raw_resmane_conn, 2, ai_status_id=AiStatus.PENDING)
+        _insert_post(raw_resmane_conn, 1, ai_status_id=AiStatus.PENDING, deleted_at=now)
+        _insert_stale_job(raw_worker_conn, 1, cv=1)
 
         errors = []
+        barrier = threading.Barrier(2, timeout=10)
 
         def do_sync():
             try:
-                db = ResManeDatabase(test_config)
-                wdb = ResmaneWorkerDatabase(test_config)
-                svc = DeleteSyncService(
-                    worker_db=wdb,
-                    post_repo=PostRepository(db),
-                    job_repo=WorkerJobRepository(wdb),
-                    watermark_repo=SyncWatermarkRepository(wdb),
-                )
+                svc, db, wdb = _make_delete_sync_service(test_config)
+                barrier.wait()
                 svc.sync()
                 db.close()
                 wdb.close()
@@ -260,9 +276,10 @@ class TestDeleteSyncConcurrency:
 
         def do_claim():
             try:
-                wdb = ResmaneWorkerDatabase(test_config)
-                repo = WorkerJobRepository(wdb)
-                repo.upsert(2)
+                svc, db, wdb = _make_feedback_service(test_config)
+                barrier.wait()
+                svc._claim(1)
+                db.close()
                 wdb.close()
             except Exception as e:
                 errors.append(e)
@@ -277,24 +294,24 @@ class TestDeleteSyncConcurrency:
         _assert_threads_finished(t1, t2)
         assert not errors, f"デッドロック発生: {errors}"
 
-    def test_two_syncs_concurrent(self, test_config, resmane_db, worker_db,
-                                   raw_resmane_conn):
+        cursor = raw_worker_conn.cursor(dictionary=True)
+        cursor.execute("SELECT status, deleted_at FROM worker_jobs WHERE post_id = 1")
+        row = cursor.fetchone()
+        cursor.close()
+        assert row is not None
+
+    def test_two_syncs_concurrent(self, test_config, resmane_db, worker_db, raw_resmane_conn):
         """IDL-021: 2 sync の同時実行。watermark の FOR UPDATE で直列化。"""
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         _insert_post(raw_resmane_conn, 1, deleted_at=now)
 
         errors = []
+        barrier = threading.Barrier(2, timeout=10)
 
         def do_sync():
             try:
-                db = ResManeDatabase(test_config)
-                wdb = ResmaneWorkerDatabase(test_config)
-                svc = DeleteSyncService(
-                    worker_db=wdb,
-                    post_repo=PostRepository(db),
-                    job_repo=WorkerJobRepository(wdb),
-                    watermark_repo=SyncWatermarkRepository(wdb),
-                )
+                svc, db, wdb = _make_delete_sync_service(test_config)
+                barrier.wait()
                 svc.sync()
                 db.close()
                 wdb.close()

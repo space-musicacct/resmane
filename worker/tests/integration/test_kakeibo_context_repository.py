@@ -32,9 +32,10 @@ def _insert_self_review(conn, review_id, record_id=1, comment="テスト", evalu
 
 
 class TestFetchRecord:
+    """IKC-001 〜 IKC-003"""
 
     def test_returns_record_with_joins(self, resmane_db):
-        """家計簿レコードをカテゴリ名・収支区分名付きで取得。"""
+        """IKC-001: 家計簿レコードをカテゴリ名・収支区分名付きで取得。"""
         repo = KakeiboContextRepository(resmane_db)
         result = repo.fetch_record(1)
         assert result is not None
@@ -43,12 +44,12 @@ class TestFetchRecord:
         assert result["amount_type_name"] == "支出"
 
     def test_returns_none_for_nonexistent(self, resmane_db):
-        """存在しないレコードは None。"""
+        """IKC-002: 存在しないレコードは None。"""
         repo = KakeiboContextRepository(resmane_db)
         assert repo.fetch_record(999) is None
 
     def test_returns_none_for_deleted(self, resmane_db, raw_resmane_conn):
-        """削除済みレコードは None。"""
+        """IKC-003: 削除済みレコードは None。"""
         cursor = raw_resmane_conn.cursor()
         cursor.execute("UPDATE kakeibo_records SET deleted_at = NOW() WHERE id = 1")
         cursor.close()
@@ -62,9 +63,10 @@ class TestFetchRecord:
 
 
 class TestFetchSelfReviews:
+    """IKC-010 〜 IKC-012"""
 
     def test_returns_reviews(self, resmane_db, raw_resmane_conn):
-        """自己レビューを取得。"""
+        """IKC-010: 自己レビューを取得。"""
         _insert_self_review(raw_resmane_conn, 1, comment="良い買い物", evaluation=4)
         _insert_self_review(raw_resmane_conn, 2, comment="贅沢した", evaluation=2)
         repo = KakeiboContextRepository(resmane_db)
@@ -73,21 +75,22 @@ class TestFetchSelfReviews:
         assert result[0]["review_comment"] == "良い買い物"
 
     def test_excludes_deleted(self, resmane_db, raw_resmane_conn):
-        """削除済みレビューは除外。"""
+        """IKC-011: 削除済みレビューは除外。"""
         _insert_self_review(raw_resmane_conn, 1, deleted_at="2026-07-21 00:00:00")
         repo = KakeiboContextRepository(resmane_db)
         assert len(repo.fetch_self_reviews(1)) == 0
 
     def test_empty_for_no_reviews(self, resmane_db):
-        """レビューなしは空リスト。"""
+        """IKC-012: レビューなしは空リスト。"""
         repo = KakeiboContextRepository(resmane_db)
         assert repo.fetch_self_reviews(1) == []
 
 
 class TestFetchThread:
+    """IKC-020 〜 IKC-023"""
 
     def test_returns_user_and_completed_ai_posts(self, resmane_db, raw_resmane_conn):
-        """ユーザー投稿 + completed AI 投稿を取得。"""
+        """IKC-020: ユーザー投稿 + completed AI 投稿を取得。"""
         _insert_post(raw_resmane_conn, 1, is_ai=0, content="質問です")
         _insert_post(raw_resmane_conn, 2, is_ai=1, ai_status_id=AiStatus.COMPLETED,
                      content="回答です")
@@ -98,20 +101,20 @@ class TestFetchThread:
         assert result[1]["is_ai"] == 1
 
     def test_excludes_pending_ai_posts(self, resmane_db, raw_resmane_conn):
-        """pending AI 投稿は除外。"""
+        """IKC-021: pending AI 投稿は除外。"""
         _insert_post(raw_resmane_conn, 1, is_ai=1, ai_status_id=AiStatus.PENDING)
         repo = KakeiboContextRepository(resmane_db)
         assert len(repo.fetch_thread(1)) == 0
 
     def test_excludes_deleted_posts(self, resmane_db, raw_resmane_conn):
-        """削除済み投稿は除外。"""
+        """IKC-022: 削除済み投稿は除外。"""
         _insert_post(raw_resmane_conn, 1, is_ai=0, content="msg",
                      deleted_at="2026-07-21 00:00:00")
         repo = KakeiboContextRepository(resmane_db)
         assert len(repo.fetch_thread(1)) == 0
 
     def test_ordered_by_created_at_and_id(self, resmane_db, raw_resmane_conn):
-        """created_at, id の昇順。"""
+        """IKC-023: created_at, id の昇順。"""
         _insert_post(raw_resmane_conn, 3, is_ai=0, content="third")
         _insert_post(raw_resmane_conn, 1, is_ai=0, content="first")
         _insert_post(raw_resmane_conn, 2, is_ai=0, content="second")
