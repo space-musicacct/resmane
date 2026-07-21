@@ -152,6 +152,7 @@
 |----|---------|---------|---------|
 | IDL-010 | save_response と stale recovery の同時実行 | Thread A が save_with_ownership、Thread B が recover_one | 所有権を持つ方だけが Laravel DB を更新。デッドロックなし |
 | IDL-011 | 2 Worker が同じジョブを mark_completed | Thread A (旧 cv), Thread B (新 cv) | 新 cv のみ成功。デッドロックなし |
+| IDL-012 | 旧 Worker の _handle_failure が新 claim を破壊しない | Thread A (旧 cv) が失敗処理、Thread B (新 cv) が処理中 | A の lock_for_ownership が失敗し、Laravel DB (posts) は変更されない。B の投稿は PROCESSING のまま |
 
 ### 5.3 削除同期の競合
 
