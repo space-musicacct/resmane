@@ -134,7 +134,8 @@ Repository・Client・DB を全てモック化して検証する。
 | UDS-004 | reconcile: 1 バッチで完了 | 削除済み 50 件 | 1 回のバッチで処理 |
 | UDS-005 | reconcile: 複数バッチ | 削除済み 1500 件 | 2 回のバッチで全件処理 |
 | UDS-006 | reconcile: 差分なし | fetch_deleted_since → [] | 何もしない |
-| UDS-007 | reconcile: バッチ途中で失敗 | 2 バッチ目で例外 | rollback、例外が再送出 |
+| UDS-007 | reconcile: バッチ途中で失敗 | 2 バッチ目で例外 | 1 バッチ目は commit 済み、2 バッチ目で rollback、例外が再送出 |
+| UDS-008 | reconcile: カーソルが次バッチへ引き継がれる | 1 バッチ完了後 | 次回取得に前バッチ末尾の (deleted_at, id) が渡される |
 
 ---
 
