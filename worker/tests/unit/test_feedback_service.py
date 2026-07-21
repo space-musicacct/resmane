@@ -56,7 +56,6 @@ def _make_context(**overrides):
         ],
         "thread": [],
         "upper_limit": None,
-        "monthly_income": 0,
     }
     ctx.update(overrides)
     return ctx
@@ -680,14 +679,13 @@ class TestUpperLimit:
         assert "50,000円" in content
 
     def test_initial_with_percentage(self):
-        """UFS-081: 割合の上限情報 (先月収入あり)。"""
+        """UFS-081: 割合の上限情報 (ave_monthly_income から算出)。"""
         svc = _make_service()
         ctx = _make_context(
             upper_limit={
                 "upper_limit_type_id": 1, "type_name": "割合",
                 "max_value": 30, "ave_monthly_income": 200000,
             },
-            monthly_income=200000,
         )
         messages = svc._build_initial_messages(ctx)
         content = messages[0]["content"]
@@ -717,25 +715,25 @@ class TestUpperLimit:
         assert "支出上限設定" in instruction
         assert "30,000円" in instruction
 
-    def test_percentage_with_zero_income(self):
-        """UFS-084: 割合で収入がゼロの場合。"""
+    def test_percentage_with_null_income(self):
+        """UFS-084: 割合で ave_monthly_income が None の場合。"""
         svc = _make_service()
         ctx = _make_context(
             upper_limit={
                 "upper_limit_type_id": 1, "type_name": "割合",
-                "max_value": 30, "ave_monthly_income": 200000,
+                "max_value": 30, "ave_monthly_income": None,
             },
-            monthly_income=0,
         )
         messages = svc._build_initial_messages(ctx)
         content = messages[0]["content"]
         assert "0円" in content
 
     def test_build_context_includes_upper_limit(self):
-        """UFS-085: _build_context に upper_limit と monthly_income が含まれる。"""
+        """UFS-085: _build_context に upper_limit が含まれる。"""
+        from datetime import date as date_cls
         context_repo = MagicMock()
         context_repo.fetch_record.return_value = {
-            "id": 1, "user_id": 1, "purchase_date": date(2026, 7, 1),
+            "id": 1, "user_id": 1, "purchase_date": date_cls(2026, 7, 1),
             "amount": 1500, "details": "test", "amount_type_name": "支出",
             "category_name": "飲食",
         }

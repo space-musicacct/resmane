@@ -80,29 +80,11 @@ class KakeiboContextRepository(KakeiboContextRepositoryInterface):
                 "  ult.id AS upper_limit_type_id, ult.type_name "
                 "FROM upper_limit_settings uls "
                 "JOIN upper_limit_types ult ON uls.upper_limit_type_id = ult.id "
-                "WHERE uls.user_id = %s AND uls.deleted_at IS NULL",
+                "WHERE uls.user_id = %s "
+                "  AND uls.deleted_at IS NULL "
+                "  AND ult.deleted_at IS NULL",
                 (user_id,),
             )
             return cursor.fetchone()
-        finally:
-            cursor.close()
-
-    def fetch_monthly_income(self, user_id: int, year: int, month: int) -> int:
-        """指定月の収入合計を返す。"""
-        conn = self._db.get_connection()
-        cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute(
-                "SELECT COALESCE(SUM(amount), 0) AS total "
-                "FROM kakeibo_records "
-                "WHERE user_id = %s "
-                "  AND amount_type_id = 2 "
-                "  AND YEAR(purchase_date) = %s "
-                "  AND MONTH(purchase_date) = %s "
-                "  AND deleted_at IS NULL",
-                (user_id, year, month),
-            )
-            row = cursor.fetchone()
-            return row["total"] if row else 0
         finally:
             cursor.close()

@@ -238,9 +238,6 @@ def resmane_db(test_config):
         cursor = conn.cursor()
         cursor.execute(f"TRUNCATE TABLE {table}")
         cursor.close()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM kakeibo_records WHERE id > 1")
-    cursor.close()
     conn.commit()
     yield db
     db.close()

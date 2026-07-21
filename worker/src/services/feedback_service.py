@@ -1,7 +1,6 @@
 """AI フィードバック生成のビジネスロジック。"""
 
 import logging
-from datetime import date
 
 from src.clients.contracts.ai_client_interface import AiClientInterface
 from src.configs.ai_status import AiStatus
@@ -350,31 +349,13 @@ class FeedbackService:
         if record is None:
             return None
 
-        user_id = record["user_id"]
-        upper_limit = self._context_repo.fetch_upper_limit(user_id)
-
-        monthly_income = 0
-        if upper_limit and upper_limit["upper_limit_type_id"] == 1:
-            today = date.today()
-            if today.month == 1:
-                prev_year, prev_month = today.year - 1, 12
-            else:
-                prev_year, prev_month = today.year, today.month - 1
-
-            monthly_income = self._context_repo.fetch_monthly_income(
-                user_id, prev_year, prev_month,
-            )
-            if monthly_income == 0:
-                monthly_income = self._context_repo.fetch_monthly_income(
-                    user_id, today.year, today.month,
-                )
+        upper_limit = self._context_repo.fetch_upper_limit(record["user_id"])
 
         return {
             "record": record,
             "self_reviews": self._context_repo.fetch_self_reviews(record_id),
             "thread": self._context_repo.fetch_thread(record_id),
             "upper_limit": upper_limit,
-            "monthly_income": monthly_income,
         }
 
     def _build_messages(self, context: dict, is_followup: bool) -> list[dict]:
@@ -432,14 +413,13 @@ class FeedbackService:
         if not upper_limit:
             return ""
 
-        monthly_income = context.get("monthly_income", 0)
-
         if upper_limit["upper_limit_type_id"] == 1:
-            limit_amount = int(monthly_income * upper_limit["max_value"] / 100)
+            ave_income = upper_limit["ave_monthly_income"] or 0
+            limit_amount = int(ave_income * upper_limit["max_value"] / 100)
             return (
                 f"\n【支出上限設定】\n"
                 f"タイプ: {upper_limit['type_name']} ({upper_limit['max_value']}%)\n"
-                f"基準収入: {monthly_income:,}円\n"
+                f"基準収入: {ave_income:,}円\n"
                 f"上限額: {limit_amount:,}円\n"
             )
         else:

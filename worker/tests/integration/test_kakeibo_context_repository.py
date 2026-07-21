@@ -143,19 +143,6 @@ def _insert_upper_limit(conn, user_id, type_id, max_value, ave_income=None, dele
     cursor.close()
 
 
-def _insert_income_record(conn, user_id, purchase_date, amount, deleted_at=None):
-    now = "2026-07-21 10:00:00"
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO kakeibo_records "
-        "(user_id, purchase_date, amount_type_id, amount, "
-        "kakeibo_default_category_id, created_at, updated_at, deleted_at) "
-        "VALUES (%s, %s, 2, %s, 3, %s, %s, %s)",
-        (user_id, purchase_date, amount, now, now, deleted_at),
-    )
-    cursor.close()
-
-
 class TestFetchUpperLimit:
     """IKC-030 〜 IKC-033"""
 
@@ -187,39 +174,3 @@ class TestFetchUpperLimit:
         _insert_upper_limit(raw_resmane_conn, 1, 2, 50000, deleted_at="2026-07-21 00:00:00")
         repo = KakeiboContextRepository(resmane_db)
         assert repo.fetch_upper_limit(1) is None
-
-
-class TestFetchMonthlyIncome:
-    """IKC-040 〜 IKC-044"""
-
-    def test_monthly_income(self, resmane_db, raw_resmane_conn):
-        """IKC-040: 先月の収入合計。"""
-        _insert_income_record(raw_resmane_conn, 1, "2026-06-15", 100000)
-        _insert_income_record(raw_resmane_conn, 1, "2026-06-25", 50000)
-        repo = KakeiboContextRepository(resmane_db)
-        assert repo.fetch_monthly_income(1, 2026, 6) == 150000
-
-    def test_no_income(self, resmane_db):
-        """IKC-041: 収入なしなら 0。"""
-        repo = KakeiboContextRepository(resmane_db)
-        assert repo.fetch_monthly_income(1, 2026, 6) == 0
-
-    def test_excludes_expense(self, resmane_db, raw_resmane_conn):
-        """IKC-042: 支出は含まない。"""
-        cursor = raw_resmane_conn.cursor()
-        cursor.execute(
-            "INSERT INTO kakeibo_records "
-            "(user_id, purchase_date, amount_type_id, amount, "
-            "kakeibo_default_category_id, created_at, updated_at) "
-            "VALUES (1, '2026-06-15', 1, 5000, 1, NOW(), NOW())",
-        )
-        cursor.close()
-        repo = KakeiboContextRepository(resmane_db)
-        assert repo.fetch_monthly_income(1, 2026, 6) == 0
-
-    def test_excludes_deleted(self, resmane_db, raw_resmane_conn):
-        """IKC-043: 削除済みレコードは含まない。"""
-        _insert_income_record(raw_resmane_conn, 1, "2026-06-15", 100000,
-                             deleted_at="2026-07-21 00:00:00")
-        repo = KakeiboContextRepository(resmane_db)
-        assert repo.fetch_monthly_income(1, 2026, 6) == 0

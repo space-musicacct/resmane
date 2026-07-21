@@ -112,6 +112,17 @@ Repository・Client・DB を全てモック化して検証する。
 | UFS-063 | 追加: スレッド履歴が messages に含まれる | thread に 3 投稿 | messages が 3 件 |
 | UFS-064 | 追加: 家計簿情報が system_instruction に含まれる | 追加チャット | system_instruction に背景情報 |
 
+### 3.9 上限設定
+
+| ID | テスト名 | 前提条件 | 期待結果 |
+|----|---------|---------|---------|
+| UFS-080 | 初回: 固定額の上限情報が含まれる | upper_limit type=固定額, max_value=50000 | 「支出上限設定」「固定額」「50,000円」 |
+| UFS-081 | 初回: 割合の上限情報 (ave_monthly_income から算出) | type=割合, max_value=30, ave_monthly_income=200000 | 「30%」「200,000円」「60,000円」 |
+| UFS-082 | 初回: 上限設定なし | upper_limit=None | 「支出上限設定」セクションなし |
+| UFS-083 | 追加チャット: system_instruction に上限情報 | upper_limit あり | system_instruction に「支出上限設定」 |
+| UFS-084 | 割合: ave_monthly_income が None | ave_monthly_income=None | 「0円」 |
+| UFS-085 | _build_context に upper_limit が含まれる | fetch_upper_limit が値を返す | ctx["upper_limit"] が正しい |
+
 ### 3.8 エラー正規化
 
 | ID | テスト名 | 前提条件 | 期待結果 |
