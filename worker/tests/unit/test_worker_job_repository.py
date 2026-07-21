@@ -43,8 +43,7 @@ class TestUpsert:
             fetchone={"id": 5, "claim_version": 3},
         )
         result = repo.upsert(10)
-        assert result is not None
-        assert result[0] == 5
+        assert result == (5, 3)
 
     def test_claim_failure(self):
         """UWR-003: claim 失敗。"""

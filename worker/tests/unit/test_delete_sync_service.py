@@ -120,18 +120,37 @@ class TestReconcile:
 
         job_repo.cancel_processing_by_post_ids.assert_not_called()
 
-    def test_reconcile_batch_failure(self):
-        """UDS-007: バッチ途中で失敗。"""
+    def test_reconcile_batch_failure_on_second(self):
+        """UDS-007: 2 バッチ目で失敗。1 バッチ目は commit 済み。"""
         worker_db = MagicMock()
         post_repo = MagicMock()
-        post_repo.fetch_deleted_since.return_value = [
-            {"id": 1, "deleted_at": datetime(2026, 7, 21)},
-        ]
+        batch1 = [{"id": i, "deleted_at": datetime(2026, 7, 21, 5, 0, 0)} for i in range(1, 4)]
+        batch2 = [{"id": i, "deleted_at": datetime(2026, 7, 21, 6, 0, 0)} for i in range(4, 7)]
+        post_repo.fetch_deleted_since.side_effect = [batch1, batch2]
         job_repo = MagicMock()
-        job_repo.cancel_processing_by_post_ids.side_effect = RuntimeError("fail")
+        job_repo.cancel_processing_by_post_ids.side_effect = [0, RuntimeError("fail")]
+        job_repo.soft_delete_by_post_ids.return_value = 0
 
         svc = DeleteSyncService(worker_db, post_repo, job_repo, MagicMock())
         with pytest.raises(RuntimeError):
             svc.reconcile()
 
-        worker_db.rollback.assert_called_once()
+        assert worker_db.commit.call_count == 1
+        assert worker_db.rollback.call_count == 1
+
+    def test_reconcile_cursor_advances(self):
+        """UDS-005 補足: 次バッチに前バッチ末尾のカーソルが渡される。"""
+        worker_db = MagicMock()
+        post_repo = MagicMock()
+        batch1 = [{"id": 99, "deleted_at": datetime(2026, 7, 21, 5, 30, 0)}]
+        post_repo.fetch_deleted_since.side_effect = [batch1, []]
+        job_repo = MagicMock()
+        job_repo.cancel_processing_by_post_ids.return_value = 0
+        job_repo.soft_delete_by_post_ids.return_value = 0
+
+        svc = DeleteSyncService(worker_db, post_repo, job_repo, MagicMock())
+        svc.reconcile()
+
+        second_call = post_repo.fetch_deleted_since.call_args_list[1]
+        assert second_call[0][0] == "2026-07-21 05:30:00"
+        assert second_call[0][1] == 99

@@ -240,22 +240,29 @@ class TestProcessOneFailure:
         return svc, post_repo, job_repo
 
     def test_empty_response(self):
-        """UFS-020: AI 応答が空。"""
+        """UFS-020: AI 応答が空 → empty ai response で失敗処理。"""
         svc, post_repo, job_repo = self._setup_svc(ai_response="")
         svc._process_one({"id": 10, "kakeibo_record_id": 1, "parent_id": None})
         post_repo.save_response.assert_not_called()
+        post_repo.recover_to_pending.assert_called_once_with(10)
+        job_repo.increment_retry_and_pend.assert_called_once()
+        assert "empty ai response" in job_repo.increment_retry_and_pend.call_args[0][2]
 
     def test_whitespace_response(self):
-        """UFS-021: AI 応答が空白のみ。"""
+        """UFS-021: AI 応答が空白のみ → empty ai response で失敗処理。"""
         svc, post_repo, job_repo = self._setup_svc(ai_response="  \n  ")
         svc._process_one({"id": 10, "kakeibo_record_id": 1, "parent_id": None})
         post_repo.save_response.assert_not_called()
+        post_repo.recover_to_pending.assert_called_once()
+        assert "empty ai response" in job_repo.increment_retry_and_pend.call_args[0][2]
 
     def test_over_max_length(self):
-        """UFS-022: AI 応答が 3001 文字。"""
+        """UFS-022: AI 応答が 3001 文字 → content exceeded で失敗処理。"""
         svc, post_repo, job_repo = self._setup_svc(ai_response="あ" * 3001)
         svc._process_one({"id": 10, "kakeibo_record_id": 1, "parent_id": None})
         post_repo.save_response.assert_not_called()
+        post_repo.recover_to_pending.assert_called_once()
+        assert "content exceeded max length" in job_repo.increment_retry_and_pend.call_args[0][2]
 
     def test_exactly_max_length(self):
         """UFS-023: AI 応答がちょうど 3000 文字。"""
@@ -264,19 +271,25 @@ class TestProcessOneFailure:
         post_repo.save_response.assert_called_once()
 
     def test_api_error(self):
-        """UFS-024: AI API がエラー。"""
+        """UFS-024: AI API がエラー → 正規化済みエラーで失敗処理。"""
         svc, post_repo, job_repo = self._setup_svc()
         response = MagicMock(status_code=500)
         svc._ai_client.generate.side_effect = requests.HTTPError(response=response)
         svc._process_one({"id": 10, "kakeibo_record_id": 1, "parent_id": None})
         post_repo.save_response.assert_not_called()
+        post_repo.recover_to_pending.assert_called_once()
+        assert "HTTPError: HTTP 500" in job_repo.increment_retry_and_pend.call_args[0][2]
 
     def test_record_not_found(self):
-        """UFS-025: 家計簿レコードが見つからない。"""
+        """UFS-025: 家計簿レコードが見つからない → 投稿 FAILED + ジョブ CANCELLED。"""
         svc, post_repo, job_repo = self._setup_svc()
         svc._context_repo.fetch_record.return_value = None
+        post_repo.get_ai_status.return_value = None
         svc._process_one({"id": 10, "kakeibo_record_id": 1, "parent_id": None})
         svc._ai_client.generate.assert_not_called()
+        post_repo.mark_failed.assert_called_once_with(10)
+        args = job_repo.mark_cancelled.call_args[0]
+        assert args[2] == TerminationReason.TARGET_DELETED
 
     def test_save_response_false_deleted(self):
         """UFS-026: save_response が False (削除済み)。"""
