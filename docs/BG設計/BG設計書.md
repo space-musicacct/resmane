@@ -60,12 +60,13 @@ sequenceDiagram
     A-->>U: 201 Created (aiPost: pending)
 
     W->>DB: SELECT ... WHERE ai_status_id=1 (pending)
-    W->>DB: UPDATE ai_status_id=2 (processing) [FOR UPDATE + commit]
-    W->>WDB: INSERT INTO worker_jobs (status=processing)
+    W->>WDB: INSERT/UPDATE worker_jobs (upsert, claim_version++)
+    W->>DB: SELECT FOR UPDATE + UPDATE ai_status_id=2 (processing) + commit
     W->>AI: generateContent
     AI-->>W: 応答テキスト
+    W->>WDB: SELECT FOR UPDATE (lock_for_ownership, claim_version確認)
     W->>DB: UPDATE content=応答, ai_status_id=3 (completed) [条件付き]
-    W->>WDB: UPDATE worker_jobs status=completed
+    W->>WDB: UPDATE worker_jobs status=completed + commit
 
     U->>A: GET /api/v1/records/{id}/posts
     A-->>U: 200 OK (content入り、completed)
@@ -98,21 +99,27 @@ worker/
     │   ├── resmane_database.py          レスマネ本体 DB 接続
     │   ├── resmane_worker_database.py   Worker 専用 DB 接続
     │   └── migrations/
-    │       └── 001_create_worker_jobs_table.sql
+    │       ├── 001_create_worker_jobs_table.sql
+    │       ├── 002_add_unique_post_id_to_worker_jobs.sql
+    │       ├── 003_create_sync_watermarks_table.sql
+    │       └── 004_add_claim_version_to_worker_jobs.sql
     ├── repositories/
     │   ├── contracts/
     │   │   ├── post_repository_interface.py
     │   │   ├── kakeibo_context_repository_interface.py
-    │   │   └── worker_job_repository_interface.py
+    │   │   ├── worker_job_repository_interface.py
+    │   │   └── sync_watermark_repository_interface.py
     │   ├── post_repository.py
     │   ├── kakeibo_context_repository.py
-    │   └── worker_job_repository.py
+    │   ├── worker_job_repository.py
+    │   └── sync_watermark_repository.py
     ├── clients/
     │   ├── contracts/
     │   │   └── ai_client_interface.py
     │   └── gemini_client.py
     └── services/
-        └── feedback_service.py
+        ├── feedback_service.py
+        └── delete_sync_service.py
 ```
 
 ---
@@ -161,8 +168,9 @@ worker/
 
 | 定数                    | 値                       | 説明                 |
 | ----------------------- | ------------------------ | -------------------- |
-| `TARGET_DELETED`        | `"target_deleted"`       | 対象投稿が削除済み   |
-| `MAX_RETRIES_EXCEEDED`  | `"max_retries_exceeded"` | リトライ上限到達     |
+| `TARGET_DELETED`        | `"target_deleted"`        | 対象投稿が削除済み     |
+| `STATE_INCONSISTENCY`   | `"state_inconsistency"`   | 状態不整合によるキャンセル |
+| `MAX_RETRIES_EXCEEDED`  | `"max_retries_exceeded"`  | リトライ上限到達       |
 
 ### 5.3 Database（`src/databases/`）
 
@@ -201,11 +209,15 @@ Laravel 側の Repository Interface パターンに準じ、`contracts/` に ABC
 
 | メソッド           | 説明                                                                 |
 | ------------------ | -------------------------------------------------------------------- |
-| `fetch_pending()`  | `is_ai=1`, `ai_status_id=PENDING`, `deleted_at IS NULL` の投稿を取得 |
-| `find_for_update()` | `SELECT … FOR UPDATE` で pending の投稿を排他ロック付きで取得       |
-| `update_status()`  | `ai_status_id` を更新する                                            |
-| `save_response()`  | 条件付き UPDATE で `content` + `completed` を原子的に書き込む。削除済み or processing 以外なら `False` を返す |
-| `mark_failed()`    | 条件付き UPDATE で `failed` に更新する。削除済み or processing 以外なら `False` を返す |
+| `fetch_pending()`       | `is_ai=1`, `ai_status_id=PENDING`, `deleted_at IS NULL` の投稿を取得 |
+| `find_for_update()`     | `SELECT … FOR UPDATE` で pending の投稿を排他ロック付きで取得       |
+| `update_status()`       | `ai_status_id` を更新する                                            |
+| `save_response()`       | 条件付き UPDATE で `content` + `completed` を原子的に書き込む。削除済み or processing 以外なら `False` |
+| `mark_failed()`         | 条件付き UPDATE で PROCESSING → FAILED。削除済み or processing 以外なら `False` |
+| `force_fail()`          | PENDING or PROCESSING → FAILED の条件付き遷移。stale 上限到達専用    |
+| `get_ai_status()`       | 投稿の `ai_status_id` と `deleted_at` を取得。存在しなければ `None`   |
+| `fetch_deleted_since()`  | 複合カーソル (`deleted_at + id`) 以降に論理削除された AI 投稿を取得  |
+| `recover_to_pending()`  | PROCESSING かつ未削除の投稿を PENDING に戻す。条件不一致なら `False`  |
 
 `save_response()` / `mark_failed()` は以下の SQL で原子的に処理する。SELECT + UPDATE の間に削除される競合を防ぐ。
 
@@ -231,21 +243,22 @@ WHERE id = ?
 
 | メソッド              | 説明                                                       |
 | --------------------- | ---------------------------------------------------------- |
-| `upsert()`            | ジョブを作成または再利用し ID を返す（`post_id` UNIQUE）    |
-| `mark_completed()`    | ジョブを完了にする                                         |
-| `mark_failed()`       | ジョブを失敗にする（`last_error` を記録）                   |
-| `mark_cancelled()`    | ジョブをキャンセルにする（`termination_reason` を記録）     |
-| `get_retry_info()`    | `retry_count` と `max_retries` を取得する                   |
-| `increment_retry_and_pend()` | `retry_count` をインクリメントし、`RETRY_PENDING` に遷移する |
-| `fetch_stale()`                  | PROCESSING のまま一定時間経過したジョブを取得する           |
-| `cancel_processing_by_post_ids()` | 指定 post_id の PROCESSING ジョブを CANCELLED にする       |
-| `soft_delete_by_post_ids()`      | 指定 post_id の全ジョブに `deleted_at` を設定する           |
+| `lock_for_ownership(job_id, cv)` | `SELECT FOR UPDATE` で `status=PROCESSING AND claim_version=?` を検証 |
+| `upsert(post_id)`               | 原子的 claim。成功なら `(job_id, claim_version)`、失敗なら `None`     |
+| `mark_completed(job_id, cv)`     | ジョブを完了にする。所有権不一致なら `False`                          |
+| `mark_failed(job_id, cv, error)` | ジョブを失敗にする。所有権不一致なら `False`                          |
+| `mark_cancelled(job_id, cv, reason)` | ジョブをキャンセルにする。所有権不一致なら `False`                |
+| `get_retry_info(job_id)`         | `retry_count` と `max_retries` を取得する                             |
+| `increment_retry_and_pend(job_id, cv, error)` | `retry_count` インクリメント + `RETRY_PENDING` に遷移。所有権不一致なら `False` |
+| `fetch_stale(timeout_sec)`       | PROCESSING のまま一定時間経過したジョブを取得（`claim_version` 含む） |
+| `cancel_processing_by_post_ids(post_ids)` | 指定 post_id の PROCESSING ジョブを CANCELLED にする         |
+| `soft_delete_by_post_ids(post_ids)`       | 指定 post_id の全ジョブに `deleted_at` を設定する             |
 
 #### SyncWatermarkRepository
 
 | メソッド           | 説明                                                     |
 | ------------------ | -------------------------------------------------------- |
-| `get_for_update()` | 排他ロック付きで watermark を取得する。存在しなければ初期値 |
+| `get_for_update()` | `INSERT IGNORE` で初期行を確保後、`SELECT FOR UPDATE` で排他取得 |
 | `save()`           | watermark を upsert する                                  |
 
 ### 5.5 Client（`src/clients/`）
