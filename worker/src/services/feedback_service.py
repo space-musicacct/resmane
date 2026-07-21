@@ -115,14 +115,20 @@ class FeedbackService:
                 return
 
             if job["retry_count"] >= job["max_retries"]:
-                self._post_repo.mark_failed(post_id)
-                self._job_repo.mark_failed(job_id, cv, "stale recovery: max retries exceeded")
-                self._worker_db.commit()
-                logger.warning("post_id=%d: stale 回収 → リトライ上限到達", post_id)
+                if self._post_repo.force_fail(post_id):
+                    self._job_repo.mark_failed(job_id, cv, "stale recovery: max retries exceeded")
+                    self._worker_db.commit()
+                    logger.warning("post_id=%d: stale 回収 → リトライ上限到達", post_id)
+                else:
+                    self._sync_to_post_state(job_id, post_id, cv)
+                    self._worker_db.commit()
                 return
 
             if post_status == AiStatus.PROCESSING:
-                self._post_repo.recover_to_pending(post_id)
+                if not self._post_repo.recover_to_pending(post_id):
+                    self._sync_to_post_state(job_id, post_id, cv)
+                    self._worker_db.commit()
+                    return
 
             self._job_repo.increment_retry_and_pend(job_id, cv, "stale recovery: worker timeout")
             self._worker_db.commit()

@@ -33,6 +33,13 @@ class PostRepositoryInterface(ABC):
         """
 
     @abstractmethod
+    def force_fail(self, post_id: int) -> bool:
+        """PENDING or PROCESSING の投稿を FAILED にする。
+
+        stale recovery の上限到達時に使用する。
+        """
+
+    @abstractmethod
     def get_ai_status(self, post_id: int) -> dict | None:
         """投稿の ai_status_id と deleted_at を取得する。存在しなければ None。"""
 

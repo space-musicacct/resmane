@@ -115,6 +115,24 @@ class PostRepository(PostRepositoryInterface):
         finally:
             cursor.close()
 
+    def force_fail(self, post_id: int) -> bool:
+        """PENDING or PROCESSING の投稿を FAILED にする。"""
+        conn = self._db.get_connection()
+        cursor = conn.cursor()
+        try:
+            now = self._now()
+            cursor.execute(
+                "UPDATE posts SET ai_status_id = %s, updated_at = %s "
+                "WHERE id = %s "
+                "  AND deleted_at IS NULL "
+                "  AND ai_status_id IN (%s, %s)",
+                (AiStatus.FAILED, now, post_id,
+                 AiStatus.PENDING, AiStatus.PROCESSING),
+            )
+            return cursor.rowcount > 0
+        finally:
+            cursor.close()
+
     def get_ai_status(self, post_id: int) -> dict | None:
         """投稿の ai_status_id と deleted_at を取得する。存在しなければ None。"""
         conn = self._db.get_connection()
