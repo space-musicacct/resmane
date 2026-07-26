@@ -315,6 +315,8 @@ X-XSRF-TOKEN: {{xsrfToken}}
   client.test("バリデーションエラー → 422", function () {
     client.assert(response.status === 422);
     client.assert(response.body.errors !== undefined);
+    client.assert(response.body.errors.amount !== undefined);
+    client.assert(response.body.errors.details !== undefined);
   });
 %}
 
@@ -381,7 +383,7 @@ Referer: {{host}}/
 
 ###
 
-### 7. 家計簿削除 → 204
+### 7. 家計簿削除 → 204（紐づくデータの論理削除は結合テストで検証済み）
 DELETE {{host}}/api/v1/records/{{recordId}}
 Accept: application/json
 X-Requested-With: XMLHttpRequest

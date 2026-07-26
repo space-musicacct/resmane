@@ -90,7 +90,7 @@ docker compose exec backend php artisan migrate:refresh --seed
 | 4 | POST /api/v1/records（バリデーションエラー） | 422, フィールド別エラー |
 | 5 | GET /api/v1/records/999 | 404 |
 | 6 | DELETE /api/v1/records/{id}/reviews/{id} | 204, 画面遷移なし確認用 |
-| 7 | DELETE /api/v1/records/{id} | 204, 紐づくデータも論理削除 |
+| 7 | DELETE /api/v1/records/{id} | 204（紐づくデータの論理削除は結合テストで検証済み） |
 | 8 | POST /api/v1/records/{id}/posts（content省略, 2回目） | 404, 削除済みレコード |
 | 9 | POST /api/v1/records/{id}/posts（別レコード, 1回目） | 201 |
 | 10 | POST /api/v1/records/{id}/posts（同レコード, 2回目） | 409, 重複拒否 |
