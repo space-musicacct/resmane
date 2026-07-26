@@ -6,38 +6,12 @@ import LoadingScreen from '../components/LoadingScreen'
 import ErrorAlert from '../components/ErrorAlert'
 import { cardClass } from '../components/Card'
 import PrimaryButton from '../components/PrimaryButton'
-
-type KakeiboRecord = {
-  id: number
-  userId: number
-  purchaseDate: string
-  amountTypeId: number
-  amountTypeName: string
-  amount: number
-  details: string
-  categoryId: number
-  categoryName: string
-  createdAt: string
-  updatedAt: string
-}
-
-type Meta = {
-  currentPage: number
-  lastPage: number
-  perPage: number
-  total: number
-}
-
-type Summary = {
-  totalIncome: number
-  totalExpense: number
-}
-
-type RecordsResponse = {
-  data: KakeiboRecord[]
-  meta: Meta
-  summary: Summary
-}
+import type {
+  KakeiboRecord,
+  Meta,
+  Summary,
+  RecordsResponse,
+} from '../types/record'
 
 export default function RecordListPage() {
   const [records, setRecords] = useState<KakeiboRecord[]>([])

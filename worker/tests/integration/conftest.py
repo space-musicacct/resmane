@@ -94,6 +94,25 @@ CREATE TABLE IF NOT EXISTS self_reviews (
     deleted_at DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS upper_limit_types (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    type_name VARCHAR(32) NOT NULL,
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    deleted_at DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS upper_limit_settings (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    upper_limit_type_id BIGINT UNSIGNED NOT NULL,
+    max_value INT NOT NULL,
+    ave_monthly_income INT NULL,
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    deleted_at DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS posts (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
@@ -112,6 +131,9 @@ _SEED_SQL = """
 INSERT IGNORE INTO ai_statuses (id, status_name) VALUES
     (1, 'pending'), (2, 'processing'), (3, 'completed'), (4, 'failed');
 
+INSERT IGNORE INTO upper_limit_types (id, type_name) VALUES
+    (1, '割合'), (2, '固定額');
+
 INSERT IGNORE INTO amount_types (id, type_name) VALUES
     (1, '支出'), (2, '収入');
 
@@ -125,7 +147,7 @@ INSERT IGNORE INTO kakeibo_records (id, user_id, purchase_date, amount_type_id, 
     (1, 1, '2026-07-21', 1, 1500, 'コンビニでお昼', 1, NOW(), NOW());
 """
 
-_RESMANE_TRUNCATE_TABLES = ["posts", "self_reviews"]
+_RESMANE_TRUNCATE_TABLES = ["posts", "self_reviews", "upper_limit_settings"]
 _WORKER_TRUNCATE_TABLES = ["worker_jobs", "sync_watermarks"]
 
 

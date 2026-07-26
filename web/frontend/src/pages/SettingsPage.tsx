@@ -52,7 +52,7 @@ export default function Setting() {
       })
 
       alert('保存しました')
-    }catch(err){
+    }catch{
       alert('失敗しました')
     }
   }
@@ -67,7 +67,7 @@ export default function Setting() {
       })
 
       alert('更新しました')
-    }catch(err){
+    }catch{
       alert('失敗しました')
     }
   }
@@ -81,7 +81,7 @@ export default function Setting() {
       alert('退会しました')
 
       navigate('/login')
-    } catch (err) {
+    } catch {
       alert('退会できませんでした')
     }
   }

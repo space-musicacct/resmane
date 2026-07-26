@@ -348,10 +348,14 @@ class FeedbackService:
         record = self._context_repo.fetch_record(record_id)
         if record is None:
             return None
+
+        upper_limit = self._context_repo.fetch_upper_limit(record["user_id"])
+
         return {
             "record": record,
             "self_reviews": self._context_repo.fetch_self_reviews(record_id),
             "thread": self._context_repo.fetch_thread(record_id),
+            "upper_limit": upper_limit,
         }
 
     def _build_messages(self, context: dict, is_followup: bool) -> list[dict]:
@@ -377,6 +381,9 @@ class FeedbackService:
                     f"- 評価: {review['evaluation']}/5\n"
                     f"  コメント: {review['review_comment']}\n"
                 )
+
+        user_message += self._format_upper_limit(context)
+
         return [{"role": "user", "content": user_message}]
 
     def _build_followup_messages(self, context: dict) -> list[dict]:
@@ -397,7 +404,30 @@ class FeedbackService:
             f"- 金額: {record['amount']:,}円\n"
             f"- 内容: {record['details'] or '(なし)'}\n"
         )
+        record_context += self._format_upper_limit(context)
         return SYSTEM_INSTRUCTION + record_context
+
+    @staticmethod
+    def _format_upper_limit(context: dict) -> str:
+        upper_limit = context.get("upper_limit")
+        if not upper_limit:
+            return ""
+
+        if upper_limit["upper_limit_type_id"] == 1:
+            ave_income = upper_limit["ave_monthly_income"] or 0
+            limit_amount = ave_income * upper_limit["max_value"] // 100
+            return (
+                f"\n【支出上限設定】\n"
+                f"タイプ: {upper_limit['type_name']} ({upper_limit['max_value']}%)\n"
+                f"基準収入: {ave_income:,}円\n"
+                f"上限額: {limit_amount:,}円\n"
+            )
+        else:
+            return (
+                f"\n【支出上限設定】\n"
+                f"タイプ: {upper_limit['type_name']}\n"
+                f"上限額: {upper_limit['max_value']:,}円\n"
+            )
 
     @staticmethod
     def _sanitize_error(e: Exception) -> str:
