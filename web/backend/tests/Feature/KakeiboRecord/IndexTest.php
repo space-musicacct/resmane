@@ -205,6 +205,8 @@ class IndexTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data');
+
+        $this->assertEquals('2026-07-01', $response->json('data.0.purchaseDate'));
     }
     public function test_FKI007_正常収支区分フィルタ(): void
     {
@@ -224,6 +226,8 @@ class IndexTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data');
+
+        $this->assertEquals($this->expense->id, $response->json('data.0.amountTypeId'));
     }
 
 
@@ -245,6 +249,8 @@ class IndexTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data');
+
+        $this->assertEquals($this->category1->id, $response->json('data.0.categoryId'));
     }
 
 
@@ -302,6 +308,11 @@ class IndexTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonCount(3, 'data');
+
+        $data = $response->json('data');
+        foreach ($data as $record) {
+            $this->assertEquals($this->user->id, $record['userId']);
+        }
     }
 
 

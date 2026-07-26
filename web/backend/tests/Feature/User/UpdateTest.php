@@ -106,11 +106,22 @@ class UpdateTest extends TestCase
      */
     public function test_can_update_password(): void
     {
+        // セッションミドルウェアを有効化（ログイン検証のため）
+        $this->withoutMiddleware([
+            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+        ]);
+        $this->app['router']->pushMiddlewareToGroup('api', \Illuminate\Cookie\Middleware\EncryptCookies::class);
+        $this->app['router']->pushMiddlewareToGroup('api', \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class);
+        $this->app['router']->pushMiddlewareToGroup('api', \Illuminate\Session\Middleware\StartSession::class);
+
         // 更新対象となるユーザーを作成する
         $user = $this->createUser();
 
-        // 認証済みユーザーとしてAPIを実行する
-        Sanctum::actingAs($user);
+        // ログイン経由で認証する
+        $this->postJson('/api/v1/login', [
+            'loginId' => 'taro',
+            'password' => 'oldpassword',
+        ])->assertStatus(200);
 
         // 現在のパスワード確認を含めて新しいパスワードへ変更する
         $response = $this->putJson('/api/v1/user', [
@@ -122,13 +133,16 @@ class UpdateTest extends TestCase
         // 更新処理が成功したことを確認する
         $response->assertStatus(200);
 
-        // 最新状態のユーザー情報を取得する
-        $user->refresh();
+        // guard を解除してログアウト状態にする
+        \Illuminate\Support\Facades\Auth::guard('web')->logout();
+        \Illuminate\Support\Facades\Auth::forgetGuards();
+        config(['auth.defaults.guard' => 'web']);
 
-        // 保存されたパスワードが新しい値になっていることを確認する
-        $this->assertTrue(
-            Hash::check('newpass123', $user->password_hash)
-        );
+        // 変更後パスワードでログインできることを確認する
+        $this->postJson('/api/v1/login', [
+            'loginId' => 'taro',
+            'password' => 'newpass123',
+        ])->assertStatus(200);
     }
 
     /**

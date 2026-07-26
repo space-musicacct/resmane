@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Master;
 
 use App\Models\User;
+use Database\Seeders\AmountTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -22,10 +23,8 @@ class AmountTypeTest extends TestCase
     {
         parent::setUp();
 
-        \DB::table('amount_types')->insert([
-            ['id' => 1, 'type_name' => '支出'],
-            ['id' => 2, 'type_name' => '収入'],
-        ]);
+        \DB::statement('ALTER TABLE amount_types AUTO_INCREMENT = 1');
+        $this->seed(AmountTypeSeeder::class);
     }
 
     /** @test FMA-001 正常: 全収支区分取得 */
@@ -43,7 +42,9 @@ class AmountTypeTest extends TestCase
         $response = $this->getJson(self::ENDPOINT);
 
         $response->assertStatus(200)
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(2, 'data')
+            ->assertJsonFragment(['typeName' => '支出'])
+            ->assertJsonFragment(['typeName' => '収入']);
     }
 
     /** @test FMA-002 正常: レスポンス構造 */

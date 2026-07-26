@@ -185,10 +185,11 @@ public function test_login_success(): void
         ]);
 
 
-        $response->assertStatus(429)
-            ->assertJsonStructure([
-                'message',
-            ]);
+        $response->assertStatus(429);
+
+        $message = $response->json('message');
+        $this->assertStringContainsString('ログイン試行回数が上限に達しました', $message);
+        $this->assertMatchesRegularExpression('/\d+分後に再試行してください/', $message);
     }
 
 

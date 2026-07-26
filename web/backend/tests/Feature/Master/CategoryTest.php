@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Master;
 
 use App\Models\User;
+use Database\Seeders\AmountTypeSeeder;
+use Database\Seeders\KakeiboDefaultCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -20,28 +23,20 @@ class CategoryTest extends TestCase
 
     protected User $user;
 
+    protected int $expenseTypeId;
+
+    protected int $incomeTypeId;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        \DB::table('amount_types')->insert([
-            ['id' => 1, 'type_name' => '支出'],
-            ['id' => 2, 'type_name' => '収入'],
-        ]);
+        DB::statement('ALTER TABLE amount_types AUTO_INCREMENT = 1');
+        $this->seed(AmountTypeSeeder::class);
+        $this->seed(KakeiboDefaultCategorySeeder::class);
 
-        \DB::table('kakeibo_default_categories')->insert([
-            ['id' => 1, 'amount_type_id' => 1, 'category_name' => '飲食'],
-            ['id' => 2, 'amount_type_id' => 1, 'category_name' => '交通費'],
-            ['id' => 3, 'amount_type_id' => 1, 'category_name' => '趣味'],
-            ['id' => 4, 'amount_type_id' => 1, 'category_name' => '交際費'],
-            ['id' => 5, 'amount_type_id' => 1, 'category_name' => 'サブスク'],
-            ['id' => 6, 'amount_type_id' => 1, 'category_name' => '固定費（家賃など）'],
-            ['id' => 7, 'amount_type_id' => 1, 'category_name' => 'その他'],
-            ['id' => 8, 'amount_type_id' => 2, 'category_name' => '給与'],
-            ['id' => 9, 'amount_type_id' => 2, 'category_name' => 'アルバイト'],
-            ['id' => 10, 'amount_type_id' => 2, 'category_name' => 'お小遣い'],
-            ['id' => 11, 'amount_type_id' => 2, 'category_name' => 'その他'],
-        ]);
+        $this->expenseTypeId = DB::table('amount_types')->where('type_name', '支出')->value('id');
+        $this->incomeTypeId = DB::table('amount_types')->where('type_name', '収入')->value('id');
 
         $this->user = User::create([
             'login_id' => 'taro',
@@ -67,14 +62,14 @@ class CategoryTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        $response = $this->getJson(self::ENDPOINT . '?amountTypeId=1');
+        $response = $this->getJson(self::ENDPOINT . '?amountTypeId=' . $this->expenseTypeId);
 
         $response->assertStatus(200)
             ->assertJsonCount(7, 'data');
 
         $data = $response->json('data');
         foreach ($data as $category) {
-            $this->assertEquals(1, $category['amountTypeId']);
+            $this->assertEquals($this->expenseTypeId, $category['amountTypeId']);
         }
     }
 
@@ -83,14 +78,14 @@ class CategoryTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        $response = $this->getJson(self::ENDPOINT . '?amountTypeId=2');
+        $response = $this->getJson(self::ENDPOINT . '?amountTypeId=' . $this->incomeTypeId);
 
         $response->assertStatus(200)
             ->assertJsonCount(4, 'data');
 
         $data = $response->json('data');
         foreach ($data as $category) {
-            $this->assertEquals(2, $category['amountTypeId']);
+            $this->assertEquals($this->incomeTypeId, $category['amountTypeId']);
         }
     }
 
