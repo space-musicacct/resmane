@@ -35,7 +35,9 @@ class UserController extends Controller
             ], $result['status']);
         }
 
-        Auth::setUser($result['user']);
+        if ($request->hasSession()) {
+            Auth::guard('web')->login($result['user']);
+        }
 
         return response()->json([
             'data' => new UserResource($result['user']),

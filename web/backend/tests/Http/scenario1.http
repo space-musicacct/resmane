@@ -1,0 +1,376 @@
+### 1. CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 2. ユーザー登録 (FR-001)
+POST {{host}}/api/v1/register
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "loginId": "hanako_tanaka",
+  "email": "hanako@example.com",
+  "name": "田中花子",
+  "password": "password123",
+  "passwordConfirmation": "password123"
+}
+
+> {%
+  client.test("ユーザー登録 → 201", function () {
+    client.assert(response.status === 201);
+    client.assert(response.body.user.loginId === "hanako_tanaka");
+  });
+%}
+
+###
+
+### 3. 収支区分一覧 (FMA-001)
+GET {{host}}/api/v1/amountTypes
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("収支区分一覧 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.length === 2);
+  });
+%}
+
+###
+
+### 4. 支出カテゴリ一覧 (FMC-002)
+GET {{host}}/api/v1/categories?amountTypeId=1
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("支出カテゴリ一覧 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.length === 7);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得 (家計簿登録前)
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 5. 家計簿登録 (FKS-001)
+POST {{host}}/api/v1/records
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "purchaseDate": "2026-07-27",
+  "amountTypeId": 1,
+  "amount": 1500,
+  "details": "コンビニでお昼ご飯",
+  "kakeiboDefaultCategoryId": 1
+}
+
+> {%
+  client.test("家計簿登録 → 201", function () {
+    client.assert(response.status === 201);
+    client.assert(response.body.data.amount === 1500);
+    client.assert(response.body.data.amountTypeName !== undefined);
+    client.assert(response.body.data.categoryName !== undefined);
+  });
+  client.global.set("recordId", response.body.data.id);
+%}
+
+###
+
+### 6. 家計簿一覧 (FKI-001)
+GET {{host}}/api/v1/records
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("家計簿一覧 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.length >= 1);
+    client.assert(response.body.meta !== undefined);
+    client.assert(response.body.summary !== undefined);
+  });
+%}
+
+###
+
+### 7. 家計簿詳細 (FKD-001)
+GET {{host}}/api/v1/records/{{recordId}}
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("家計簿詳細 → 200", function () {
+    client.assert(response.status === 200);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得 (家計簿編集前)
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 8. 家計簿編集 (FKU-001)
+PUT {{host}}/api/v1/records/{{recordId}}
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "purchaseDate": "2026-07-27",
+  "amountTypeId": 1,
+  "amount": 2000,
+  "details": "コンビニでお昼ご飯（編集後）",
+  "kakeiboDefaultCategoryId": 1
+}
+
+> {%
+  client.test("家計簿編集 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.amount === 2000);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得 (自己レビュー投稿前)
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 9. 自己レビュー投稿 (FSRS-001)
+POST {{host}}/api/v1/records/{{recordId}}/reviews
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "reviewComment": "ちょっと贅沢しすぎたかも…",
+  "evaluation": 3
+}
+
+> {%
+  client.test("自己レビュー投稿 → 201", function () {
+    client.assert(response.status === 201);
+    client.assert(response.body.data.evaluation === 3);
+  });
+%}
+
+###
+
+### 10. 自己レビュー一覧 (FSRI-001)
+GET {{host}}/api/v1/records/{{recordId}}/reviews
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("自己レビュー一覧 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.length >= 1);
+    response.body.data.forEach(function (review) {
+      client.assert(review.evaluation !== undefined);
+    });
+  });
+%}
+
+###
+
+### CSRF Cookie 取得 (AIフィードバック要求前)
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 11. AIフィードバック要求 (FPS-002)
+POST {{host}}/api/v1/records/{{recordId}}/posts
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{}
+
+> {%
+  client.test("AIフィードバック要求 → 201", function () {
+    client.assert(response.status === 201);
+    client.assert(response.body.data.userPost === null);
+    client.assert(response.body.data.aiPost.aiStatus.statusName === "pending");
+  });
+%}
+
+###
+
+### 12. スレッド一覧 (FPI-001)
+GET {{host}}/api/v1/records/{{recordId}}/posts
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("スレッド一覧 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.length >= 1);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得 (基準値設定前)
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 13. 基準値設定 (FSLU-001)
+PUT {{host}}/api/v1/settings/limit
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "upperLimitTypeId": 2,
+  "maxValue": 50000,
+  "aveMonthlyIncome": null
+}
+
+> {%
+  client.test("基準値設定 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.maxValue === 50000);
+  });
+%}
+
+###
+
+### 14. 基準値取得 (FSLS-001)
+GET {{host}}/api/v1/settings/limit
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("基準値取得 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data !== null);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得 (ログアウト前)
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 15. ログアウト (FLO-001)
+POST {{host}}/api/v1/logout
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+> {%
+  client.test("ログアウト → 204", function () {
+    client.assert(response.status === 204);
+  });
+%}

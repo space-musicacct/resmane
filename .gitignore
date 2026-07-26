@@ -212,6 +212,10 @@ docker/db/init.sql
 
 **/coverage/
 **/test-results/
+**/http-client.env.json
+**/http-client.private.env.json
+**/ijhttp
+**/ijhttp-cli/
 
 # =========================================================
 # Archives / Misc
