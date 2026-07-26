@@ -2,7 +2,7 @@
 
 本書は[テスト仕様書](テスト仕様書.md)の一部であり、.http ファイルによるAPIテスト（`tests/Http/`）の仕様を定義する。
 
-Docker 上の実環境で各エンドポイントを手動確認する。JetBrains IDE（PhpStorm 等）または ijhttp CLI で実行する。
+Docker 上の実環境で各エンドポイントを手動確認する。JetBrains IDE（PhpStorm 等）または REST Client または ijhttp CLI で実行する。
 
 ---
 
