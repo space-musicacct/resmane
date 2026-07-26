@@ -1,0 +1,497 @@
+### ── セットアップ ──────────────────────────────────────
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### セットアップ: ユーザー登録
+POST {{host}}/api/v1/register
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "loginId": "hanako_tanaka",
+  "email": "hanako@example.com",
+  "name": "田中花子",
+  "password": "password123",
+  "passwordConfirmation": "password123"
+}
+
+> {%
+  client.test("セットアップ: ユーザー登録 → 201", function () {
+    client.assert(response.status === 201);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### セットアップ: 家計簿レコード1登録
+POST {{host}}/api/v1/records
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "purchaseDate": "2026-07-27",
+  "amountTypeId": 1,
+  "amount": 1000,
+  "details": "テスト用レコード1",
+  "kakeiboDefaultCategoryId": 1
+}
+
+> {%
+  client.test("セットアップ: レコード1登録 → 201", function () {
+    client.assert(response.status === 201);
+  });
+  client.global.set("recordId", response.body.data.id);
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### セットアップ: 自己レビュー投稿
+POST {{host}}/api/v1/records/{{recordId}}/reviews
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "reviewComment": "テスト用レビュー",
+  "evaluation": 3
+}
+
+> {%
+  client.test("セットアップ: レビュー投稿 → 201", function () {
+    client.assert(response.status === 201);
+  });
+  client.global.set("reviewId", response.body.data.id);
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### セットアップ: 家計簿レコード2登録（別レコード用）
+POST {{host}}/api/v1/records
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "purchaseDate": "2026-07-27",
+  "amountTypeId": 1,
+  "amount": 2000,
+  "details": "テスト用レコード2",
+  "kakeiboDefaultCategoryId": 1
+}
+
+> {%
+  client.test("セットアップ: レコード2登録 → 201", function () {
+    client.assert(response.status === 201);
+  });
+  client.global.set("recordId2", response.body.data.id);
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### セットアップ: ログアウト（未認証テスト用）
+POST {{host}}/api/v1/logout
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+> {%
+  client.test("セットアップ: ログアウト → 204", function () {
+    client.assert(response.status === 204);
+  });
+%}
+
+###
+
+### ── シナリオ2: エラーパターン確認 ──────────────────────
+
+### 1. 家計簿一覧: 未認証 → 401
+GET {{host}}/api/v1/records
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("未認証 → 401", function () {
+    client.assert(response.status === 401);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 2. ログイン: 認証情報不正 → 401
+POST {{host}}/api/v1/login
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "loginId": "hanako_tanaka",
+  "password": "wrongpassword"
+}
+
+> {%
+  client.test("認証情報不正 → 401", function () {
+    client.assert(response.status === 401);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 3. ログイン: 成功 → 200
+POST {{host}}/api/v1/login
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "loginId": "hanako_tanaka",
+  "password": "password123"
+}
+
+> {%
+  client.test("ログイン成功 → 200", function () {
+    client.assert(response.status === 200);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 4. 家計簿登録: バリデーションエラー → 422
+POST {{host}}/api/v1/records
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "amountTypeId": 1,
+  "amount": 0,
+  "details": ""
+}
+
+> {%
+  client.test("バリデーションエラー → 422", function () {
+    client.assert(response.status === 422);
+    client.assert(response.body.errors !== undefined);
+  });
+%}
+
+###
+
+### 5. 家計簿詳細: 存在しないレコード → 404
+GET {{host}}/api/v1/records/999
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("存在しないレコード → 404", function () {
+    client.assert(response.status === 404);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 6. 自己レビュー削除 → 204
+DELETE {{host}}/api/v1/records/{{recordId}}/reviews/{{reviewId}}
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+> {%
+  client.test("自己レビュー削除 → 204", function () {
+    client.assert(response.status === 204);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 7. 家計簿削除 → 204
+DELETE {{host}}/api/v1/records/{{recordId}}
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+> {%
+  client.test("家計簿削除 → 204", function () {
+    client.assert(response.status === 204);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 8. AIフィードバック要求: 削除済みレコード → 404
+POST {{host}}/api/v1/records/{{recordId}}/posts
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{}
+
+> {%
+  client.test("削除済みレコード → 404", function () {
+    client.assert(response.status === 404);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 9. AIフィードバック要求: 別レコード1回目 → 201
+POST {{host}}/api/v1/records/{{recordId2}}/posts
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{}
+
+> {%
+  client.test("別レコード AIフィードバック → 201", function () {
+    client.assert(response.status === 201);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.global.set("xsrfToken", decodeURIComponent(
+    response.headers.valuesOf("Set-Cookie")
+      .filter(c => c.startsWith("XSRF-TOKEN="))
+      .map(c => c.split("=")[1].split(";")[0])[0]
+  ));
+%}
+
+###
+
+### 10. AIフィードバック要求: 同レコード2回目 → 409
+POST {{host}}/api/v1/records/{{recordId2}}/posts
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{}
+
+> {%
+  client.test("重複拒否 → 409", function () {
+    client.assert(response.status === 409);
+  });
+%}
