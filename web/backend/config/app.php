@@ -23,9 +23,9 @@ return [
     'key' => env('APP_KEY'),
 
     'previous_keys' => [
-        ...array_filter(
-            explode(',', env('APP_PREVIOUS_KEYS', ''))
-        ),
+        ...env('APP_PREVIOUS_KEYS', '')
+            |> (fn($v) => explode(',', $v))
+            |> array_filter(...),
     ],
 
     'maintenance' => [
