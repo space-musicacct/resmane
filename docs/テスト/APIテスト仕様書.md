@@ -4,6 +4,8 @@
 
 Docker 上の実環境で各エンドポイントを手動確認する。JetBrains IDE（PhpStorm 等）または REST Client または ijhttp CLI で実行する。
 
+**注意: 本番環境でのAPIテストの実行は厳禁。**
+
 ---
 
 ## 1. ファイル構成
