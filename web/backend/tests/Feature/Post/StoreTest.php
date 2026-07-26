@@ -12,18 +12,17 @@ use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class StoreTest extends TestCase
 {
     use RefreshDatabase;
 
     private ApiEndpoint $endpoint;
-
 
     protected User $user;
 
@@ -49,7 +48,7 @@ class StoreTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // テスト用ユーザーを作成
         $this->user = User::create([
@@ -60,7 +59,7 @@ class StoreTest extends TestCase
         ]);
 
         // 家計簿レコード作成に使用する収支区分を作成
-        $amountType = new AmountType();
+        $amountType = new AmountType;
         $amountType->type_name = '支出';
         $amountType->save();
 
@@ -86,22 +85,22 @@ class StoreTest extends TestCase
         $this->recordId = $record->id;
 
         // ai_statuses はアプリ側でID固定参照されているため、IDを明示的に指定して作成する
-        $pending = new AiStatus();
+        $pending = new AiStatus;
         $pending->id = $this->pendingStatusId;
         $pending->status_name = 'pending';
         $pending->save();
 
-        $processing = new AiStatus();
+        $processing = new AiStatus;
         $processing->id = $this->processingStatusId;
         $processing->status_name = 'processing';
         $processing->save();
 
-        $completed = new AiStatus();
+        $completed = new AiStatus;
         $completed->id = $this->completedStatusId;
         $completed->status_name = 'completed';
         $completed->save();
 
-        $failed = new AiStatus();
+        $failed = new AiStatus;
         $failed->id = $this->failedStatusId;
         $failed->status_name = 'failed';
         $failed->save();
@@ -115,7 +114,7 @@ class StoreTest extends TestCase
      */
     private function endpoint(int $recordId): string
     {
-        return $this->endpoint->records() . '/' . $recordId . '/posts';
+        return $this->endpoint->records().'/'.$recordId.'/posts';
     }
 
     /** FPS-001 正常: ユーザー投稿+AI投稿作成 */
@@ -198,6 +197,7 @@ class StoreTest extends TestCase
             ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('data.aiPost.aiStatus.statusName', 'pending');
     }
+
     /** FPS-005 異常: content 省略で既存 completed AI投稿がある */
     #[Test]
     public function test_store_fails_when_ai_post_completed_exists(): void

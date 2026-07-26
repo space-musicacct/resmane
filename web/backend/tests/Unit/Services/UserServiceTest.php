@@ -31,10 +31,15 @@ class UserServiceTest extends TestCase
     use InteractsWithAbort;
 
     private UserRepositoryInterface&MockInterface $userRepository;
+
     private KakeiboRecordRepositoryInterface&MockInterface $kakeiboRecordRepository;
+
     private SelfReviewRepositoryInterface&MockInterface $selfReviewRepository;
+
     private PostRepositoryInterface&MockInterface $postRepository;
+
     private UpperLimitSettingRepositoryInterface&MockInterface $upperLimitSettingRepository;
+
     private UserService $service;
 
     protected function setUp(): void
@@ -79,7 +84,7 @@ class UserServiceTest extends TestCase
      * SUS-001: findAuthUserOrFail: 正常取得
      */
     #[Test]
-    public function test_SUS_001_findAuthUserOrFail_returns_user(): void
+    public function test_su_s_001_find_auth_user_or_fail_returns_user(): void
     {
         $sessionUser = $this->makeUser();
         $dbUser = $this->makeUser();
@@ -99,7 +104,7 @@ class UserServiceTest extends TestCase
      * SUS-002: findAuthUserOrFail: sessionUser が null
      */
     #[Test]
-    public function test_SUS_002_null_sessionUser_aborts_401(): void
+    public function test_su_s_002_null_session_user_aborts_401(): void
     {
         $this->userRepository
             ->shouldNotReceive('findByIdForUpdate');
@@ -114,7 +119,7 @@ class UserServiceTest extends TestCase
      * SUS-003: findAuthUserOrFail: DB にユーザーが存在しない
      */
     #[Test]
-    public function test_SUS_003_user_not_found_in_db_aborts_401(): void
+    public function test_su_s_003_user_not_found_in_db_aborts_401(): void
     {
         $sessionUser = $this->makeUser();
 
@@ -134,7 +139,7 @@ class UserServiceTest extends TestCase
      * SUS-004: update: loginId 変更成功
      */
     #[Test]
-    public function test_SUS_004_update_loginId_succeeds(): void
+    public function test_su_s_004_update_login_id_succeeds(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -167,7 +172,7 @@ class UserServiceTest extends TestCase
      * SUS-005: update: loginId 重複
      */
     #[Test]
-    public function test_SUS_005_duplicate_loginId_returns_409(): void
+    public function test_su_s_005_duplicate_login_id_returns_409(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -199,7 +204,7 @@ class UserServiceTest extends TestCase
      * SUS-006: update: email 重複
      */
     #[Test]
-    public function test_SUS_006_duplicate_email_returns_409(): void
+    public function test_su_s_006_duplicate_email_returns_409(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -231,7 +236,7 @@ class UserServiceTest extends TestCase
      * SUS-007: update: パスワード変更成功
      */
     #[Test]
-    public function test_SUS_007_update_password_succeeds(): void
+    public function test_su_s_007_update_password_succeeds(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -271,7 +276,7 @@ class UserServiceTest extends TestCase
      * SUS-008: update: パスワード変更で currentPassword 不一致
      */
     #[Test]
-    public function test_SUS_008_wrong_currentPassword_returns_422(): void
+    public function test_su_s_008_wrong_current_password_returns_422(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -305,7 +310,7 @@ class UserServiceTest extends TestCase
      * SUS-009: update: 何も変更しない
      */
     #[Test]
-    public function test_SUS_009_no_changes_skips_repository_update(): void
+    public function test_su_s_009_no_changes_skips_repository_update(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -330,7 +335,7 @@ class UserServiceTest extends TestCase
      * SUS-010: destroy: 正常退会
      */
     #[Test]
-    public function test_SUS_010_destroy_deletes_user_and_related_data(): void
+    public function test_su_s_010_destroy_deletes_user_and_related_data(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -388,7 +393,7 @@ class UserServiceTest extends TestCase
      * SUS-011: destroy: パスワード不一致
      */
     #[Test]
-    public function test_SUS_011_destroy_wrong_password_returns_422(): void
+    public function test_su_s_011_destroy_wrong_password_returns_422(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -420,7 +425,7 @@ class UserServiceTest extends TestCase
      * SUS-012: destroy: 家計簿レコードがないユーザー
      */
     #[Test]
-    public function test_SUS_012_destroy_without_records_skips_review_post_deletion(): void
+    public function test_su_s_012_destroy_without_records_skips_review_post_deletion(): void
     {
         $sessionUser = $this->makeUser();
         $user = $this->makeUser();
@@ -467,5 +472,4 @@ class UserServiceTest extends TestCase
 
         $this->assertNull($result);
     }
-
 }

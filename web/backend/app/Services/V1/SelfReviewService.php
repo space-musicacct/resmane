@@ -16,8 +16,7 @@ use Throwable;
 readonly class SelfReviewService
 {
     /**
-     * @param SelfReviewRepositoryInterface $repository
-     * @param KakeiboRecordService $kakeiboRecordService 親レコードの所有権検証に使用
+     * @param  KakeiboRecordService  $kakeiboRecordService  親レコードの所有権検証に使用
      */
     public function __construct(
         private SelfReviewRepositoryInterface $repository,
@@ -27,9 +26,8 @@ readonly class SelfReviewService
     /**
      * 家計簿レコードに紐づく自己レビュー一覧を取得する
      *
-     * @param int $recordId 家計簿レコードID
-     * @param int $userId 認証ユーザーID
-     * @return LengthAwarePaginator
+     * @param  int  $recordId  家計簿レコードID
+     * @param  int  $userId  認証ユーザーID
      */
     public function list(int $recordId, int $userId): LengthAwarePaginator
     {
@@ -43,10 +41,10 @@ readonly class SelfReviewService
      *
      * 排他ロック付きトランザクション内で処理する。
      *
-     * @param int $recordId 家計簿レコードID
-     * @param int $userId 認証ユーザーID
-     * @param array $validated バリデーション済みリクエストデータ（camelCase）
-     * @return SelfReview
+     * @param  int  $recordId  家計簿レコードID
+     * @param  int  $userId  認証ユーザーID
+     * @param  array  $validated  バリデーション済みリクエストデータ（camelCase）
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */
@@ -68,11 +66,11 @@ readonly class SelfReviewService
      *
      * 排他ロック付きトランザクション内で処理する。
      *
-     * @param int $recordId 家計簿レコードID
-     * @param int $id 自己レビューID
-     * @param int $userId 認証ユーザーID
-     * @param array $validated バリデーション済みリクエストデータ（camelCase）
-     * @return SelfReview
+     * @param  int  $recordId  家計簿レコードID
+     * @param  int  $id  自己レビューID
+     * @param  int  $userId  認証ユーザーID
+     * @param  array  $validated  バリデーション済みリクエストデータ（camelCase）
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */
@@ -83,7 +81,7 @@ readonly class SelfReviewService
 
             $review = $this->repository->findByIdForUpdate($id, $recordId);
 
-            if (!$review) {
+            if (! $review) {
                 abort(Response::HTTP_NOT_FOUND, '指定された自己レビューが見つかりません');
             }
 
@@ -99,10 +97,10 @@ readonly class SelfReviewService
      *
      * 排他ロック付きトランザクション内で処理する。
      *
-     * @param int $recordId 家計簿レコードID
-     * @param int $id 自己レビューID
-     * @param int $userId 認証ユーザーID
-     * @return void
+     * @param  int  $recordId  家計簿レコードID
+     * @param  int  $id  自己レビューID
+     * @param  int  $userId  認証ユーザーID
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */
@@ -113,7 +111,7 @@ readonly class SelfReviewService
 
             $review = $this->repository->findByIdForUpdate($id, $recordId);
 
-            if (!$review) {
+            if (! $review) {
                 abort(Response::HTTP_NOT_FOUND, '指定された自己レビューが見つかりません');
             }
 

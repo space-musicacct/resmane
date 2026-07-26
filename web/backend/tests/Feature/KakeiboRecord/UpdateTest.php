@@ -10,18 +10,17 @@ use App\Models\KakeiboRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class UpdateTest extends TestCase
 {
     use RefreshDatabase;
 
     private ApiEndpoint $endpoint;
-
 
     protected User $user;
 
@@ -40,7 +39,7 @@ class UpdateTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -51,7 +50,7 @@ class UpdateTest extends TestCase
         ]);
 
         // 更新対象レコードで使用する収支区分を作成
-        $amountType = new AmountType();
+        $amountType = new AmountType;
         $amountType->type_name = '支出';
         $amountType->save();
 
@@ -86,7 +85,7 @@ class UpdateTest extends TestCase
     {
         // 自分のレコードを正常に更新できることを確認
         $response = $this->putJson(
-            $this->endpoint->records() . '/' . $this->recordId,
+            $this->endpoint->records().'/'.$this->recordId,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -113,7 +112,7 @@ class UpdateTest extends TestCase
     {
         // purchaseDate未指定時に既存の日付が維持されることを確認
         $response = $this->putJson(
-            $this->endpoint->records() . '/' . $this->recordId,
+            $this->endpoint->records().'/'.$this->recordId,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -154,7 +153,7 @@ class UpdateTest extends TestCase
 
         // 他ユーザーのレコードを更新できないことを確認
         $response = $this->putJson(
-            $this->endpoint->records() . '/' . $record->id,
+            $this->endpoint->records().'/'.$record->id,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -176,7 +175,7 @@ class UpdateTest extends TestCase
     {
         // 存在しないレコードIDを指定した場合のエラーを確認
         $response = $this->putJson(
-            $this->endpoint->records() . '/999',
+            $this->endpoint->records().'/999',
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -198,7 +197,7 @@ class UpdateTest extends TestCase
     {
         // 不正な値を指定した場合にバリデーションエラーになることを確認
         $response = $this->putJson(
-            $this->endpoint->records() . '/' . $this->recordId,
+            $this->endpoint->records().'/'.$this->recordId,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -223,7 +222,7 @@ class UpdateTest extends TestCase
 
         // 未認証状態では更新できないことを確認
         $response = $this->putJson(
-            $this->endpoint->records() . '/' . $this->recordId,
+            $this->endpoint->records().'/'.$this->recordId,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,

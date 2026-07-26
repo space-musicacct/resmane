@@ -9,18 +9,17 @@ use App\Models\KakeiboDefaultCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class StoreTest extends TestCase
 {
     use RefreshDatabase;
 
     private ApiEndpoint $endpoint;
-
 
     protected User $user;
 
@@ -37,7 +36,7 @@ class StoreTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -48,12 +47,12 @@ class StoreTest extends TestCase
         ]);
 
         // 支出用の収支区分を作成
-        $expenseType = new AmountType();
+        $expenseType = new AmountType;
         $expenseType->type_name = '支出';
         $expenseType->save();
 
         // 収入用の収支区分を作成
-        $incomeType = new AmountType();
+        $incomeType = new AmountType;
         $incomeType->type_name = '収入';
         $incomeType->save();
 

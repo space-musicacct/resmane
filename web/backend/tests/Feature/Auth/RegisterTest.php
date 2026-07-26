@@ -10,11 +10,11 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Session\Middleware\StartSession;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 /**
  * 結合テスト仕様書 1.1 POST /api/v1/register（ユーザー登録）
@@ -25,12 +25,11 @@ class RegisterTest extends TestCase
 
     private ApiEndpoint $endpoint;
 
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         $this->withoutMiddleware([
             PreventRequestForgery::class,
@@ -82,7 +81,6 @@ class RegisterTest extends TestCase
         ]);
     }
 
-
     /** FR-002 正常: 登録後に認証済みリクエストが通る */
     #[Test]
     public function test_authenticated_request_succeeds_after_register(): void
@@ -95,12 +93,10 @@ class RegisterTest extends TestCase
             'name' => '田中太郎',
         ])->assertStatus(Response::HTTP_CREATED);
 
-
         $this->getJson($this->endpoint->user())
             ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.loginId', 'taro123');
     }
-
 
     /** FR-003 異常: loginId 重複 */
     #[Test]
@@ -113,7 +109,6 @@ class RegisterTest extends TestCase
             'password_hash' => bcrypt('password123'),
         ]);
 
-
         $response = $this->postJson($this->endpoint->register(), [
             'loginId' => 'taro123',
             'email' => 'new@example.com',
@@ -122,13 +117,11 @@ class RegisterTest extends TestCase
             'name' => '新規ユーザー',
         ]);
 
-
         $response->assertStatus(Response::HTTP_CONFLICT)
             ->assertJson([
                 'message' => 'このログインIDは既に使用されています',
             ]);
     }
-
 
     /** FR-004 異常: email 重複 */
     #[Test]
@@ -141,7 +134,6 @@ class RegisterTest extends TestCase
             'password_hash' => bcrypt('password123'),
         ]);
 
-
         $response = $this->postJson($this->endpoint->register(), [
             'loginId' => 'newuser',
             'email' => 'taro@example.com',
@@ -150,13 +142,11 @@ class RegisterTest extends TestCase
             'name' => '新規ユーザー',
         ]);
 
-
         $response->assertStatus(Response::HTTP_CONFLICT)
             ->assertJson([
                 'message' => 'このメールアドレスは既に使用されています',
             ]);
     }
-
 
     /** FR-005 異常: loginId 重複（論理削除済み） */
     #[Test]
@@ -171,11 +161,9 @@ class RegisterTest extends TestCase
 
         $user->delete();
 
-
         $this->assertSoftDeleted('users', [
             'login_id' => 'taro123',
         ]);
-
 
         $response = $this->postJson($this->endpoint->register(), [
             'loginId' => 'taro123',
@@ -185,10 +173,8 @@ class RegisterTest extends TestCase
             'name' => '新規ユーザー',
         ]);
 
-
         $response->assertStatus(Response::HTTP_CONFLICT);
     }
-
 
     /** FR-006 異常: バリデーションエラー */
     #[Test]
@@ -199,7 +185,6 @@ class RegisterTest extends TestCase
             'password' => '123',
         ]);
 
-
         $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors([
                 'loginId',
@@ -209,13 +194,11 @@ class RegisterTest extends TestCase
             ]);
     }
 
-
     /** FR-007 異常: 全フィールド未入力 */
     #[Test]
     public function test_register_fails_when_all_fields_empty(): void
     {
         $response = $this->postJson($this->endpoint->register());
-
 
         $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors([

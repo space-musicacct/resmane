@@ -17,11 +17,6 @@ use Throwable;
  */
 readonly class KakeiboRecordService
 {
-    /**
-     * @param KakeiboRecordRepositoryInterface $repository
-     * @param SelfReviewRepositoryInterface $selfReviewRepository
-     * @param PostRepositoryInterface $postRepository
-     */
     public function __construct(
         private KakeiboRecordRepositoryInterface $repository,
         private SelfReviewRepositoryInterface $selfReviewRepository,
@@ -31,10 +26,10 @@ readonly class KakeiboRecordService
     /**
      * ユーザーの家計簿一覧を取得する
      *
-     * @param int $userId ユーザーID
-     * @param string $sortOrder ソート順（'asc' または 'desc'）
-     * @param array $filters 絞り込み条件（from, to, amountTypeId, categoryId）
-     * @param int $perPage 1ページあたりの件数
+     * @param  int  $userId  ユーザーID
+     * @param  string  $sortOrder  ソート順（'asc' または 'desc'）
+     * @param  array  $filters  絞り込み条件（from, to, amountTypeId, categoryId）
+     * @param  int  $perPage  1ページあたりの件数
      * @return array{records: LengthAwarePaginator, totalIncome: int, totalExpense: int}
      */
     public function list(int $userId, string $sortOrder, array $filters = [], int $perPage = 20): array
@@ -49,9 +44,8 @@ readonly class KakeiboRecordService
     /**
      * 家計簿レコードを取得し、所有権を検証する（読み取り専用）
      *
-     * @param int $id 家計簿レコードID
-     * @param int $userId 認証ユーザーID
-     * @return KakeiboRecord
+     * @param  int  $id  家計簿レコードID
+     * @param  int  $userId  認証ユーザーID
      */
     public function findOrFail(int $id, int $userId): KakeiboRecord
     {
@@ -63,9 +57,8 @@ readonly class KakeiboRecordService
      *
      * トランザクション内での使用を想定する。
      *
-     * @param int $id 家計簿レコードID
-     * @param int $userId 認証ユーザーID
-     * @return KakeiboRecord
+     * @param  int  $id  家計簿レコードID
+     * @param  int  $userId  認証ユーザーID
      */
     public function findOrFailForUpdate(int $id, int $userId): KakeiboRecord
     {
@@ -75,13 +68,11 @@ readonly class KakeiboRecordService
     /**
      * レコードの存在確認と所有権検証を行う
      *
-     * @param KakeiboRecord|null $record
-     * @param int $userId 認証ユーザーID
-     * @return KakeiboRecord
+     * @param  int  $userId  認証ユーザーID
      */
     private function resolveRecord(?KakeiboRecord $record, int $userId): KakeiboRecord
     {
-        if (!$record) {
+        if (! $record) {
             abort(Response::HTTP_NOT_FOUND, '指定された家計簿レコードが見つかりませんでした');
         }
 
@@ -95,9 +86,10 @@ readonly class KakeiboRecordService
     /**
      * 家計簿レコードを新規作成する
      *
-     * @param int $userId ユーザーID
-     * @param array $validated バリデーション済みリクエストデータ（camelCase）
+     * @param  int  $userId  ユーザーID
+     * @param  array  $validated  バリデーション済みリクエストデータ（camelCase）
      * @return KakeiboRecord リレーションをロード済み
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */
@@ -118,10 +110,11 @@ readonly class KakeiboRecordService
      *
      * 排他ロック付きトランザクション内で処理する。
      *
-     * @param int $id 家計簿レコードID
-     * @param int $userId 認証ユーザーID
-     * @param array $validated バリデーション済みリクエストデータ（camelCase）
+     * @param  int  $id  家計簿レコードID
+     * @param  int  $userId  認証ユーザーID
+     * @param  array  $validated  バリデーション済みリクエストデータ（camelCase）
      * @return KakeiboRecord リレーションを再ロード済み
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */
@@ -145,9 +138,9 @@ readonly class KakeiboRecordService
      *
      * 排他ロック付きトランザクション内で処理する。
      *
-     * @param int $id 家計簿レコードID
-     * @param int $userId 認証ユーザーID
-     * @return void
+     * @param  int  $id  家計簿レコードID
+     * @param  int  $userId  認証ユーザーID
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */

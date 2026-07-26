@@ -13,18 +13,17 @@ use App\Models\SelfReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class DestroyTest extends TestCase
 {
     use RefreshDatabase;
 
     private ApiEndpoint $endpoint;
-
 
     protected User $user;
 
@@ -41,7 +40,7 @@ class DestroyTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -52,7 +51,7 @@ class DestroyTest extends TestCase
         ]);
 
         // 家計簿レコード作成に必要な金額種別を作成
-        $amountType = new AmountType();
+        $amountType = new AmountType;
         $amountType->type_name = '支出';
         $amountType->save();
 
@@ -87,7 +86,7 @@ class DestroyTest extends TestCase
     {
         // 削除API実行後、物理削除ではなく論理削除されることを確認
         $response = $this->deleteJson(
-            $this->endpoint->records() . '/' . $this->recordId
+            $this->endpoint->records().'/'.$this->recordId
         );
 
         $response->assertStatus(Response::HTTP_NO_CONTENT);
@@ -110,7 +109,7 @@ class DestroyTest extends TestCase
 
         // 家計簿レコード削除時に関連レビューも削除されることを確認
         $response = $this->deleteJson(
-            $this->endpoint->records() . '/' . $this->recordId
+            $this->endpoint->records().'/'.$this->recordId
         );
 
         $response->assertStatus(Response::HTTP_NO_CONTENT);
@@ -125,7 +124,7 @@ class DestroyTest extends TestCase
     public function test_destroy_deletes_related_posts(): void
     {
         // 投稿作成に必要なAIステータスを作成
-        $status = new AiStatus();
+        $status = new AiStatus;
         $status->status_name = 'pending';
         $status->save();
 
@@ -140,7 +139,7 @@ class DestroyTest extends TestCase
 
         // 家計簿レコード削除時に関連投稿も削除されることを確認
         $response = $this->deleteJson(
-            $this->endpoint->records() . '/' . $this->recordId
+            $this->endpoint->records().'/'.$this->recordId
         );
 
         $response->assertStatus(Response::HTTP_NO_CONTENT);
@@ -174,7 +173,7 @@ class DestroyTest extends TestCase
 
         // 他ユーザーのレコードを削除できないことを確認
         $response = $this->deleteJson(
-            $this->endpoint->records() . '/' . $record->id
+            $this->endpoint->records().'/'.$record->id
         );
 
         $response
@@ -190,7 +189,7 @@ class DestroyTest extends TestCase
     {
         // 存在しないレコードIDを指定した場合のエラーを確認
         $response = $this->deleteJson(
-            $this->endpoint->records() . '/999'
+            $this->endpoint->records().'/999'
         );
 
         $response
@@ -209,7 +208,7 @@ class DestroyTest extends TestCase
 
         // 未認証ユーザーが削除できないことを確認
         $response = $this->deleteJson(
-            $this->endpoint->records() . '/' . $this->recordId
+            $this->endpoint->records().'/'.$this->recordId
         );
 
         $response->assertStatus(Response::HTTP_UNAUTHORIZED);

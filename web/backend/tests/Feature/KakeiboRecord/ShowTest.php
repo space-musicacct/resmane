@@ -10,18 +10,17 @@ use App\Models\KakeiboRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class ShowTest extends TestCase
 {
     use RefreshDatabase;
 
     private ApiEndpoint $endpoint;
-
 
     protected User $user;
 
@@ -36,7 +35,7 @@ class ShowTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -47,7 +46,7 @@ class ShowTest extends TestCase
         ]);
 
         // 家計簿レコード作成に必要な支出区分を作成
-        $expenseType = new AmountType();
+        $expenseType = new AmountType;
         $expenseType->type_name = '支出';
         $expenseType->save();
 
@@ -79,7 +78,7 @@ class ShowTest extends TestCase
     {
         // 自分自身のレコード詳細を取得できることを確認
         $response = $this->getJson(
-            $this->endpoint->records() . '/' . $this->recordId
+            $this->endpoint->records().'/'.$this->recordId
         );
 
         // レスポンス形式と取得対象レコードを確認
@@ -136,7 +135,7 @@ class ShowTest extends TestCase
 
         // 他ユーザーのレコードを取得できないことを確認
         $response = $this->getJson(
-            $this->endpoint->records() . '/' . $record->id
+            $this->endpoint->records().'/'.$record->id
         );
 
         $response
@@ -152,7 +151,7 @@ class ShowTest extends TestCase
     {
         // 存在しないIDを指定した場合のエラーを確認
         $response = $this->getJson(
-            $this->endpoint->records() . '/999'
+            $this->endpoint->records().'/999'
         );
 
         $response
@@ -173,7 +172,7 @@ class ShowTest extends TestCase
 
         // 論理削除済みレコードが取得できないことを確認
         $response = $this->getJson(
-            $this->endpoint->records() . '/' . $this->recordId
+            $this->endpoint->records().'/'.$this->recordId
         );
 
         $response->assertStatus(Response::HTTP_NOT_FOUND);
@@ -188,7 +187,7 @@ class ShowTest extends TestCase
 
         // 未認証ユーザーではアクセスできないことを確認
         $response = $this->getJson(
-            $this->endpoint->records() . '/' . $this->recordId
+            $this->endpoint->records().'/'.$this->recordId
         );
 
         $response->assertStatus(Response::HTTP_UNAUTHORIZED);

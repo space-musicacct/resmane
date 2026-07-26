@@ -49,4 +49,3 @@ class User extends Authenticatable
         return $this->hasOne(UpperLimitSetting::class);
     }
 }
-

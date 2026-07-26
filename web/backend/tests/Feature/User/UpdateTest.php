@@ -11,11 +11,11 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class UpdateTest extends TestCase
 {
@@ -27,7 +27,7 @@ class UpdateTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
     }
 
     // テスト用ユーザーを作成する共通処理
@@ -121,6 +121,7 @@ class UpdateTest extends TestCase
                 ],
             ]);
     }
+
     /**
      * FUU-004
      * 正常: パスワード変更
@@ -293,6 +294,7 @@ class UpdateTest extends TestCase
                 'message' => 'このメールアドレスは既に使用されています',
             ]);
     }
+
     /**
      * FUU-009
      * 異常: パスワード変更で currentPassword 不一致
