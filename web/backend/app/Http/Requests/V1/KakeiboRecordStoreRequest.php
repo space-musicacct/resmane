@@ -3,6 +3,7 @@
 namespace App\Http\Requests\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class KakeiboRecordStoreRequest extends FormRequest
 {
@@ -17,8 +18,12 @@ class KakeiboRecordStoreRequest extends FormRequest
             'purchaseDate' => ['nullable', 'date'],
             'amountTypeId' => ['required', 'exists:amount_types,id'],
             'amount' => ['required', 'integer', 'min:1'],
-            'details' => ['nullable', 'string', 'max:250'],
-            'kakeiboDefaultCategoryId' => ['required', 'exists:kakeibo_default_categories,id'],
+            'details' => ['required', 'string', 'min:1', 'max:250'],
+            'kakeiboDefaultCategoryId' => [
+                'required',
+                Rule::exists('kakeibo_default_categories', 'id')
+                    ->where('amount_type_id', $this->input('amountTypeId')),
+            ],
         ];
     }
 
@@ -31,9 +36,11 @@ class KakeiboRecordStoreRequest extends FormRequest
             'amount.required' => '金額は必須です',
             'amount.integer' => '金額は1以上の整数で入力してください',
             'amount.min' => '金額は1以上の整数で入力してください',
+            'details.required' => '購入詳細は必須です',
+            'details.min' => '購入詳細は1文字以上で入力してください',
             'details.max' => '購入詳細は250文字以内で入力してください',
             'kakeiboDefaultCategoryId.required' => 'カテゴリは必須です',
-            'kakeiboDefaultCategoryId.exists' => '指定されたカテゴリが存在しません',
+            'kakeiboDefaultCategoryId.exists' => '指定されたカテゴリは選択された収支区分に対応していません',
         ];
     }
 }

@@ -1,0 +1,2 @@
+ALTER TABLE worker_jobs
+    ADD COLUMN claim_version INT UNSIGNED NOT NULL DEFAULT 0 AFTER status;

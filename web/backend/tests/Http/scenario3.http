@@ -1,0 +1,368 @@
+### ── セットアップ ──────────────────────────────────────
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.log("CSRF status: " + response.status);
+  const cookies = response.headers.valuesOf("Set-Cookie");
+  client.log("Set-Cookie count: " + (cookies ? cookies.length : "null"));
+  if (cookies) {
+    const xsrf = cookies.filter(c => c.startsWith("XSRF-TOKEN="));
+    client.log("XSRF cookies: " + xsrf.length);
+    if (xsrf.length > 0) {
+      const token = decodeURIComponent(xsrf[0].split("=")[1].split(";")[0]);
+      client.global.set("xsrfToken", token);
+      client.log("Token set OK");
+    } else {
+      client.log("ERROR: No XSRF-TOKEN cookie found");
+    }
+  } else {
+    client.log("ERROR: No Set-Cookie headers");
+  }
+%}
+
+###
+
+### セットアップ: ユーザー登録
+POST {{host}}/api/v1/register
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "loginId": "hanako_tanaka",
+  "email": "hanako@example.com",
+  "name": "田中花子",
+  "password": "password123",
+  "passwordConfirmation": "password123"
+}
+
+> {%
+  client.test("セットアップ: ユーザー登録 → 201", function () {
+    client.assert(response.status === 201);
+  });
+%}
+
+###
+
+### ── シナリオ3: ユーザー情報・退会 ──────────────────────
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.log("CSRF status: " + response.status);
+  const cookies = response.headers.valuesOf("Set-Cookie");
+  client.log("Set-Cookie count: " + (cookies ? cookies.length : "null"));
+  if (cookies) {
+    const xsrf = cookies.filter(c => c.startsWith("XSRF-TOKEN="));
+    client.log("XSRF cookies: " + xsrf.length);
+    if (xsrf.length > 0) {
+      const token = decodeURIComponent(xsrf[0].split("=")[1].split(";")[0]);
+      client.global.set("xsrfToken", token);
+      client.log("Token set OK");
+    } else {
+      client.log("ERROR: No XSRF-TOKEN cookie found");
+    }
+  } else {
+    client.log("ERROR: No Set-Cookie headers");
+  }
+%}
+
+###
+
+### 1. ログイン → 200
+POST {{host}}/api/v1/login
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "loginId": "hanako_tanaka",
+  "password": "password123"
+}
+
+> {%
+  client.test("ログイン → 200", function () {
+    client.assert(response.status === 200);
+  });
+%}
+
+###
+
+### 2. ユーザー情報取得 → 200
+GET {{host}}/api/v1/user
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("ユーザー情報取得 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.loginId === "hanako_tanaka");
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.log("CSRF status: " + response.status);
+  const cookies = response.headers.valuesOf("Set-Cookie");
+  client.log("Set-Cookie count: " + (cookies ? cookies.length : "null"));
+  if (cookies) {
+    const xsrf = cookies.filter(c => c.startsWith("XSRF-TOKEN="));
+    client.log("XSRF cookies: " + xsrf.length);
+    if (xsrf.length > 0) {
+      const token = decodeURIComponent(xsrf[0].split("=")[1].split(";")[0]);
+      client.global.set("xsrfToken", token);
+      client.log("Token set OK");
+    } else {
+      client.log("ERROR: No XSRF-TOKEN cookie found");
+    }
+  } else {
+    client.log("ERROR: No Set-Cookie headers");
+  }
+%}
+
+###
+
+### 3. ユーザー情報編集: loginId変更 → 200
+PUT {{host}}/api/v1/user
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "loginId": "hanako456"
+}
+
+> {%
+  client.test("loginId変更 → 200", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.loginId === "hanako456");
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.log("CSRF status: " + response.status);
+  const cookies = response.headers.valuesOf("Set-Cookie");
+  client.log("Set-Cookie count: " + (cookies ? cookies.length : "null"));
+  if (cookies) {
+    const xsrf = cookies.filter(c => c.startsWith("XSRF-TOKEN="));
+    client.log("XSRF cookies: " + xsrf.length);
+    if (xsrf.length > 0) {
+      const token = decodeURIComponent(xsrf[0].split("=")[1].split(";")[0]);
+      client.global.set("xsrfToken", token);
+      client.log("Token set OK");
+    } else {
+      client.log("ERROR: No XSRF-TOKEN cookie found");
+    }
+  } else {
+    client.log("ERROR: No Set-Cookie headers");
+  }
+%}
+
+###
+
+### 4. ユーザー情報編集: パスワード変更 → 200
+PUT {{host}}/api/v1/user
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "currentPassword": "password123",
+  "password": "newpassword456",
+  "passwordConfirmation": "newpassword456"
+}
+
+> {%
+  client.test("パスワード変更 → 200", function () {
+    client.assert(response.status === 200);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.log("CSRF status: " + response.status);
+  const cookies = response.headers.valuesOf("Set-Cookie");
+  client.log("Set-Cookie count: " + (cookies ? cookies.length : "null"));
+  if (cookies) {
+    const xsrf = cookies.filter(c => c.startsWith("XSRF-TOKEN="));
+    client.log("XSRF cookies: " + xsrf.length);
+    if (xsrf.length > 0) {
+      const token = decodeURIComponent(xsrf[0].split("=")[1].split(";")[0]);
+      client.global.set("xsrfToken", token);
+      client.log("Token set OK");
+    } else {
+      client.log("ERROR: No XSRF-TOKEN cookie found");
+    }
+  } else {
+    client.log("ERROR: No Set-Cookie headers");
+  }
+%}
+
+###
+
+### パスワード変更後にログインし直す
+POST {{host}}/api/v1/login
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "loginId": "hanako456",
+  "password": "newpassword456"
+}
+
+> {%
+  client.test("パスワード変更後の再ログイン → 200", function () {
+    client.assert(response.status === 200);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.log("CSRF status: " + response.status);
+  const cookies = response.headers.valuesOf("Set-Cookie");
+  client.log("Set-Cookie count: " + (cookies ? cookies.length : "null"));
+  if (cookies) {
+    const xsrf = cookies.filter(c => c.startsWith("XSRF-TOKEN="));
+    client.log("XSRF cookies: " + xsrf.length);
+    if (xsrf.length > 0) {
+      const token = decodeURIComponent(xsrf[0].split("=")[1].split(";")[0]);
+      client.global.set("xsrfToken", token);
+      client.log("Token set OK");
+    } else {
+      client.log("ERROR: No XSRF-TOKEN cookie found");
+    }
+  } else {
+    client.log("ERROR: No Set-Cookie headers");
+  }
+%}
+
+###
+
+### 5. ユーザー退会: パスワード不一致 → 422
+DELETE {{host}}/api/v1/user
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "currentPassword": "wrongpassword"
+}
+
+> {%
+  client.test("パスワード不一致 → 422", function () {
+    client.assert(response.status === 422);
+  });
+%}
+
+###
+
+### CSRF Cookie 取得
+GET {{host}}/sanctum/csrf-cookie
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.log("CSRF status: " + response.status);
+  const cookies = response.headers.valuesOf("Set-Cookie");
+  client.log("Set-Cookie count: " + (cookies ? cookies.length : "null"));
+  if (cookies) {
+    const xsrf = cookies.filter(c => c.startsWith("XSRF-TOKEN="));
+    client.log("XSRF cookies: " + xsrf.length);
+    if (xsrf.length > 0) {
+      const token = decodeURIComponent(xsrf[0].split("=")[1].split(";")[0]);
+      client.global.set("xsrfToken", token);
+      client.log("Token set OK");
+    } else {
+      client.log("ERROR: No XSRF-TOKEN cookie found");
+    }
+  } else {
+    client.log("ERROR: No Set-Cookie headers");
+  }
+%}
+
+###
+
+### 6. ユーザー退会: 正しいパスワード → 204
+DELETE {{host}}/api/v1/user
+Content-Type: application/json
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+X-XSRF-TOKEN: {{xsrfToken}}
+
+{
+  "currentPassword": "newpassword456"
+}
+
+> {%
+  client.test("退会 → 204", function () {
+    client.assert(response.status === 204);
+  });
+%}
+
+###
+
+### 7. ユーザー情報取得: 退会後 → 401
+GET {{host}}/api/v1/user
+Accept: application/json
+X-Requested-With: XMLHttpRequest
+Referer: {{host}}/
+
+> {%
+  client.test("退会後 → 401", function () {
+    client.assert(response.status === 401);
+  });
+%}

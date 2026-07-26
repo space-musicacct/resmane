@@ -3,21 +3,20 @@
 namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\UserUpdateRequest;
 use App\Http\Resources\V1\UserResource;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Services\V1\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class UserController extends Controller
 {
-    /**
-     * ログインユーザー情報取得
-     *
-     * 認証済みユーザーの情報を返す
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
+    public function __construct(
+        private readonly UserService $userService,
+    ) {}
+
     public function show(Request $request): JsonResponse
     {
         return response()->json([
@@ -25,21 +24,45 @@ class UserController extends Controller
         ]);
     }
 
-    /**
-     * @param FormRequest $request
-     * @return JsonResponse
-     */
-    public function update(FormRequest $request): JsonResponse
+    public function update(UserUpdateRequest $request): JsonResponse
     {
-        return response()->json(['message' => 'success']);
+        $result = $this->userService->update($request->user(), $request->validated());
+
+        if (isset($result['error'])) {
+            return response()->json([
+                'message' => $result['error'],
+                'errors' => (object) [],
+            ], $result['status']);
+        }
+
+        if ($request->hasSession()) {
+            Auth::guard('web')->login($result['user']);
+        }
+
+        return response()->json([
+            'data' => new UserResource($result['user']),
+        ]);
     }
 
-    /**
-     * @param FormRequest $request
-     * @return JsonResponse
-     */
-    public function destroy(FormRequest $request): JsonResponse
+    public function destroy(Request $request): JsonResponse|Response
     {
-        return response()->json(null, 204);
+        $request->validate([
+            'currentPassword' => ['required', 'string'],
+        ], [
+            'currentPassword.required' => '現在のパスワードは必須です',
+        ]);
+
+        $result = $this->userService->destroy($request->user(), $request->input('currentPassword'));
+
+        if ($result !== null) {
+            return response()->json([
+                'message' => $result['error'],
+                'errors' => (object) [],
+            ], $result['status']);
+        }
+
+        new AuthController()->destroy($request);
+
+        return response()->noContent();
     }
 }

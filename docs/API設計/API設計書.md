@@ -375,6 +375,7 @@
 | `categoryId`   | int    | -    | カテゴリで絞り込み                             |
 | `page`         | int    | -    | ページ番号（デフォルト: 1）                    |
 | `perPage`      | int    | -    | 1ページあたりの件数（デフォルト: 20、上限: 100） |
+| `sort`         | string | -    | ソート順（`asc`: 古い順 / `desc`: 新しい順、デフォルト: `desc`）。`purchase_date` → `id` の複合ソート |
 
 **レスポンス（200 OK）**
 
@@ -440,7 +441,7 @@
 | `amountTypeId`              | int    | ○    | `amount_types.id` に存在すること                  |
 | `amount`                    | int    | ○    | 1以上の整数                                      |
 | `details`                   | string | ○    | 1〜250文字                                       |
-| `kakeiboDefaultCategoryId`  | int    | ○    | `kakeibo_default_categories.id` に存在すること            |
+| `kakeiboDefaultCategoryId`  | int    | ○    | `kakeibo_default_categories.id` に存在し、かつ指定した `amountTypeId` に紐づくカテゴリであること |
 
 ```json
 {
@@ -448,7 +449,7 @@
   "amountTypeId": 1,
   "amount": 1500,
   "details": "コンビニでお昼ご飯",
-  "kakeiboDefaultCategoryId": 3
+  "kakeiboDefaultCategoryId": 1
 }
 ```
 
@@ -565,7 +566,7 @@
 | `amountTypeId`              | int    | ○    | `amount_types.id` に存在すること                  |
 | `amount`                    | int    | ○    | 1以上の整数                                      |
 | `details`                   | string | ○    | 1〜250文字                                       |
-| `kakeiboDefaultCategoryId`  | int    | ○    | `kakeibo_default_categories.id` に存在すること            |
+| `kakeiboDefaultCategoryId`  | int    | ○    | `kakeibo_default_categories.id` に存在し、かつ指定した `amountTypeId` に紐づくカテゴリであること |
 
 **レスポンス（200 OK）**
 
@@ -626,6 +627,7 @@
       "id": 1,
       "kakeiboRecordId": 1,
       "reviewComment": "ちょっと贅沢しすぎたかも…",
+      "evaluation": 3,
       "createdAt": "2026-06-10T13:00:00.000000Z",
       "updatedAt": "2026-06-10T13:00:00.000000Z"
     }
@@ -672,10 +674,12 @@
 | フィールド      | 型     | 必須 | バリデーション |
 | --------------- | ------ | ---- | -------------- |
 | `reviewComment` | string | ○    | 1〜250文字     |
+| `evaluation`    | int    | ○    | 1〜5の整数（5段階評価） |
 
 ```json
 {
-  "reviewComment": "ちょっと贅沢しすぎたかも…"
+  "reviewComment": "ちょっと贅沢しすぎたかも…",
+  "evaluation": 3
 }
 ```
 
@@ -687,6 +691,7 @@
     "id": 1,
     "kakeiboRecordId": 1,
     "reviewComment": "ちょっと贅沢しすぎたかも…",
+    "evaluation": 3,
     "createdAt": "2026-06-10T13:00:00.000000Z",
     "updatedAt": "2026-06-10T13:00:00.000000Z"
   }
@@ -718,7 +723,8 @@
 {
   "message": "入力内容に誤りがあります",
   "errors": {
-    "reviewComment": ["自己レビューは必須です", "自己レビューは250文字以内で入力してください"]
+    "reviewComment": ["自己レビューは必須です", "自己レビューは250文字以内で入力してください"],
+    "evaluation": ["評価は必須です", "評価は1以上で入力してください"]
   }
 }
 ```
@@ -741,6 +747,7 @@
 | フィールド      | 型     | 必須 | バリデーション |
 | --------------- | ------ | ---- | -------------- |
 | `reviewComment` | string | ○    | 1〜250文字     |
+| `evaluation`    | int    | ○    | 1〜5の整数（5段階評価） |
 
 **レスポンス（200 OK）**
 
@@ -1106,6 +1113,7 @@ AI生成登録失敗（500）:
 
 | フィールド             | 型     | 必須 | バリデーション                             |
 | ---------------------- | ------ | ---- | ------------------------------------------ |
+| `loginId`              | string | -    | 1〜15文字、一意（`users.login_id`）        |
 | `name`                 | string | -    | 1〜50文字                                  |
 | `email`                | string | -    | メール形式、255文字以内、一意              |
 | `currentPassword`      | string | ※    | パスワード変更時は必須                     |
@@ -1114,6 +1122,7 @@ AI生成登録失敗（500）:
 
 ```json
 {
+  "loginId": "taro456",
   "name": "太郎（更新）",
   "email": "taro-new@example.com"
 }
@@ -1128,6 +1137,15 @@ AI生成登録失敗（500）:
 **エラーレスポンス**
 
 未認証（401）: 4.3 と同形式
+
+ログインID重複（409）:
+
+```json
+{
+  "message": "このログインIDは既に使用されています",
+  "errors": {}
+}
+```
 
 メールアドレス重複（409）:
 
@@ -1144,6 +1162,7 @@ AI生成登録失敗（500）:
 {
   "message": "入力内容に誤りがあります",
   "errors": {
+    "loginId": ["ログインIDは15文字以内で入力してください"],
     "email": ["メールアドレスの形式が正しくありません"],
     "password": ["パスワードは8文字以上で入力してください"],
     "passwordConfirmation": ["パスワード（確認用）が一致しません"]
@@ -1201,19 +1220,33 @@ AI生成登録失敗（500）:
 
 カテゴリ一覧取得（認証必須）
 
+**クエリパラメータ**
+
+| パラメータ     | 型  | 必須 | 説明                       |
+| -------------- | --- | ---- | -------------------------- |
+| `amountTypeId` | int | -    | 収支区分で絞り込み（1: 支出 / 2: 収入） |
+
 **レスポンス（200 OK）**
 
 ```json
 {
   "data": [
-    { "id": 1, "categoryName": "食費" },
-    { "id": 2, "categoryName": "交通費" },
-    { "id": 3, "categoryName": "娯楽" },
-    { "id": 4, "categoryName": "日用品" },
-    { "id": 5, "categoryName": "その他" }
+    { "id": 1, "amountTypeId": 1, "categoryName": "飲食" },
+    { "id": 2, "amountTypeId": 1, "categoryName": "交通費" },
+    { "id": 3, "amountTypeId": 1, "categoryName": "趣味" },
+    { "id": 4, "amountTypeId": 1, "categoryName": "交際費" },
+    { "id": 5, "amountTypeId": 1, "categoryName": "サブスク" },
+    { "id": 6, "amountTypeId": 1, "categoryName": "固定費（家賃など）" },
+    { "id": 7, "amountTypeId": 1, "categoryName": "その他" },
+    { "id": 8, "amountTypeId": 2, "categoryName": "給与" },
+    { "id": 9, "amountTypeId": 2, "categoryName": "アルバイト" },
+    { "id": 10, "amountTypeId": 2, "categoryName": "お小遣い" },
+    { "id": 11, "amountTypeId": 2, "categoryName": "その他" }
   ]
 }
 ```
+
+`amountTypeId` を指定した場合、該当する収支区分のカテゴリのみ返す。
 
 **エラーレスポンス**
 

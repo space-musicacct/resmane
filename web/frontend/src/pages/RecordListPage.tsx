@@ -1,42 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { getCsrfCookie, isApiError } from '../lib/axios'
 import PageCard from '../components/PageCard'
 import LoadingScreen from '../components/LoadingScreen'
 import ErrorAlert from '../components/ErrorAlert'
 import { cardClass } from '../components/Card'
-
-type KakeiboRecord = {
-  id: number
-  userId: number
-  purchaseDate: string
-  amountTypeId: number
-  amountTypeName: string
-  amount: number
-  details: string
-  categoryId: number
-  categoryName: string
-  createdAt: string
-  updatedAt: string
-}
-
-type Meta = {
-  currentPage: number
-  lastPage: number
-  perPage: number
-  total: number
-}
-
-type Summary = {
-  totalIncome: number
-  totalExpense: number
-}
-
-type RecordsResponse = {
-  data: KakeiboRecord[]
-  meta: Meta
-  summary: Summary
-}
+import PrimaryButton from '../components/PrimaryButton'
+import type {
+  KakeiboRecord,
+  Meta,
+  Summary,
+  RecordsResponse,
+} from '../types/record'
 
 export default function RecordListPage() {
   const [records, setRecords] = useState<KakeiboRecord[]>([])
@@ -47,12 +22,33 @@ export default function RecordListPage() {
   const [page, setPage] = useState(1)
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
 
+  const fetchRecords = useCallback((targetPage: number) => {
+    setLoading(true)
+    api.get<RecordsResponse>('/records', { params: { page: targetPage, sort: sortOrder } })
+      .then((res) => {
+        setRecords(res.data.data)
+        setMeta(res.data.meta)
+        setSummary(res.data.summary)
+        if (res.data.data.length === 0 && targetPage > 1) {
+          setPage(targetPage - 1)
+        }
+      })
+      .catch((err) => {
+        if (isApiError(err)) {
+          setError(err.response.data.message)
+        } else {
+          setError('データの取得に失敗しました')
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [sortOrder])
+
   const handleDelete = async (recordId: number) => {
     if (!confirm('この記録を削除しますか？')) return
     try {
       await getCsrfCookie()
       await api.delete(`/records/${recordId}`)
-      setRecords((prev) => prev.filter((r) => r.id !== recordId))
+      fetchRecords(page)
     } catch (err) {
       if (isApiError(err)) {
         setError(err.response.data.message)
@@ -63,22 +59,8 @@ export default function RecordListPage() {
   }
 
   useEffect(() => {
-    setLoading(true)
-    api.get<RecordsResponse>('/records', { params: { page, sort: sortOrder } })
-      .then((res) => {
-        setRecords(res.data.data)
-        setMeta(res.data.meta)
-        setSummary(res.data.summary)
-      })
-      .catch((err) => {
-        if (isApiError(err)) {
-          setError(err.response.data.message)
-        } else {
-          setError('データの取得に失敗しました')
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [page, sortOrder])
+    fetchRecords(page)
+  }, [page, fetchRecords])
 
   if (loading && page === 1) return <LoadingScreen />
 
@@ -103,12 +85,7 @@ export default function RecordListPage() {
         </div>
       )}
 
-      <Link
-        to="/records/new"
-        className="mb-4 block w-full rounded-2xl bg-[#A6E01A] py-3 text-center text-lg font-bold hover:brightness-95 active:brightness-90"
-      >
-        + 家計簿を登録
-      </Link>
+      <PrimaryButton to="/records/new" label="+ 家計簿を登録" className="mb-4" />
 
       {records.length > 0 && (
         <div className="mb-4 flex justify-end">

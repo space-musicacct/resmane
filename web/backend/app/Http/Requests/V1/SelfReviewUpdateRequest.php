@@ -14,7 +14,8 @@ class SelfReviewUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reviewComment' => ['sometimes', 'string', 'max:250'],
+            'reviewComment' => ['required', 'string', 'max:250'],
+            'evaluation' => ['required', 'integer', 'min:1', 'max:5'],
         ];
     }
 
@@ -22,6 +23,10 @@ class SelfReviewUpdateRequest extends FormRequest
     {
         return [
             'reviewComment.max' => '自己レビューは250文字以内で入力してください',
+            'evaluation.required' => '評価は必須です',
+            'evaluation.integer' => '評価は1〜5の整数で入力してください',
+            'evaluation.min' => '評価は1以上で入力してください',
+            'evaluation.max' => '評価は5以下で入力してください',
         ];
     }
 }
