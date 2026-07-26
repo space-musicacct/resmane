@@ -23,7 +23,7 @@ class SelfReviewStoreRequestTest extends TestCase
      */
     private function rules(): array
     {
-        return (new SelfReviewStoreRequest())->rules();
+        return new SelfReviewStoreRequest()->rules();
     }
 
     /**
@@ -52,7 +52,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-001: 正常: 全フィールド有効
      */
     #[Test]
-    public function USR_001_全フィールド有効な場合はバリデーションを通過する(): void
+    public function test_USR_001_all_fields_valid_passes_validation(): void
     {
         $this->assertValid(
             $this->validData()
@@ -63,7 +63,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-002: 異常: reviewComment 未入力
      */
     #[Test]
-    public function USR_002_reviewComment未入力の場合はrequiredエラーになる(): void
+    public function test_USR_002_reviewComment_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -78,7 +78,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-003: 異常: reviewComment 251文字
      */
     #[Test]
-    public function USR_003_reviewCommentが251文字の場合はmaxエラーになる(): void
+    public function test_USR_003_reviewComment_251_chars_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -93,7 +93,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-004: 異常: evaluation 未入力
      */
     #[Test]
-    public function USR_004_evaluation未入力の場合はrequiredエラーになる(): void
+    public function test_USR_004_evaluation_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -108,7 +108,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-005: 異常: evaluation 0
      */
     #[Test]
-    public function USR_005_evaluationが0の場合はminエラーになる(): void
+    public function test_USR_005_evaluation_zero_fails_min(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -123,7 +123,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-006: 異常: evaluation 6
      */
     #[Test]
-    public function USR_006_evaluationが6の場合はmaxエラーになる(): void
+    public function test_USR_006_evaluation_six_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -138,7 +138,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-007: 異常: evaluation 小数
      */
     #[Test]
-    public function USR_007_evaluationが小数の場合はintegerエラーになる(): void
+    public function test_USR_007_evaluation_decimal_fails_integer(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -153,7 +153,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-008: 境界値: reviewComment 250文字
      */
     #[Test]
-    public function USR_008_reviewCommentが250文字の場合は通過する(): void
+    public function test_USR_008_reviewComment_250_chars_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -166,7 +166,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-009: 境界値: reviewComment 1文字
      */
     #[Test]
-    public function USR_009_reviewCommentが1文字の場合は通過する(): void
+    public function test_USR_009_reviewComment_one_char_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -179,7 +179,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-010: 境界値: evaluation 1
      */
     #[Test]
-    public function USR_010_evaluationが1の場合は通過する(): void
+    public function test_USR_010_evaluation_one_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -192,7 +192,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-011: 境界値: evaluation 5
      */
     #[Test]
-    public function USR_011_evaluationが5の場合は通過する(): void
+    public function test_USR_011_evaluation_five_passes(): void
     {
         $this->assertValid(
             $this->validData([

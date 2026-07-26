@@ -11,6 +11,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithAbort;
 
@@ -69,7 +70,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-001: list: 一覧取得が正しく動作する
      */
     #[Test]
-    public function SKR_001_一覧取得が正しく動作する(): void
+    public function test_SKR_001_list_returns_records(): void
     {
         $userId = 1;
         $sortOrder = 'desc';
@@ -107,7 +108,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-002: findOrFail: 正常取得
      */
     #[Test]
-    public function SKR_002_findOrFailで正常取得できる(): void
+    public function test_SKR_002_findOrFail_returns_record(): void
     {
         $id = 10;
         $userId = 1;
@@ -129,7 +130,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-003: findOrFail: レコードが存在しない
      */
     #[Test]
-    public function SKR_003_findOrFailでレコードが存在しない場合は404になる(): void
+    public function test_SKR_003_findOrFail_not_found_aborts_404(): void
     {
         $id = 999;
         $userId = 1;
@@ -142,7 +143,7 @@ class KakeiboRecordServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->findOrFail($id, $userId),
-            404
+            Response::HTTP_NOT_FOUND
         );
     }
 
@@ -150,7 +151,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-004: findOrFail: 他ユーザーのレコード
      */
     #[Test]
-    public function SKR_004_findOrFailで他ユーザーのレコードは403になる(): void
+    public function test_SKR_004_findOrFail_other_user_aborts_403(): void
     {
         $id = 10;
         $userId = 1;
@@ -165,7 +166,7 @@ class KakeiboRecordServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->findOrFail($id, $userId),
-            403
+            Response::HTTP_FORBIDDEN
         );
     }
 
@@ -173,7 +174,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-005: findOrFailForUpdate: 正常取得
      */
     #[Test]
-    public function SKR_005_findOrFailForUpdateで正常取得できる(): void
+    public function test_SKR_005_findOrFailForUpdate_returns_record(): void
     {
         $id = 10;
         $userId = 1;
@@ -195,7 +196,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-006: findOrFailForUpdate: レコードが存在しない
      */
     #[Test]
-    public function SKR_006_findOrFailForUpdateでレコードが存在しない場合は404になる(): void
+    public function test_SKR_006_findOrFailForUpdate_not_found_aborts_404(): void
     {
         $id = 999;
         $userId = 1;
@@ -208,7 +209,7 @@ class KakeiboRecordServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->findOrFailForUpdate($id, $userId),
-            404
+            Response::HTTP_NOT_FOUND
         );
     }
 
@@ -216,7 +217,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-007: findOrFailForUpdate: 他ユーザーのレコード
      */
     #[Test]
-    public function SKR_007_findOrFailForUpdateで他ユーザーのレコードは403になる(): void
+    public function test_SKR_007_findOrFailForUpdate_other_user_aborts_403(): void
     {
         $id = 10;
         $userId = 1;
@@ -231,7 +232,7 @@ class KakeiboRecordServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->findOrFailForUpdate($id, $userId),
-            403
+            Response::HTTP_FORBIDDEN
         );
     }
 
@@ -239,7 +240,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-008: create: 正常作成
      */
     #[Test]
-    public function SKR_008_createでRepositoryが正しいsnake_caseデータで呼ばれる(): void
+    public function test_SKR_008_create_calls_repository_with_snake_case(): void
     {
         $userId = 1;
 
@@ -275,7 +276,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-009: create: purchaseDate 省略時に今日の日付が設定される
      */
     #[Test]
-    public function SKR_009_createでpurchaseDate省略時に今日の日付が設定される(): void
+    public function test_SKR_009_create_defaults_purchaseDate_to_today(): void
     {
         $userId = 1;
         $today = now()->toDateString();
@@ -304,7 +305,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-010: update: 正常更新
      */
     #[Test]
-    public function SKR_010_updateでRepositoryのupdateが呼ばれる(): void
+    public function test_SKR_010_update_calls_repository(): void
     {
         $id = 10;
         $userId = 1;
@@ -350,7 +351,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-011: delete: 正常削除
      */
     #[Test]
-    public function SKR_011_deleteでRepositoryのdeleteと関連データ削除が呼ばれる(): void
+    public function test_SKR_011_delete_calls_repository_and_deletes_related(): void
     {
         $id = 10;
         $userId = 1;

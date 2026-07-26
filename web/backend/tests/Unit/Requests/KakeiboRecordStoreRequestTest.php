@@ -28,7 +28,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      */
     private function rules(): array
     {
-        return (new KakeiboRecordStoreRequest())->rules();
+        return new KakeiboRecordStoreRequest()->rules();
     }
 
     /**
@@ -63,7 +63,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-001: 正常: 全フィールド有効
      */
     #[Test]
-    public function UKS_001_全フィールド有効な場合はバリデーションを通過する(): void
+    public function test_UKS_001_all_fields_valid_passes_validation(): void
     {
         $this->assertValid(
             $this->validData()
@@ -74,7 +74,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-002: 正常: purchaseDate省略
      */
     #[Test]
-    public function UKS_002_purchaseDateがnullの場合はバリデーションを通過する(): void
+    public function test_UKS_002_purchaseDate_null_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -87,7 +87,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-003: 異常: amountTypeId未入力
      */
     #[Test]
-    public function UKS_003_amountTypeId未入力の場合はrequiredエラーになる(): void
+    public function test_UKS_003_amountTypeId_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -102,7 +102,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-004: 異常: amount未入力
      */
     #[Test]
-    public function UKS_004_amount未入力の場合はrequiredエラーになる(): void
+    public function test_UKS_004_amount_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -117,7 +117,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-005: 異常: amount 0
      */
     #[Test]
-    public function UKS_005_amountが0の場合はminエラーになる(): void
+    public function test_UKS_005_amount_zero_fails_min(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -132,7 +132,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-006: 異常: amount 負数
      */
     #[Test]
-    public function UKS_006_amountが負数の場合はminエラーになる(): void
+    public function test_UKS_006_amount_negative_fails_min(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -147,7 +147,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-007: 異常: amount 小数
      */
     #[Test]
-    public function UKS_007_amountが小数の場合はintegerエラーになる(): void
+    public function test_UKS_007_amount_decimal_fails_integer(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -162,7 +162,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-008: 異常: details未入力
      */
     #[Test]
-    public function UKS_008_details未入力の場合はrequiredエラーになる(): void
+    public function test_UKS_008_details_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -177,7 +177,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-009: 異常: details 251文字
      */
     #[Test]
-    public function UKS_009_detailsが251文字の場合はmaxエラーになる(): void
+    public function test_UKS_009_details_251_chars_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -192,7 +192,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-010: 異常: categoryId未入力
      */
     #[Test]
-    public function UKS_010_kakeiboDefaultCategoryId未入力の場合はrequiredエラーになる(): void
+    public function test_UKS_010_kakeiboDefaultCategoryId_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -207,7 +207,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-011: 異常: purchaseDate形式不正
      */
     #[Test]
-    public function UKS_011_purchaseDate形式不正の場合はdateエラーになる(): void
+    public function test_UKS_011_purchaseDate_invalid_format_fails_date(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -222,7 +222,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-012: 境界値: details 250文字
      */
     #[Test]
-    public function UKS_012_details250文字の場合は通過する(): void
+    public function test_UKS_012_details_250_chars_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -235,7 +235,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-013: 境界値: details 1文字
      */
     #[Test]
-    public function UKS_013_details1文字の場合は通過する(): void
+    public function test_UKS_013_details_1_char_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -248,7 +248,7 @@ class KakeiboRecordStoreRequestTest extends TestCase
      * UKS-014: 境界値: amount 1
      */
     #[Test]
-    public function UKS_014_amount1の場合は通過する(): void
+    public function test_UKS_014_amount_1_passes(): void
     {
         $this->assertValid(
             $this->validData([

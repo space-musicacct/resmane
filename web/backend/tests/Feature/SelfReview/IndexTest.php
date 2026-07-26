@@ -11,13 +11,18 @@ use App\Models\SelfReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class IndexTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -33,6 +38,8 @@ class IndexTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -77,10 +84,11 @@ class IndexTest extends TestCase
      */
     private function endpoint(int $recordId): string
     {
-        return self::ENDPOINT . '/' . $recordId . '/reviews';
+        return $this->endpoint->records() . '/' . $recordId . '/reviews';
     }
 
-    /** @test FSRI-001 正常: 一覧取得 */
+    /** FSRI-001 正常: 一覧取得 */
+    #[Test]
     public function test_index_returns_reviews(): void
     {
         // 取得対象となる複数の自己レビューを作成
@@ -105,7 +113,7 @@ class IndexTest extends TestCase
 
         // レビュー件数とレスポンス形式を確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(3, 'data')
             ->assertJsonStructure([
                 'data' => [
@@ -114,18 +122,20 @@ class IndexTest extends TestCase
             ]);
     }
 
-    /** @test FSRI-002 正常: レビュー0件 */
+    /** FSRI-002 正常: レビュー0件 */
+    #[Test]
     public function test_index_returns_empty_when_no_reviews(): void
     {
         // レビューが存在しない場合、空配列が返却されることを確認
         $response = $this->getJson($this->endpoint($this->recordId));
 
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(0, 'data');
     }
 
-    /** @test FSRI-003 異常: 他ユーザーの家計簿レコード */
+    /** FSRI-003 異常: 他ユーザーの家計簿レコード */
+    #[Test]
     public function test_index_fails_when_record_belongs_to_other_user(): void
     {
         // 別ユーザーを作成
@@ -149,10 +159,11 @@ class IndexTest extends TestCase
         // 他ユーザーのレコードに紐づくレビュー一覧を取得できないことを確認
         $response = $this->getJson($this->endpoint($otherRecord->id));
 
-        $response->assertStatus(403);
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
-    /** @test FSRI-004 異常: 存在しない家計簿レコード */
+    /** FSRI-004 異常: 存在しない家計簿レコード */
+    #[Test]
     public function test_index_fails_when_record_not_found(): void
     {
         // 存在しない家計簿レコードIDを指定
@@ -160,13 +171,14 @@ class IndexTest extends TestCase
 
         // レコードが存在しない場合のエラーを確認
         $response
-            ->assertStatus(404)
+            ->assertStatus(Response::HTTP_NOT_FOUND)
             ->assertJson([
                 'message' => '指定された家計簿レコードが見つかりませんでした',
             ]);
     }
 
-    /** @test FSRI-005 異常: 未認証 */
+    /** FSRI-005 異常: 未認証 */
+    #[Test]
     public function test_index_requires_authentication(): void
     {
         // 認証状態を解除
@@ -175,6 +187,6 @@ class IndexTest extends TestCase
         // 未認証ユーザーではアクセスできないことを確認
         $response = $this->getJson($this->endpoint($this->recordId));
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

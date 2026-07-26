@@ -6,11 +6,24 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class ShowTest extends TestCase
 {
     use RefreshDatabase;
+
+    private ApiEndpoint $endpoint;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
+    }
 
     /**
      * FUS-001
@@ -18,6 +31,7 @@ class ShowTest extends TestCase
      *
      * 認証済みユーザーが自身のユーザー情報を取得できることを確認する
      */
+    #[Test]
     public function test_can_get_authenticated_user_information(): void
     {
         // テスト用ユーザーを作成
@@ -32,10 +46,10 @@ class ShowTest extends TestCase
         Sanctum::actingAs($user);
 
         // ユーザー情報取得APIを実行
-        $response = $this->getJson('/api/v1/user');
+        $response = $this->getJson($this->endpoint->user());
 
         // レスポンスステータスと返却データを確認
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonStructure([
                 // ユーザー情報のレスポンス構造を確認
                 'data' => [
@@ -64,13 +78,14 @@ class ShowTest extends TestCase
      *
      * 認証されていないユーザーはユーザー情報を取得できないことを確認する
      */
+    #[Test]
     public function test_cannot_get_user_information_without_authentication(): void
     {
         // 未認証状態でユーザー情報取得APIを実行
-        $response = $this->getJson('/api/v1/user');
+        $response = $this->getJson($this->endpoint->user());
 
         // 認証エラーが返却されることを確認
-        $response->assertStatus(401)
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED)
             ->assertJsonFragment([
                 'message' => '認証が必要です',
             ]);

@@ -10,13 +10,18 @@ use App\Models\KakeiboRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class UpdateTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -34,6 +39,8 @@ class UpdateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -73,12 +80,13 @@ class UpdateTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    /** @test FKU-001 正常: 更新成功 */
+    /** FKU-001 正常: 更新成功 */
+    #[Test]
     public function test_update_success(): void
     {
         // 自分のレコードを正常に更新できることを確認
         $response = $this->putJson(
-            self::ENDPOINT . '/' . $this->recordId,
+            $this->endpoint->records() . '/' . $this->recordId,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -89,7 +97,7 @@ class UpdateTest extends TestCase
 
         // 更新後のレスポンス内容とDB更新結果を確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.amount', 2000)
             ->assertJsonPath('data.details', '夕食');
 
@@ -99,12 +107,13 @@ class UpdateTest extends TestCase
         ]);
     }
 
-    /** @test FKU-002 正常: purchaseDate省略時に既存値を維持 */
+    /** FKU-002 正常: purchaseDate省略時に既存値を維持 */
+    #[Test]
     public function test_update_keeps_purchase_date_when_omitted(): void
     {
         // purchaseDate未指定時に既存の日付が維持されることを確認
         $response = $this->putJson(
-            self::ENDPOINT . '/' . $this->recordId,
+            $this->endpoint->records() . '/' . $this->recordId,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -114,14 +123,15 @@ class UpdateTest extends TestCase
         );
 
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath(
                 'data.purchaseDate',
                 '2026-07-01'
             );
     }
 
-    /** @test FKU-003 異常: 他ユーザーのレコード */
+    /** FKU-003 異常: 他ユーザーのレコード */
+    #[Test]
     public function test_update_fails_when_record_belongs_to_other_user(): void
     {
         // 別ユーザーを作成
@@ -144,7 +154,7 @@ class UpdateTest extends TestCase
 
         // 他ユーザーのレコードを更新できないことを確認
         $response = $this->putJson(
-            self::ENDPOINT . '/' . $record->id,
+            $this->endpoint->records() . '/' . $record->id,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -154,18 +164,19 @@ class UpdateTest extends TestCase
         );
 
         $response
-            ->assertStatus(403)
+            ->assertStatus(Response::HTTP_FORBIDDEN)
             ->assertJson([
                 'message' => 'このレコードへのアクセス権限がありません',
             ]);
     }
 
-    /** @test FKU-004 異常: 存在しないレコード */
+    /** FKU-004 異常: 存在しないレコード */
+    #[Test]
     public function test_update_fails_when_record_not_found(): void
     {
         // 存在しないレコードIDを指定した場合のエラーを確認
         $response = $this->putJson(
-            self::ENDPOINT . '/999',
+            $this->endpoint->records() . '/999',
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -175,18 +186,19 @@ class UpdateTest extends TestCase
         );
 
         $response
-            ->assertStatus(404)
+            ->assertStatus(Response::HTTP_NOT_FOUND)
             ->assertJson([
                 'message' => '指定された家計簿レコードが見つかりませんでした',
             ]);
     }
 
-    /** @test FKU-005 異常: バリデーションエラー */
+    /** FKU-005 異常: バリデーションエラー */
+    #[Test]
     public function test_update_fails_with_validation_error(): void
     {
         // 不正な値を指定した場合にバリデーションエラーになることを確認
         $response = $this->putJson(
-            self::ENDPOINT . '/' . $this->recordId,
+            $this->endpoint->records() . '/' . $this->recordId,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -196,13 +208,14 @@ class UpdateTest extends TestCase
         );
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors([
                 'amount',
             ]);
     }
 
-    /** @test FKU-006 異常: 未認証 */
+    /** FKU-006 異常: 未認証 */
+    #[Test]
     public function test_update_requires_authentication(): void
     {
         // 認証状態を解除
@@ -210,7 +223,7 @@ class UpdateTest extends TestCase
 
         // 未認証状態では更新できないことを確認
         $response = $this->putJson(
-            self::ENDPOINT . '/' . $this->recordId,
+            $this->endpoint->records() . '/' . $this->recordId,
             [
                 'amountTypeId' => $this->amountTypeId,
                 'kakeiboDefaultCategoryId' => $this->categoryId,
@@ -219,6 +232,6 @@ class UpdateTest extends TestCase
             ]
         );
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

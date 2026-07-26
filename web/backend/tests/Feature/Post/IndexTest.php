@@ -13,13 +13,18 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class IndexTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -44,6 +49,8 @@ class IndexTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証ユーザーを作成
         $this->user = User::create([
@@ -109,7 +116,7 @@ class IndexTest extends TestCase
      */
     private function endpoint(int $recordId): string
     {
-        return self::ENDPOINT . '/' . $recordId . '/posts';
+        return $this->endpoint->records() . '/' . $recordId . '/posts';
     }
 
     /**
@@ -126,7 +133,8 @@ class IndexTest extends TestCase
         return $post->fresh();
     }
 
-    /** @test FPI-001 正常: 一覧取得（created_at 昇順） */
+    /** FPI-001 正常: 一覧取得（created_at 昇順） */
+    #[Test]
     public function test_index_returns_posts_in_ascending_order(): void
     {
         // ユーザー投稿を作成
@@ -158,13 +166,14 @@ class IndexTest extends TestCase
         $response = $this->getJson($this->endpoint($this->recordId));
 
         // 件数と取得順を確認
-        $response->assertStatus(200)->assertJsonCount(3, 'data');
+        $response->assertStatus(Response::HTTP_OK)->assertJsonCount(3, 'data');
 
         $ids = $response->json('data.*.id');
         $this->assertSame([$userPost->id, $aiPost1->id, $aiPost2->id], $ids);
     }
 
-    /** @test FPI-002 正常: aiStatus の構造が正しい */
+    /** FPI-002 正常: aiStatus の構造が正しい */
+    #[Test]
     public function test_index_ai_status_structure(): void
     {
         // AI投稿を作成
@@ -180,12 +189,13 @@ class IndexTest extends TestCase
         $response = $this->getJson($this->endpoint($this->recordId));
 
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.0.aiStatus.id', $this->completedStatusId)
             ->assertJsonPath('data.0.aiStatus.statusName', 'completed');
     }
 
-    /** @test FPI-003 正常: pending のAI投稿は content が null */
+    /** FPI-003 正常: pending のAI投稿は content が null */
+    #[Test]
     public function test_index_pending_ai_post_has_null_content(): void
     {
         // 処理待ち状態のAI投稿を作成
@@ -201,20 +211,22 @@ class IndexTest extends TestCase
         $response = $this->getJson($this->endpoint($this->recordId));
 
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.0.content', null);
     }
 
-    /** @test FPI-004 正常: 投稿0件 */
+    /** FPI-004 正常: 投稿0件 */
+    #[Test]
     public function test_index_returns_empty_when_no_posts(): void
     {
         // 投稿が存在しない場合に空配列が返ることを確認
         $response = $this->getJson($this->endpoint($this->recordId));
 
-        $response->assertStatus(200)->assertJsonCount(0, 'data');
+        $response->assertStatus(Response::HTTP_OK)->assertJsonCount(0, 'data');
     }
 
-    /** @test FPI-005 異常: 他ユーザーの家計簿レコード */
+    /** FPI-005 異常: 他ユーザーの家計簿レコード */
+    #[Test]
     public function test_index_fails_when_record_belongs_to_other_user(): void
     {
         // 別ユーザーを作成
@@ -238,20 +250,22 @@ class IndexTest extends TestCase
         // 権限エラーになることを確認
         $response = $this->getJson($this->endpoint($otherRecord->id));
 
-        $response->assertStatus(403);
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
-    /** @test FPI-006 異常: 存在しない家計簿レコード */
+    /** FPI-006 異常: 存在しない家計簿レコード */
+    #[Test]
     public function test_index_fails_when_record_not_found(): void
     {
         // 存在しないレコードIDを指定
         $response = $this->getJson($this->endpoint(999));
 
         // Not Foundになることを確認
-        $response->assertStatus(404);
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
     }
 
-    /** @test FPI-007 異常: 未認証 */
+    /** FPI-007 異常: 未認証 */
+    #[Test]
     public function test_index_requires_authentication(): void
     {
         // 認証状態を解除
@@ -261,6 +275,6 @@ class IndexTest extends TestCase
         $response = $this->getJson($this->endpoint($this->recordId));
 
         // 認証エラーになることを確認
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

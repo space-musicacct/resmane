@@ -23,7 +23,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      */
     private function rules(): array
     {
-        return (new KakeiboRecordIndexRequest())->rules();
+        return new KakeiboRecordIndexRequest()->rules();
     }
 
     /**
@@ -44,7 +44,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-001: 正常: パラメータなし
      */
     #[Test]
-    public function UKI_001_全パラメータ省略の場合はバリデーションを通過する(): void
+    public function test_UKI_001_no_params_passes(): void
     {
         $this->assertValid([]);
     }
@@ -53,7 +53,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-002: 正常: from, to 指定
      */
     #[Test]
-    public function UKI_002_fromとtoを指定した場合はバリデーションを通過する(): void
+    public function test_UKI_002_from_and_to_passes(): void
     {
         $this->assertValid([
             'from' => '2026-06-01',
@@ -65,7 +65,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-003: 正常: perPage 指定
      */
     #[Test]
-    public function UKI_003_perPageを指定した場合はバリデーションを通過する(): void
+    public function test_UKI_003_perPage_passes(): void
     {
         $this->assertValid([
             'perPage' => 50,
@@ -76,7 +76,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-004: 異常: from 形式不正
      */
     #[Test]
-    public function UKI_004_from形式不正の場合はdateエラーになる(): void
+    public function test_UKI_004_from_invalid_format_fails_date(): void
     {
         $this->assertInvalid(
             ['from' => 'invalid-date'],
@@ -89,7 +89,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-005: 異常: to 形式不正
      */
     #[Test]
-    public function UKI_005_to形式不正の場合はdateエラーになる(): void
+    public function test_UKI_005_to_invalid_format_fails_date(): void
     {
         $this->assertInvalid(
             ['to' => 'invalid'],
@@ -102,7 +102,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-006: 異常: perPage 0
      */
     #[Test]
-    public function UKI_006_perPageが0の場合はminエラーになる(): void
+    public function test_UKI_006_perPage_zero_fails_min(): void
     {
         $this->assertInvalid(
             ['perPage' => 0],
@@ -115,7 +115,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-007: 異常: perPage 101
      */
     #[Test]
-    public function UKI_007_perPageが101の場合はmaxエラーになる(): void
+    public function test_UKI_007_perPage_101_fails_max(): void
     {
         $this->assertInvalid(
             ['perPage' => 101],
@@ -128,7 +128,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-008: 境界値: perPage 1
      */
     #[Test]
-    public function UKI_008_perPageが1の場合は通過する(): void
+    public function test_UKI_008_perPage_1_passes(): void
     {
         $this->assertValid([
             'perPage' => 1,
@@ -139,7 +139,7 @@ class KakeiboRecordIndexRequestTest extends TestCase
      * UKI-009: 境界値: perPage 100
      */
     #[Test]
-    public function UKI_009_perPageが100の場合は通過する(): void
+    public function test_UKI_009_perPage_100_passes(): void
     {
         $this->assertValid([
             'perPage' => 100,

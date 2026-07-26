@@ -12,13 +12,18 @@ use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class StoreTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -43,6 +48,8 @@ class StoreTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // テスト用ユーザーを作成
         $this->user = User::create([
@@ -108,10 +115,11 @@ class StoreTest extends TestCase
      */
     private function endpoint(int $recordId): string
     {
-        return self::ENDPOINT . '/' . $recordId . '/posts';
+        return $this->endpoint->records() . '/' . $recordId . '/posts';
     }
 
-    /** @test FPS-001 正常: ユーザー投稿+AI投稿作成 */
+    /** FPS-001 正常: ユーザー投稿+AI投稿作成 */
+    #[Test]
     public function test_store_creates_user_post_and_ai_post(): void
     {
         // ユーザー投稿とAI投稿が作成されることを確認
@@ -121,12 +129,13 @@ class StoreTest extends TestCase
 
         // 作成結果とAI投稿の初期状態を確認
         $response
-            ->assertStatus(201)
+            ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('data.userPost.content', 'アドバイスほしい')
             ->assertJsonPath('data.aiPost.aiStatus.statusName', 'pending');
     }
 
-    /** @test FPS-002 正常: content 省略でAIフィードバック要求 */
+    /** FPS-002 正常: content 省略でAIフィードバック要求 */
+    #[Test]
     public function test_store_requests_ai_feedback_without_content(): void
     {
         // content未指定の場合にAIフィードバックのみ作成されることを確認
@@ -135,12 +144,13 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(201)
+            ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('data.userPost', null)
             ->assertJsonPath('data.aiPost.aiStatus.statusName', 'pending');
     }
 
-    /** @test FPS-003 正常: parentId 指定 */
+    /** FPS-003 正常: parentId 指定 */
+    #[Test]
     public function test_store_with_parent_id(): void
     {
         // リプライ元となる投稿を作成
@@ -159,14 +169,15 @@ class StoreTest extends TestCase
 
         // 親子関係が正しく設定されていることを確認
         $response
-            ->assertStatus(201)
+            ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('data.userPost.parentId', $parent->id);
 
         $userPostId = $response->json('data.userPost.id');
         $response->assertJsonPath('data.aiPost.parentId', $userPostId);
     }
 
-    /** @test FPS-004 正常: failed 状態のAI投稿がある場合に再試行可能 */
+    /** FPS-004 正常: failed 状態のAI投稿がある場合に再試行可能 */
+    #[Test]
     public function test_store_allows_retry_when_ai_post_failed(): void
     {
         // 失敗状態のAI投稿を作成
@@ -184,10 +195,11 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(201)
+            ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('data.aiPost.aiStatus.statusName', 'pending');
     }
-    /** @test FPS-005 異常: content 省略で既存 completed AI投稿がある */
+    /** FPS-005 異常: content 省略で既存 completed AI投稿がある */
+    #[Test]
     public function test_store_fails_when_ai_post_completed_exists(): void
     {
         // 完了済みのAI投稿を作成
@@ -205,11 +217,12 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(409)
+            ->assertStatus(Response::HTTP_CONFLICT)
             ->assertJsonPath('message', 'AIフィードバックは既に生成中または生成済みです');
     }
 
-    /** @test FPS-006 異常: content 省略で既存 pending AI投稿がある */
+    /** FPS-006 異常: content 省略で既存 pending AI投稿がある */
+    #[Test]
     public function test_store_fails_when_ai_post_pending_exists(): void
     {
         // 処理待ち状態のAI投稿を作成
@@ -226,10 +239,11 @@ class StoreTest extends TestCase
             'content' => null,
         ]);
 
-        $response->assertStatus(409);
+        $response->assertStatus(Response::HTTP_CONFLICT);
     }
 
-    /** @test FPS-007 異常: content 省略で既存 processing AI投稿がある */
+    /** FPS-007 異常: content 省略で既存 processing AI投稿がある */
+    #[Test]
     public function test_store_fails_when_ai_post_processing_exists(): void
     {
         // 処理中状態のAI投稿を作成
@@ -246,10 +260,11 @@ class StoreTest extends TestCase
             'content' => null,
         ]);
 
-        $response->assertStatus(409);
+        $response->assertStatus(Response::HTTP_CONFLICT);
     }
 
-    /** @test FPS-008 異常: parentId が存在しない投稿 */
+    /** FPS-008 異常: parentId が存在しない投稿 */
+    #[Test]
     public function test_store_fails_when_parent_id_not_found(): void
     {
         // 存在しない親投稿IDを指定
@@ -260,11 +275,12 @@ class StoreTest extends TestCase
 
         // リプライ先が存在しない場合のエラーを確認
         $response
-            ->assertStatus(404)
+            ->assertStatus(Response::HTTP_NOT_FOUND)
             ->assertJsonPath('message', 'リプライ先の投稿が見つかりません');
     }
 
-    /** @test FPS-009 異常: parentId が別の recordId の投稿 */
+    /** FPS-009 異常: parentId が別の recordId の投稿 */
+    #[Test]
     public function test_store_fails_when_parent_id_belongs_to_other_record(): void
     {
         // 別レコードを作成
@@ -291,10 +307,11 @@ class StoreTest extends TestCase
             'parentId' => $otherPost->id,
         ]);
 
-        $response->assertStatus(404);
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
     }
 
-    /** @test FPS-010 異常: 他ユーザーの家計簿レコード */
+    /** FPS-010 異常: 他ユーザーの家計簿レコード */
+    #[Test]
     public function test_store_fails_for_other_users_record(): void
     {
         // 別ユーザーを作成
@@ -320,10 +337,11 @@ class StoreTest extends TestCase
             'content' => 'テスト',
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
-    /** @test FPS-011 異常: 存在しない家計簿レコード */
+    /** FPS-011 異常: 存在しない家計簿レコード */
+    #[Test]
     public function test_store_fails_when_record_not_found(): void
     {
         // 存在しない家計簿レコードIDを指定
@@ -332,10 +350,11 @@ class StoreTest extends TestCase
         ]);
 
         // レコード未存在エラーを確認
-        $response->assertStatus(404);
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
     }
 
-    /** @test FPS-012 異常: content 3001文字 */
+    /** FPS-012 異常: content 3001文字 */
+    #[Test]
     public function test_store_fails_when_content_too_long(): void
     {
         // 最大文字数を超える投稿内容を指定
@@ -345,11 +364,12 @@ class StoreTest extends TestCase
 
         // バリデーションエラーを確認
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors(['content']);
     }
 
-    /** @test FPS-013 異常: 未認証 */
+    /** FPS-013 異常: 未認証 */
+    #[Test]
     public function test_store_requires_authentication(): void
     {
         // 認証状態を解除
@@ -361,6 +381,6 @@ class StoreTest extends TestCase
         ]);
 
         // 認証エラーを確認
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

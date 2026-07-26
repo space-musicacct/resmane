@@ -9,14 +9,19 @@ use App\Models\UpperLimitType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class ShowTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ApiEndpoint $endpoint;
+
     // 上限設定取得APIのエンドポイント
-    private const ENDPOINT = '/api/v1/settings/limit';
 
     // 認証済みテストユーザー
     protected User $user;
@@ -30,6 +35,8 @@ class ShowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // テスト用ユーザー作成
         $this->user = User::create([
@@ -48,7 +55,8 @@ class ShowTest extends TestCase
      * 正常系:
      * 上限設定が登録済みの場合、設定情報を取得できることを確認
      */
-    /** @test FSLS-001 正常: 設定が存在する */
+    /** FSLS-001 正常: 設定が存在する */
+    #[Test]
     public function test_show_returns_setting_when_setting_exists(): void
     {
         // 上限種類データを作成
@@ -65,11 +73,11 @@ class ShowTest extends TestCase
         ]);
 
         // 上限設定取得APIを実行
-        $response = $this->getJson(self::ENDPOINT);
+        $response = $this->getJson($this->endpoint->settingsLimit());
 
         // レスポンス内容を検証
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.userId', $this->user->id)
             ->assertJsonPath('data.upperLimitTypeId', $type->id)
             ->assertJsonPath('data.upperLimitTypeName', '金額')
@@ -81,15 +89,16 @@ class ShowTest extends TestCase
      * 正常系:
      * 上限設定が存在しない場合、dataがnullで返却されることを確認
      */
-    /** @test FSLS-002 正常: 設定が未登録 */
+    /** FSLS-002 正常: 設定が未登録 */
+    #[Test]
     public function test_show_returns_null_when_setting_not_exists(): void
     {
         // 設定未登録状態でAPI実行
-        $response = $this->getJson(self::ENDPOINT);
+        $response = $this->getJson($this->endpoint->settingsLimit());
 
         // dataがnullであることを確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data', null);
     }
 
@@ -98,7 +107,8 @@ class ShowTest extends TestCase
      * 正常系:
      * 上限タイプが割合の場合、タイプ名が正しく返却されることを確認
      */
-    /** @test FSLS-003 正常: upperLimitTypeName が正しい */
+    /** FSLS-003 正常: upperLimitTypeName が正しい */
+    #[Test]
     public function test_show_returns_percentage_type_name(): void
     {
         // 割合タイプの上限種類を作成
@@ -116,11 +126,11 @@ class ShowTest extends TestCase
         ]);
 
         // 上限設定取得APIを実行
-        $response = $this->getJson(self::ENDPOINT);
+        $response = $this->getJson($this->endpoint->settingsLimit());
 
         // 割合タイプ情報が正しいことを確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.upperLimitTypeId', UpperLimitType::PERCENTAGE_ID)
             ->assertJsonPath('data.upperLimitTypeName', '割合');
     }
@@ -130,16 +140,17 @@ class ShowTest extends TestCase
      * 異常系:
      * 未認証ユーザーはアクセスできないことを確認
      */
-    /** @test FSLS-004 異常: 未認証 */
+    /** FSLS-004 異常: 未認証 */
+    #[Test]
     public function test_show_requires_authentication(): void
     {
         // 認証状態を解除
         auth()->logout();
 
         // 未認証状態でAPI実行
-        $response = $this->getJson(self::ENDPOINT);
+        $response = $this->getJson($this->endpoint->settingsLimit());
 
         // 401 Unauthorizedが返却されることを確認
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

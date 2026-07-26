@@ -7,6 +7,8 @@ use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 use Tests\Unit\Concerns\InteractsWithValidation;
 
 /**
@@ -20,6 +22,16 @@ class UpdateSettingLimitRequestTest extends TestCase
 {
     use InteractsWithValidation;
 
+    private ApiEndpoint $endpoint;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
+    }
+
+
     /**
      * リクエストデータを注入した状態で FormRequest インスタンスを生成する。
      *
@@ -32,7 +44,7 @@ class UpdateSettingLimitRequestTest extends TestCase
     {
         /** @var UpdateSettingLimitRequest $request */
         $request = UpdateSettingLimitRequest::create(
-            '/api/v1/settings/limit',
+            $this->endpoint->settingsLimit(),
             'PUT',
             $data
         );
@@ -51,7 +63,7 @@ class UpdateSettingLimitRequestTest extends TestCase
     {
         return ValidatorFacade::make(
             $data,
-            $this->makeRequest($data)->rules()
+            $this->withoutExistsRules($this->makeRequest($data)->rules())
         );
     }
 
@@ -59,7 +71,7 @@ class UpdateSettingLimitRequestTest extends TestCase
      * USL-001: 正常: 固定額指定
      */
     #[Test]
-    public function USL_001_固定額指定の場合はバリデーションを通過する(): void
+    public function test_USL_001_fixed_amount_type_passes_validation(): void
     {
         $this->assertValid([
             'upperLimitTypeId' => 2,
@@ -72,7 +84,7 @@ class UpdateSettingLimitRequestTest extends TestCase
      * USL-002: 正常: 割合指定
      */
     #[Test]
-    public function USL_002_割合指定の場合はバリデーションを通過する(): void
+    public function test_USL_002_percentage_type_passes_validation(): void
     {
         $this->assertValid([
             'upperLimitTypeId' => 1,
@@ -85,7 +97,7 @@ class UpdateSettingLimitRequestTest extends TestCase
      * USL-003: 異常: upperLimitTypeId 未入力
      */
     #[Test]
-    public function USL_003_upperLimitTypeId未入力の場合はrequiredエラーになる(): void
+    public function test_USL_003_upperLimitTypeId_empty_fails_required(): void
     {
         $this->assertInvalid(
             [
@@ -102,7 +114,7 @@ class UpdateSettingLimitRequestTest extends TestCase
      * USL-004: 異常: maxValue 未入力
      */
     #[Test]
-    public function USL_004_maxValue未入力の場合はrequiredエラーになる(): void
+    public function test_USL_004_maxValue_empty_fails_required(): void
     {
         $this->assertInvalid(
             [
@@ -119,7 +131,7 @@ class UpdateSettingLimitRequestTest extends TestCase
      * USL-005: 異常: maxValue 0
      */
     #[Test]
-    public function USL_005_maxValueが0の場合はminエラーになる(): void
+    public function test_USL_005_maxValue_zero_fails_min(): void
     {
         $this->assertInvalid(
             [
@@ -136,7 +148,7 @@ class UpdateSettingLimitRequestTest extends TestCase
      * USL-006: 異常: 割合指定時に aveMonthlyIncome なし
      */
     #[Test]
-    public function USL_006_割合指定時にaveMonthlyIncomeがない場合はrequiredエラーになる(): void
+    public function test_USL_006_percentage_type_without_aveMonthlyIncome_fails_required(): void
     {
         $this->assertInvalid(
             [
@@ -153,7 +165,7 @@ class UpdateSettingLimitRequestTest extends TestCase
      * USL-007: 異常: aveMonthlyIncome 0
      */
     #[Test]
-    public function USL_007_aveMonthlyIncomeが0の場合はminエラーになる(): void
+    public function test_USL_007_aveMonthlyIncome_zero_fails_min(): void
     {
         $this->assertInvalid(
             [
@@ -170,7 +182,7 @@ class UpdateSettingLimitRequestTest extends TestCase
      * USL-008: 境界値: maxValue 1
      */
     #[Test]
-    public function USL_008_maxValueが1の場合は通過する(): void
+    public function test_USL_008_maxValue_one_passes(): void
     {
         $this->assertValid([
             'upperLimitTypeId' => 2,

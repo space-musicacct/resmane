@@ -6,36 +6,45 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class LogoutTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const LOGIN_ENDPOINT = '/api/v1/login';
+    private ApiEndpoint $endpoint;
 
-    private const LOGOUT_ENDPOINT = '/api/v1/logout';
+
 
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->endpoint = new V1ApiEndpoint();
+
         $this->withoutMiddleware([
-            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+            PreventRequestForgery::class,
         ]);
 
         $this->app['router']->pushMiddlewareToGroup(
             'api',
-            \Illuminate\Cookie\Middleware\EncryptCookies::class
+            EncryptCookies::class
         );
 
         $this->app['router']->pushMiddlewareToGroup(
             'api',
-            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class
+            AddQueuedCookiesToResponse::class
         );
 
         $this->app['router']->pushMiddlewareToGroup(
@@ -45,7 +54,8 @@ class LogoutTest extends TestCase
     }
 
 
-    /** @test FLO-001 正常: ログアウト成功 */
+    /** FLO-001 正常: ログアウト成功 */
+    #[Test]
     public function test_logout_success(): void
     {
         User::create([
@@ -56,28 +66,29 @@ class LogoutTest extends TestCase
         ]);
 
 
-        $this->postJson(self::LOGIN_ENDPOINT, [
+        $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'password123',
         ])
-        ->assertStatus(200);
+        ->assertStatus(Response::HTTP_OK);
 
 
-        $this->postJson(self::LOGOUT_ENDPOINT)
-            ->assertStatus(204);
+        $this->postJson($this->endpoint->logout())
+            ->assertStatus(Response::HTTP_NO_CONTENT);
 
 
         // guard状態を破棄
         Auth::forgetGuards();
 
 
-        $this->getJson('/api/v1/user')
-            ->assertStatus(401);
+        $this->getJson($this->endpoint->user())
+            ->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 
 
 
-    /** @test FLO-002 正常: ログアウト後に認証済みリクエストが通らない */
+    /** FLO-002 正常: ログアウト後に認証済みリクエストが通らない */
+    #[Test]
     public function test_authenticated_request_fails_after_logout(): void
     {
         User::create([
@@ -88,30 +99,31 @@ class LogoutTest extends TestCase
         ]);
 
 
-        $this->postJson(self::LOGIN_ENDPOINT, [
+        $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'password123',
         ])
-        ->assertStatus(200);
+        ->assertStatus(Response::HTTP_OK);
 
 
-        $this->postJson(self::LOGOUT_ENDPOINT)
-            ->assertStatus(204);
+        $this->postJson($this->endpoint->logout())
+            ->assertStatus(Response::HTTP_NO_CONTENT);
 
 
         Auth::forgetGuards();
 
 
-        $this->getJson('/api/v1/user')
-            ->assertStatus(401);
+        $this->getJson($this->endpoint->user())
+            ->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 
 
 
-    /** @test FLO-003 異常: 未認証 */
+    /** FLO-003 異常: 未認証 */
+    #[Test]
     public function test_logout_fails_when_guest(): void
     {
-        $this->postJson(self::LOGOUT_ENDPOINT)
-            ->assertStatus(401);
+        $this->postJson($this->endpoint->logout())
+            ->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

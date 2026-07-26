@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithAbort;
 
@@ -78,10 +79,10 @@ class UserServiceTest extends TestCase
      * SUS-001: findAuthUserOrFail: 正常取得
      */
     #[Test]
-    public function SUS_001_findAuthUserOrFailで正常取得できる(): void
+    public function test_SUS_001_findAuthUserOrFail_returns_user(): void
     {
-        $sessionUser = $this->makeUser(1);
-        $dbUser = $this->makeUser(1);
+        $sessionUser = $this->makeUser();
+        $dbUser = $this->makeUser();
 
         $this->userRepository
             ->shouldReceive('findByIdForUpdate')
@@ -98,14 +99,14 @@ class UserServiceTest extends TestCase
      * SUS-002: findAuthUserOrFail: sessionUser が null
      */
     #[Test]
-    public function SUS_002_sessionUserがnullの場合は401になる(): void
+    public function test_SUS_002_null_sessionUser_aborts_401(): void
     {
         $this->userRepository
             ->shouldNotReceive('findByIdForUpdate');
 
         $this->assertAbort(
             fn () => $this->service->findAuthUserOrFail(null),
-            401
+            Response::HTTP_UNAUTHORIZED
         );
     }
 
@@ -113,9 +114,9 @@ class UserServiceTest extends TestCase
      * SUS-003: findAuthUserOrFail: DB にユーザーが存在しない
      */
     #[Test]
-    public function SUS_003_DBにユーザーが存在しない場合は401になる(): void
+    public function test_SUS_003_user_not_found_in_db_aborts_401(): void
     {
-        $sessionUser = $this->makeUser(1);
+        $sessionUser = $this->makeUser();
 
         $this->userRepository
             ->shouldReceive('findByIdForUpdate')
@@ -125,7 +126,7 @@ class UserServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->findAuthUserOrFail($sessionUser),
-            401
+            Response::HTTP_UNAUTHORIZED
         );
     }
 
@@ -133,10 +134,10 @@ class UserServiceTest extends TestCase
      * SUS-004: update: loginId 変更成功
      */
     #[Test]
-    public function SUS_004_loginId変更が成功する(): void
+    public function test_SUS_004_update_loginId_succeeds(): void
     {
-        $sessionUser = $this->makeUser(1);
-        $user = $this->makeUser(1);
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
         $validated = ['loginId' => 'newtaro'];
 
@@ -166,10 +167,10 @@ class UserServiceTest extends TestCase
      * SUS-005: update: loginId 重複
      */
     #[Test]
-    public function SUS_005_loginId重複の場合は409を返す(): void
+    public function test_SUS_005_duplicate_loginId_returns_409(): void
     {
-        $sessionUser = $this->makeUser(1);
-        $user = $this->makeUser(1);
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
         $validated = ['loginId' => 'duplicated'];
 
@@ -191,17 +192,17 @@ class UserServiceTest extends TestCase
         $result = $this->service->update($sessionUser, $validated);
 
         $this->assertArrayHasKey('error', $result);
-        $this->assertSame(409, $result['status']);
+        $this->assertSame(Response::HTTP_CONFLICT, $result['status']);
     }
 
     /**
      * SUS-006: update: email 重複
      */
     #[Test]
-    public function SUS_006_email重複の場合は409を返す(): void
+    public function test_SUS_006_duplicate_email_returns_409(): void
     {
-        $sessionUser = $this->makeUser(1);
-        $user = $this->makeUser(1);
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
         $validated = ['email' => 'duplicated@example.com'];
 
@@ -223,17 +224,17 @@ class UserServiceTest extends TestCase
         $result = $this->service->update($sessionUser, $validated);
 
         $this->assertArrayHasKey('error', $result);
-        $this->assertSame(409, $result['status']);
+        $this->assertSame(Response::HTTP_CONFLICT, $result['status']);
     }
 
     /**
      * SUS-007: update: パスワード変更成功
      */
     #[Test]
-    public function SUS_007_パスワード変更が成功する(): void
+    public function test_SUS_007_update_password_succeeds(): void
     {
-        $sessionUser = $this->makeUser(1, 'hashed-old-password');
-        $user = $this->makeUser(1, 'hashed-old-password');
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
         $validated = [
             'currentPassword' => 'oldpass123',
@@ -270,10 +271,10 @@ class UserServiceTest extends TestCase
      * SUS-008: update: パスワード変更で currentPassword 不一致
      */
     #[Test]
-    public function SUS_008_currentPassword不一致の場合は422を返す(): void
+    public function test_SUS_008_wrong_currentPassword_returns_422(): void
     {
-        $sessionUser = $this->makeUser(1, 'hashed-old-password');
-        $user = $this->makeUser(1, 'hashed-old-password');
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
         $validated = [
             'currentPassword' => 'wrongpass',
@@ -297,17 +298,17 @@ class UserServiceTest extends TestCase
         $result = $this->service->update($sessionUser, $validated);
 
         $this->assertArrayHasKey('error', $result);
-        $this->assertSame(422, $result['status']);
+        $this->assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $result['status']);
     }
 
     /**
      * SUS-009: update: 何も変更しない
      */
     #[Test]
-    public function SUS_009_何も変更しない場合はRepositoryのupdateが呼ばれない(): void
+    public function test_SUS_009_no_changes_skips_repository_update(): void
     {
-        $sessionUser = $this->makeUser(1);
-        $user = $this->makeUser(1);
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
         $validated = [];
 
@@ -329,10 +330,10 @@ class UserServiceTest extends TestCase
      * SUS-010: destroy: 正常退会
      */
     #[Test]
-    public function SUS_010_正常に退会でき関連データが全て削除される(): void
+    public function test_SUS_010_destroy_deletes_user_and_related_data(): void
     {
-        $sessionUser = $this->makeUser(1, 'hashed-old-password');
-        $user = $this->makeUser(1, 'hashed-old-password');
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
         $recordIds = collect([10, 11]);
 
@@ -387,10 +388,10 @@ class UserServiceTest extends TestCase
      * SUS-011: destroy: パスワード不一致
      */
     #[Test]
-    public function SUS_011_パスワード不一致の場合は422を返す(): void
+    public function test_SUS_011_destroy_wrong_password_returns_422(): void
     {
-        $sessionUser = $this->makeUser(1, 'hashed-old-password');
-        $user = $this->makeUser(1, 'hashed-old-password');
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
         $this->userRepository
             ->shouldReceive('findByIdForUpdate')
@@ -412,19 +413,19 @@ class UserServiceTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertArrayHasKey('error', $result);
-        $this->assertSame(422, $result['status']);
+        $this->assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $result['status']);
     }
 
     /**
      * SUS-012: destroy: 家計簿レコードがないユーザー
      */
     #[Test]
-    public function SUS_012_家計簿レコードがない場合はレビュー投稿の削除をスキップする(): void
+    public function test_SUS_012_destroy_without_records_skips_review_post_deletion(): void
     {
-        $sessionUser = $this->makeUser(1, 'hashed-old-password');
-        $user = $this->makeUser(1, 'hashed-old-password');
+        $sessionUser = $this->makeUser();
+        $user = $this->makeUser();
 
-        $recordIds = collect([]);
+        $recordIds = collect();
 
         $this->userRepository
             ->shouldReceive('findByIdForUpdate')
