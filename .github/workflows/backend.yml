@@ -2,9 +2,6 @@ name: Backend CI
 
 on:
   pull_request:
-    paths:
-      - 'web/backend/**'
-      - '.github/workflows/backend.yml'
 
 jobs:
   backend:

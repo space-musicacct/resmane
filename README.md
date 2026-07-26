@@ -254,6 +254,14 @@ docker compose up -d --build
 docker compose exec backend php artisan key:generate
 ```
 
+### Guzzle 7.14 → 7.15.1 (2026-07-27)
+
+セキュリティ脆弱性 4 件（Referer ヘッダーの URI フラグメント漏洩、Cookie スコープ不正、Cookie DoS、Proxy-Authorization ヘッダー漏洩）への対応として、Guzzle を 7.15.1 へ更新しました。構築済みの環境は以下で更新してください。
+
+```bash
+docker compose exec backend composer install
+```
+
 ---
 
 ## `docker compose` と入力するのがだるいよ〜という方へ
