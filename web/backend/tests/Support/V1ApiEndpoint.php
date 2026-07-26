@@ -4,47 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-class V1ApiEndpoint implements ApiEndpoint
+use Override;
+
+/**
+ * API v1 のエンドポイント定義
+ *
+ * version() で 'v1' を返すことで、基底クラスの全エンドポイントが
+ * '/api/v1/...' として解決される。
+ */
+final class V1ApiEndpoint extends ApiEndpoint
 {
-    private const string PREFIX = '/api/v1';
-
-    public function login(): string
+    /**
+     * @return string 'v1'
+     */
+    #[Override]
+    protected function version(): string
     {
-        return self::PREFIX . '/login';
-    }
-
-    public function logout(): string
-    {
-        return self::PREFIX . '/logout';
-    }
-
-    public function register(): string
-    {
-        return self::PREFIX . '/register';
-    }
-
-    public function records(): string
-    {
-        return self::PREFIX . '/records';
-    }
-
-    public function user(): string
-    {
-        return self::PREFIX . '/user';
-    }
-
-    public function categories(): string
-    {
-        return self::PREFIX . '/categories';
-    }
-
-    public function amountTypes(): string
-    {
-        return self::PREFIX . '/amountTypes';
-    }
-
-    public function settingsLimit(): string
-    {
-        return self::PREFIX . '/settings/limit';
+        return 'v1';
     }
 }
