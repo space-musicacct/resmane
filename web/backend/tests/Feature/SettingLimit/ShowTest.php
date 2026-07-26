@@ -9,11 +9,11 @@ use App\Models\UpperLimitType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class ShowTest extends TestCase
 {
@@ -36,7 +36,7 @@ class ShowTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // テスト用ユーザー作成
         $this->user = User::create([
@@ -112,7 +112,7 @@ class ShowTest extends TestCase
     public function test_show_returns_percentage_type_name(): void
     {
         // 割合タイプの上限種類を作成
-        $type = new UpperLimitType();
+        $type = new UpperLimitType;
         $type->id = UpperLimitType::PERCENTAGE_ID;
         $type->type_name = '割合';
         $type->save();

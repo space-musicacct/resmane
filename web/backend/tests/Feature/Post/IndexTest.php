@@ -13,18 +13,17 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class IndexTest extends TestCase
 {
     use RefreshDatabase;
 
     private ApiEndpoint $endpoint;
-
 
     protected User $user;
 
@@ -50,7 +49,7 @@ class IndexTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // API実行用の認証ユーザーを作成
         $this->user = User::create([
@@ -61,7 +60,7 @@ class IndexTest extends TestCase
         ]);
 
         // 家計簿レコード作成用の収支区分を作成
-        $amountType = new AmountType();
+        $amountType = new AmountType;
         $amountType->type_name = '支出';
         $amountType->save();
 
@@ -87,22 +86,22 @@ class IndexTest extends TestCase
         $this->recordId = $record->id;
 
         // AI投稿状態用のステータスを作成
-        $pending = new AiStatus();
+        $pending = new AiStatus;
         $pending->status_name = 'pending';
         $pending->save();
         $this->pendingStatusId = $pending->id;
 
-        $processing = new AiStatus();
+        $processing = new AiStatus;
         $processing->status_name = 'processing';
         $processing->save();
         $this->processingStatusId = $processing->id;
 
-        $completed = new AiStatus();
+        $completed = new AiStatus;
         $completed->status_name = 'completed';
         $completed->save();
         $this->completedStatusId = $completed->id;
 
-        $failed = new AiStatus();
+        $failed = new AiStatus;
         $failed->status_name = 'failed';
         $failed->save();
         $this->failedStatusId = $failed->id;
@@ -116,7 +115,7 @@ class IndexTest extends TestCase
      */
     private function endpoint(int $recordId): string
     {
-        return $this->endpoint->records() . '/' . $recordId . '/posts';
+        return $this->endpoint->records().'/'.$recordId.'/posts';
     }
 
     /**

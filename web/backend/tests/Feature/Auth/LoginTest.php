@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Session\Middleware\StartSession;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 /**
  * 結合テスト仕様書 1.2 POST /api/v1/login（ログイン）
@@ -26,12 +26,11 @@ class LoginTest extends TestCase
 
     private ApiEndpoint $endpoint;
 
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         $this->withoutMiddleware([
             PreventRequestForgery::class,
@@ -53,7 +52,6 @@ class LoginTest extends TestCase
             StartSession::class
         );
     }
-
 
     /** FL-001 正常: ログイン成功 */
     #[Test]
@@ -98,19 +96,16 @@ class LoginTest extends TestCase
             'password_hash' => Hash::make('password123'),
         ]);
 
-
         $response = $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'wrong',
         ]);
-
 
         $response->assertStatus(Response::HTTP_UNAUTHORIZED)
             ->assertJson([
                 'message' => 'ログインIDまたはパスワードが正しくありません',
             ]);
     }
-
 
     /** FL-003 異常: 存在しないユーザー */
     #[Test]
@@ -121,10 +116,8 @@ class LoginTest extends TestCase
             'password' => 'any',
         ]);
 
-
         $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
-
 
     /** FL-004 異常: 論理削除済みユーザー */
     #[Test]
@@ -139,21 +132,17 @@ class LoginTest extends TestCase
 
         $user->delete();
 
-
         $this->assertSoftDeleted('users', [
             'login_id' => 'taro123',
         ]);
-
 
         $response = $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'password123',
         ]);
 
-
         $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
-
 
     /** FL-005 異常: バリデーションエラー */
     #[Test]
@@ -164,14 +153,12 @@ class LoginTest extends TestCase
             'password' => '',
         ]);
 
-
         $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors([
                 'loginId',
                 'password',
             ]);
     }
-
 
     /** FL-006 異常: レートリミット超過 */
     #[Test]
@@ -184,21 +171,18 @@ class LoginTest extends TestCase
             'password_hash' => Hash::make('password123'),
         ]);
 
-
         for ($i = 0; $i < 5; $i++) {
             $this->postJson($this->endpoint->login(), [
                 'loginId' => 'taro123',
                 'password' => 'wrong',
             ])
-            ->assertStatus(Response::HTTP_UNAUTHORIZED);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         }
-
 
         $response = $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'wrong',
         ]);
-
 
         $response->assertStatus(Response::HTTP_TOO_MANY_REQUESTS);
 
@@ -206,7 +190,6 @@ class LoginTest extends TestCase
         $this->assertStringContainsString('ログイン試行回数が上限に達しました', $message);
         $this->assertMatchesRegularExpression('/\d+分後に再試行してください/', $message);
     }
-
 
     /** FL-007 正常: レートリミットリセット */
     #[Test]
@@ -224,7 +207,7 @@ class LoginTest extends TestCase
                 'loginId' => 'taro123',
                 'password' => 'wrong',
             ])
-            ->assertStatus(Response::HTTP_UNAUTHORIZED);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         }
 
         // 正しい認証
@@ -232,8 +215,8 @@ class LoginTest extends TestCase
             'loginId' => 'taro123',
             'password' => 'password123',
         ])
-        ->assertStatus(Response::HTTP_OK)
-        ->assertJsonPath('user.loginId', 'taro123');
+            ->assertStatus(Response::HTTP_OK)
+            ->assertJsonPath('user.loginId', 'taro123');
 
         // リセットされていることを確認
         for ($i = 0; $i < 5; $i++) {
@@ -241,14 +224,13 @@ class LoginTest extends TestCase
                 'loginId' => 'taro123',
                 'password' => 'wrong',
             ])
-            ->assertStatus(Response::HTTP_UNAUTHORIZED);
+                ->assertStatus(Response::HTTP_UNAUTHORIZED);
         }
 
         $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'wrong',
         ])
-        ->assertStatus(Response::HTTP_TOO_MANY_REQUESTS);
+            ->assertStatus(Response::HTTP_TOO_MANY_REQUESTS);
     }
-
 }

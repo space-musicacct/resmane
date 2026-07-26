@@ -9,11 +9,11 @@ use App\Models\UpperLimitType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class UpdateTest extends TestCase
 {
@@ -36,7 +36,7 @@ class UpdateTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // テスト用ユーザー作成
         $this->user = User::create([
@@ -58,7 +58,7 @@ class UpdateTest extends TestCase
     private function createUpperLimitType(int $id, string $name): UpperLimitType
     {
         // 上限タイプ作成
-        $type = new UpperLimitType();
+        $type = new UpperLimitType;
         $type->id = $id;
         $type->type_name = $name;
         $type->save();

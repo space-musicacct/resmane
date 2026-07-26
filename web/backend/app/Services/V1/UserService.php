@@ -10,8 +10,8 @@ use App\Repositories\V1\Contracts\UpperLimitSettingRepositoryInterface;
 use App\Repositories\V1\Contracts\UserRepositoryInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -19,13 +19,6 @@ use Throwable;
  */
 readonly class UserService
 {
-    /**
-     * @param UserRepositoryInterface $userRepository
-     * @param KakeiboRecordRepositoryInterface $kakeiboRecordRepository
-     * @param SelfReviewRepositoryInterface $selfReviewRepository
-     * @param PostRepositoryInterface $postRepository
-     * @param UpperLimitSettingRepositoryInterface $upperLimitSettingRepository
-     */
     public function __construct(
         private UserRepositoryInterface $userRepository,
         private KakeiboRecordRepositoryInterface $kakeiboRecordRepository,
@@ -37,18 +30,18 @@ readonly class UserService
     /**
      * 認証済みユーザーを排他ロック付きで取得する
      *
-     * @param User|null $sessionUser セッションから取得したユーザー（null時は401）
+     * @param  User|null  $sessionUser  セッションから取得したユーザー（null時は401）
      * @return User 排他ロック取得済みのユーザー
      */
     public function findAuthUserOrFail(?User $sessionUser): User
     {
-        if (!$sessionUser) {
+        if (! $sessionUser) {
             abort(Response::HTTP_UNAUTHORIZED, 'ログインが必要です');
         }
 
         $user = $this->userRepository->findByIdForUpdate($sessionUser->id);
 
-        if (!$user) {
+        if (! $user) {
             abort(Response::HTTP_UNAUTHORIZED, 'ログインが必要です');
         }
 
@@ -61,9 +54,10 @@ readonly class UserService
      * loginId/emailの重複チェック、パスワード変更時の現パスワード照合を含む。
      * 排他ロック付きトランザクション内で処理する。
      *
-     * @param User|null $sessionUser セッションから取得したユーザー
-     * @param array $validated バリデーション済みリクエストデータ（camelCase）
+     * @param  User|null  $sessionUser  セッションから取得したユーザー
+     * @param  array  $validated  バリデーション済みリクエストデータ（camelCase）
      * @return array{user: User}|array{error: string, status: int} 成功時はuser、失敗時はerrorとstatus
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */
@@ -81,7 +75,7 @@ readonly class UserService
             }
 
             if (isset($validated['password'])) {
-                if (!Hash::check($validated['currentPassword'], $user->password_hash)) {
+                if (! Hash::check($validated['currentPassword'], $user->password_hash)) {
                     return ['error' => '現在のパスワードが正しくありません', 'status' => Response::HTTP_UNPROCESSABLE_ENTITY];
                 }
             }
@@ -101,7 +95,7 @@ readonly class UserService
                 $updateData['password_hash'] = Hash::make($validated['password']);
             }
 
-            if (!empty($updateData)) {
+            if (! empty($updateData)) {
                 $this->userRepository->update($user, $updateData);
             }
 
@@ -116,9 +110,10 @@ readonly class UserService
      * すべて論理削除してからユーザー自身を論理削除する。
      * 排他ロック付きトランザクション内で処理する。
      *
-     * @param User|null $sessionUser セッションから取得したユーザー
-     * @param string $currentPassword 確認用の現在のパスワード
+     * @param  User|null  $sessionUser  セッションから取得したユーザー
+     * @param  string  $currentPassword  確認用の現在のパスワード
      * @return array{error: string, status: int}|null 失敗時はerrorとstatus、成功時はnull
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */
@@ -127,7 +122,7 @@ readonly class UserService
         return DB::transaction(function () use ($sessionUser, $currentPassword) {
             $user = $this->findAuthUserOrFail($sessionUser);
 
-            if (!Hash::check($currentPassword, $user->password_hash)) {
+            if (! Hash::check($currentPassword, $user->password_hash)) {
                 return ['error' => '現在のパスワードが正しくありません', 'status' => Response::HTTP_UNPROCESSABLE_ENTITY];
             }
 

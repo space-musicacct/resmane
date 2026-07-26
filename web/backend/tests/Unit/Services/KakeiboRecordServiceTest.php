@@ -28,8 +28,11 @@ class KakeiboRecordServiceTest extends TestCase
     use InteractsWithAbort;
 
     private KakeiboRecordRepositoryInterface&MockInterface $repository;
+
     private SelfReviewRepositoryInterface&MockInterface $selfReviewRepository;
+
     private PostRepositoryInterface&MockInterface $postRepository;
+
     private KakeiboRecordService $service;
 
     protected function setUp(): void
@@ -70,7 +73,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-001: list: 一覧取得が正しく動作する
      */
     #[Test]
-    public function test_SKR_001_list_returns_records(): void
+    public function test_sk_r_001_list_returns_records(): void
     {
         $userId = 1;
         $sortOrder = 'desc';
@@ -108,7 +111,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-002: findOrFail: 正常取得
      */
     #[Test]
-    public function test_SKR_002_findOrFail_returns_record(): void
+    public function test_sk_r_002_find_or_fail_returns_record(): void
     {
         $id = 10;
         $userId = 1;
@@ -130,7 +133,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-003: findOrFail: レコードが存在しない
      */
     #[Test]
-    public function test_SKR_003_findOrFail_not_found_aborts_404(): void
+    public function test_sk_r_003_find_or_fail_not_found_aborts_404(): void
     {
         $id = 999;
         $userId = 1;
@@ -151,7 +154,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-004: findOrFail: 他ユーザーのレコード
      */
     #[Test]
-    public function test_SKR_004_findOrFail_other_user_aborts_403(): void
+    public function test_sk_r_004_find_or_fail_other_user_aborts_403(): void
     {
         $id = 10;
         $userId = 1;
@@ -174,7 +177,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-005: findOrFailForUpdate: 正常取得
      */
     #[Test]
-    public function test_SKR_005_findOrFailForUpdate_returns_record(): void
+    public function test_sk_r_005_find_or_fail_for_update_returns_record(): void
     {
         $id = 10;
         $userId = 1;
@@ -196,7 +199,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-006: findOrFailForUpdate: レコードが存在しない
      */
     #[Test]
-    public function test_SKR_006_findOrFailForUpdate_not_found_aborts_404(): void
+    public function test_sk_r_006_find_or_fail_for_update_not_found_aborts_404(): void
     {
         $id = 999;
         $userId = 1;
@@ -217,7 +220,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-007: findOrFailForUpdate: 他ユーザーのレコード
      */
     #[Test]
-    public function test_SKR_007_findOrFailForUpdate_other_user_aborts_403(): void
+    public function test_sk_r_007_find_or_fail_for_update_other_user_aborts_403(): void
     {
         $id = 10;
         $userId = 1;
@@ -240,7 +243,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-008: create: 正常作成
      */
     #[Test]
-    public function test_SKR_008_create_calls_repository_with_snake_case(): void
+    public function test_sk_r_008_create_calls_repository_with_snake_case(): void
     {
         $userId = 1;
 
@@ -276,7 +279,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-009: create: purchaseDate 省略時に今日の日付が設定される
      */
     #[Test]
-    public function test_SKR_009_create_defaults_purchaseDate_to_today(): void
+    public function test_sk_r_009_create_defaults_purchase_date_to_today(): void
     {
         $userId = 1;
         $today = now()->toDateString();
@@ -305,7 +308,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-010: update: 正常更新
      */
     #[Test]
-    public function test_SKR_010_update_calls_repository(): void
+    public function test_sk_r_010_update_calls_repository(): void
     {
         $id = 10;
         $userId = 1;
@@ -351,7 +354,7 @@ class KakeiboRecordServiceTest extends TestCase
      * SKR-011: delete: 正常削除
      */
     #[Test]
-    public function test_SKR_011_delete_calls_repository_and_deletes_related(): void
+    public function test_sk_r_011_delete_calls_repository_and_deletes_related(): void
     {
         $id = 10;
         $userId = 1;
@@ -385,5 +388,4 @@ class KakeiboRecordServiceTest extends TestCase
         // このテストの主張であることを明示するための assertion。
         $this->assertTrue(true);
     }
-
 }

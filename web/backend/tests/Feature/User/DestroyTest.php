@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\User;
 
-use App\Models\User;
 use App\Models\KakeiboRecord;
-use App\Models\SelfReview;
 use App\Models\Post;
+use App\Models\SelfReview;
 use App\Models\UpperLimitSetting;
+use App\Models\User;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -17,11 +17,11 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 /**
  * 結合テスト仕様書 6.3 DELETE /api/v1/user（退会）
@@ -32,14 +32,13 @@ class DestroyTest extends TestCase
 
     private ApiEndpoint $endpoint;
 
-
     protected User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         $this->withoutMiddleware([
             PreventRequestForgery::class,

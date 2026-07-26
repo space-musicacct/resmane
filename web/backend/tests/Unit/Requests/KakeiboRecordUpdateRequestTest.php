@@ -3,8 +3,8 @@
 namespace Tests\Unit\Requests;
 
 use App\Http\Requests\V1\KakeiboRecordUpdateRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
+use Illuminate\Validation\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithValidation;
@@ -64,7 +64,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-001: 正常: 全フィールド有効
      */
     #[Test]
-    public function test_UKU_001_all_fields_valid_passes_validation(): void
+    public function test_uk_u_001_all_fields_valid_passes_validation(): void
     {
         $this->assertValid(
             $this->validData()
@@ -75,7 +75,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-002: 正常: purchaseDate省略
      */
     #[Test]
-    public function test_UKU_002_purchaseDate_null_passes(): void
+    public function test_uk_u_002_purchase_date_null_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -88,7 +88,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-003: 異常: amountTypeId未入力
      */
     #[Test]
-    public function test_UKU_003_amountTypeId_empty_fails_required(): void
+    public function test_uk_u_003_amount_type_id_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -103,7 +103,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-004: 異常: amount未入力
      */
     #[Test]
-    public function test_UKU_004_amount_empty_fails_required(): void
+    public function test_uk_u_004_amount_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -118,7 +118,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-005: 異常: amount 0
      */
     #[Test]
-    public function test_UKU_005_amount_zero_fails_min(): void
+    public function test_uk_u_005_amount_zero_fails_min(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -133,7 +133,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-006: 異常: amount 負数
      */
     #[Test]
-    public function test_UKU_006_amount_negative_fails_min(): void
+    public function test_uk_u_006_amount_negative_fails_min(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -148,7 +148,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-007: 異常: amount 小数
      */
     #[Test]
-    public function test_UKU_007_amount_decimal_fails_integer(): void
+    public function test_uk_u_007_amount_decimal_fails_integer(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -163,7 +163,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-008: 異常: details未入力
      */
     #[Test]
-    public function test_UKU_008_details_empty_fails_required(): void
+    public function test_uk_u_008_details_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -178,7 +178,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-009: 異常: details 251文字
      */
     #[Test]
-    public function test_UKU_009_details_251_chars_fails_max(): void
+    public function test_uk_u_009_details_251_chars_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -193,7 +193,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-010: 異常: categoryId未入力
      */
     #[Test]
-    public function test_UKU_010_kakeiboDefaultCategoryId_empty_fails_required(): void
+    public function test_uk_u_010_kakeibo_default_category_id_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -208,7 +208,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-011: 異常: purchaseDate形式不正
      */
     #[Test]
-    public function test_UKU_011_purchaseDate_invalid_format_fails_date(): void
+    public function test_uk_u_011_purchase_date_invalid_format_fails_date(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -223,7 +223,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-012: 境界値: details 250文字
      */
     #[Test]
-    public function test_UKU_012_details_250_chars_passes(): void
+    public function test_uk_u_012_details_250_chars_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -236,7 +236,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-013: 境界値: details 1文字
      */
     #[Test]
-    public function test_UKU_013_details_1_char_passes(): void
+    public function test_uk_u_013_details_1_char_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -249,7 +249,7 @@ class KakeiboRecordUpdateRequestTest extends TestCase
      * UKU-014: 境界値: amount 1
      */
     #[Test]
-    public function test_UKU_014_amount_1_passes(): void
+    public function test_uk_u_014_amount_1_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -257,5 +257,4 @@ class KakeiboRecordUpdateRequestTest extends TestCase
             ])
         );
     }
-
 }

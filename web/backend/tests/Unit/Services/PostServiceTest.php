@@ -37,7 +37,9 @@ class PostServiceTest extends TestCase
     use InteractsWithAbort;
 
     private PostRepositoryInterface&MockInterface $repository;
+
     private KakeiboRecordRepositoryInterface&MockInterface $kakeiboRecordRepository;
+
     private PostService $service;
 
     protected function setUp(): void
@@ -122,7 +124,7 @@ class PostServiceTest extends TestCase
      * SPS-001: list: 一覧取得
      */
     #[Test]
-    public function test_SPS_001_list_calls_findByRecordId(): void
+    public function test_sp_s_001_list_calls_find_by_record_id(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -146,7 +148,7 @@ class PostServiceTest extends TestCase
      * SPS-002: store: content 有りでユーザー投稿+AI投稿作成
      */
     #[Test]
-    public function test_SPS_002_store_with_content_creates_user_and_ai_post(): void
+    public function test_sp_s_002_store_with_content_creates_user_and_ai_post(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -197,7 +199,7 @@ class PostServiceTest extends TestCase
      * SPS-003: store: content 省略でAIフィードバック要求のみ
      */
     #[Test]
-    public function test_SPS_003_store_without_content_creates_ai_post_only(): void
+    public function test_sp_s_003_store_without_content_creates_ai_post_only(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -244,7 +246,7 @@ class PostServiceTest extends TestCase
      * SPS-004: store: content 省略で既存completed AI投稿がある
      */
     #[Test]
-    public function test_SPS_004_store_without_content_completed_exists_returns_409(): void
+    public function test_sp_s_004_store_without_content_completed_exists_returns_409(): void
     {
         $this->assertConflictWhenAiPostExists();
     }
@@ -253,7 +255,7 @@ class PostServiceTest extends TestCase
      * SPS-005: store: content 省略で既存pending AI投稿がある
      */
     #[Test]
-    public function test_SPS_005_store_without_content_pending_exists_returns_409(): void
+    public function test_sp_s_005_store_without_content_pending_exists_returns_409(): void
     {
         $this->assertConflictWhenAiPostExists();
     }
@@ -297,7 +299,7 @@ class PostServiceTest extends TestCase
      * SPS-006: store: content 省略で既存failed AI投稿のみ
      */
     #[Test]
-    public function test_SPS_006_store_without_content_failed_only_allows_retry(): void
+    public function test_sp_s_006_store_without_content_failed_only_allows_retry(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -345,7 +347,7 @@ class PostServiceTest extends TestCase
      * SPS-007: store: parentId 指定で存在する投稿
      */
     #[Test]
-    public function test_SPS_007_store_with_valid_parentId_succeeds(): void
+    public function test_sp_s_007_store_with_valid_parent_id_succeeds(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -402,7 +404,7 @@ class PostServiceTest extends TestCase
      * SPS-008: store: parentId 指定で存在しない投稿
      */
     #[Test]
-    public function test_SPS_008_store_with_invalid_parentId_aborts_404(): void
+    public function test_sp_s_008_store_with_invalid_parent_id_aborts_404(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -434,7 +436,7 @@ class PostServiceTest extends TestCase
      * SPS-009: store: userPost の parentId が aiPost に引き継がれる
      */
     #[Test]
-    public function test_SPS_009_aiPost_parent_id_inherits_userPost_id(): void
+    public function test_sp_s_009_ai_post_parent_id_inherits_user_post_id(): void
     {
         $recordId = 10;
         $userId = 1;

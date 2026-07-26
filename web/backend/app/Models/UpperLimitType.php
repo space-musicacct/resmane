@@ -11,6 +11,7 @@ class UpperLimitType extends Model
     use SoftDeletes;
 
     public const int PERCENTAGE_ID = 1;
+
     public const int FIXED_AMOUNT_ID = 2;
 
     protected $fillable = [

@@ -10,11 +10,11 @@ use Database\Seeders\KakeiboDefaultCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 /**
  * 結合テスト仕様書 7.1 GET /api/v1/categories（カテゴリ一覧）
@@ -24,7 +24,6 @@ class CategoryTest extends TestCase
     use RefreshDatabase;
 
     private ApiEndpoint $endpoint;
-
 
     protected User $user;
 
@@ -36,7 +35,7 @@ class CategoryTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         DB::statement('ALTER TABLE amount_types AUTO_INCREMENT = 1');
         $this->seed(AmountTypeSeeder::class);
@@ -71,7 +70,7 @@ class CategoryTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        $response = $this->getJson($this->endpoint->categories() . '?amountTypeId=' . $this->expenseTypeId);
+        $response = $this->getJson($this->endpoint->categories().'?amountTypeId='.$this->expenseTypeId);
 
         $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(7, 'data');
@@ -88,7 +87,7 @@ class CategoryTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        $response = $this->getJson($this->endpoint->categories() . '?amountTypeId=' . $this->incomeTypeId);
+        $response = $this->getJson($this->endpoint->categories().'?amountTypeId='.$this->incomeTypeId);
 
         $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(4, 'data');

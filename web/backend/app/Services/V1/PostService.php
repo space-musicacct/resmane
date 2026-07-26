@@ -17,8 +17,7 @@ use Throwable;
 readonly class PostService
 {
     /**
-     * @param PostRepositoryInterface $repository
-     * @param KakeiboRecordService $kakeiboRecordService 親レコードの所有権検証に使用
+     * @param  KakeiboRecordService  $kakeiboRecordService  親レコードの所有権検証に使用
      */
     public function __construct(
         private PostRepositoryInterface $repository,
@@ -28,8 +27,8 @@ readonly class PostService
     /**
      * 家計簿レコードに紐づく投稿一覧を取得する
      *
-     * @param int $recordId 家計簿レコードID
-     * @param int $userId 認証ユーザーID
+     * @param  int  $recordId  家計簿レコードID
+     * @param  int  $userId  認証ユーザーID
      * @return Collection<int, Post>
      */
     public function list(int $recordId, int $userId): Collection
@@ -46,10 +45,11 @@ readonly class PostService
      * content指定時はユーザー投稿 + AI返信用レコードの両方を作成（F-011）。
      * 排他ロック付きトランザクション内で処理する。
      *
-     * @param int $recordId 家計簿レコードID
-     * @param int $userId 認証ユーザーID
-     * @param array $validated バリデーション済みリクエストデータ（camelCase）
+     * @param  int  $recordId  家計簿レコードID
+     * @param  int  $userId  認証ユーザーID
+     * @param  array  $validated  バリデーション済みリクエストデータ（camelCase）
      * @return array{userPost: Post|null, aiPost: Post}
+     *
      * @throws QueryException DB操作に失敗した場合
      * @throws Throwable トランザクション内で例外が発生した場合
      */
@@ -62,7 +62,7 @@ readonly class PostService
             $parentId = $validated['parentId'] ?? null;
             $userPost = null;
 
-            if ($parentId !== null && !$this->repository->existsByIdAndRecordId($parentId, $recordId)) {
+            if ($parentId !== null && ! $this->repository->existsByIdAndRecordId($parentId, $recordId)) {
                 abort(Response::HTTP_NOT_FOUND, 'リプライ先の投稿が見つかりません');
             }
 

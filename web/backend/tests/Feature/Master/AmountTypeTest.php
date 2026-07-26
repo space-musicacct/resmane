@@ -9,11 +9,11 @@ use Database\Seeders\AmountTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 /**
  * 結合テスト仕様書 7.2 GET /api/v1/amountTypes（収支区分一覧）
@@ -24,12 +24,11 @@ class AmountTypeTest extends TestCase
 
     private ApiEndpoint $endpoint;
 
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         DB::statement('ALTER TABLE amount_types AUTO_INCREMENT = 1');
         $this->seed(AmountTypeSeeder::class);

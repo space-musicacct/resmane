@@ -3,8 +3,8 @@
 namespace Tests\Unit\Requests;
 
 use App\Http\Requests\V1\SelfReviewStoreRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
+use Illuminate\Validation\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithValidation;
@@ -52,7 +52,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-001: 正常: 全フィールド有効
      */
     #[Test]
-    public function test_USR_001_all_fields_valid_passes_validation(): void
+    public function test_us_r_001_all_fields_valid_passes_validation(): void
     {
         $this->assertValid(
             $this->validData()
@@ -63,7 +63,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-002: 異常: reviewComment 未入力
      */
     #[Test]
-    public function test_USR_002_reviewComment_empty_fails_required(): void
+    public function test_us_r_002_review_comment_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -78,7 +78,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-003: 異常: reviewComment 251文字
      */
     #[Test]
-    public function test_USR_003_reviewComment_251_chars_fails_max(): void
+    public function test_us_r_003_review_comment_251_chars_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -93,7 +93,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-004: 異常: evaluation 未入力
      */
     #[Test]
-    public function test_USR_004_evaluation_empty_fails_required(): void
+    public function test_us_r_004_evaluation_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -108,7 +108,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-005: 異常: evaluation 0
      */
     #[Test]
-    public function test_USR_005_evaluation_zero_fails_min(): void
+    public function test_us_r_005_evaluation_zero_fails_min(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -123,7 +123,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-006: 異常: evaluation 6
      */
     #[Test]
-    public function test_USR_006_evaluation_six_fails_max(): void
+    public function test_us_r_006_evaluation_six_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -138,7 +138,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-007: 異常: evaluation 小数
      */
     #[Test]
-    public function test_USR_007_evaluation_decimal_fails_integer(): void
+    public function test_us_r_007_evaluation_decimal_fails_integer(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -153,7 +153,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-008: 境界値: reviewComment 250文字
      */
     #[Test]
-    public function test_USR_008_reviewComment_250_chars_passes(): void
+    public function test_us_r_008_review_comment_250_chars_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -166,7 +166,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-009: 境界値: reviewComment 1文字
      */
     #[Test]
-    public function test_USR_009_reviewComment_one_char_passes(): void
+    public function test_us_r_009_review_comment_one_char_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -179,7 +179,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-010: 境界値: evaluation 1
      */
     #[Test]
-    public function test_USR_010_evaluation_one_passes(): void
+    public function test_us_r_010_evaluation_one_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -192,7 +192,7 @@ class SelfReviewStoreRequestTest extends TestCase
      * USR-011: 境界値: evaluation 5
      */
     #[Test]
-    public function test_USR_011_evaluation_five_passes(): void
+    public function test_us_r_011_evaluation_five_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -200,5 +200,4 @@ class SelfReviewStoreRequestTest extends TestCase
             ])
         );
     }
-
 }

@@ -10,10 +10,10 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * 認証 API コントローラー
@@ -35,9 +35,6 @@ class AuthController extends Controller
      * 新規ユーザーを作成し、そのままログイン状態にする
      * 重複チェック: loginId/email を withTrashed() で検証し 409 を返す
      * DB制約違反時も QueryException をキャッチして 409 にフォールバック
-     *
-     * @param RegisterRequest $request
-     * @return JsonResponse
      */
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -84,26 +81,23 @@ class AuthController extends Controller
      *
      * ログインIDとパスワードで認証し、セッションを開始する。
      * IP単位のロックアウト制御 (5回失敗で1時間ロック) を含む
-     *
-     * @param LoginRequest $request
-     * @return JsonResponse
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $throttleKey = 'login:' . $request->ip();
+        $throttleKey = 'login:'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_LOGIN_ATTEMPTS)) {
             $seconds = RateLimiter::availableIn($throttleKey);
 
             return response()->json([
-                'message' => 'ログイン試行回数が上限に達しました。' . ceil($seconds / 60) . '分後に再試行してください',
+                'message' => 'ログイン試行回数が上限に達しました。'.ceil($seconds / 60).'分後に再試行してください',
                 'errors' => (object) [],
             ], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
         $validated = $request->validated();
 
-        if (!Auth::attempt(['login_id' => $validated['loginId'], 'password' => $validated['password']])) {
+        if (! Auth::attempt(['login_id' => $validated['loginId'], 'password' => $validated['password']])) {
             RateLimiter::hit($throttleKey, self::LOCKOUT_SECONDS);
 
             return response()->json([
@@ -124,9 +118,6 @@ class AuthController extends Controller
      * ログアウト
      *
      * セッションを破棄し、CSRFトークンを再生成する
-     *
-     * @param Request $request
-     * @return Response
      */
     public function logout(Request $request): Response
     {
@@ -137,11 +128,8 @@ class AuthController extends Controller
 
     /**
      * 現在のセッションを破棄する
-     *
-     * @param Request $request
-     * @return void
      */
-    public final function destroy(Request $request): void
+    final public function destroy(Request $request): void
     {
         Auth::guard('web')->logout();
         $request->session()->invalidate();

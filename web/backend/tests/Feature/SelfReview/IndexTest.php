@@ -11,18 +11,17 @@ use App\Models\SelfReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ApiEndpoint;
 use Tests\Support\V1ApiEndpoint;
+use Tests\TestCase;
 
 class IndexTest extends TestCase
 {
     use RefreshDatabase;
 
     private ApiEndpoint $endpoint;
-
 
     protected User $user;
 
@@ -39,7 +38,7 @@ class IndexTest extends TestCase
     {
         parent::setUp();
 
-        $this->endpoint = new V1ApiEndpoint();
+        $this->endpoint = new V1ApiEndpoint;
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -50,7 +49,7 @@ class IndexTest extends TestCase
         ]);
 
         // 家計簿レコード作成用の収支区分を作成
-        $amountType = new AmountType();
+        $amountType = new AmountType;
         $amountType->type_name = '支出';
         $amountType->save();
 
@@ -84,7 +83,7 @@ class IndexTest extends TestCase
      */
     private function endpoint(int $recordId): string
     {
-        return $this->endpoint->records() . '/' . $recordId . '/reviews';
+        return $this->endpoint->records().'/'.$recordId.'/reviews';
     }
 
     /** FSRI-001 正常: 一覧取得 */
