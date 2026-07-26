@@ -24,7 +24,7 @@ return [
 
     'previous_keys' => [
         ...env('APP_PREVIOUS_KEYS', '')
-            |> (fn($v) => explode(',', $v))
+            |> (fn ($v) => explode(',', $v))
             |> array_filter(...),
     ],
 
