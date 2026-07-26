@@ -10,13 +10,18 @@ use App\Models\KakeiboRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class ShowTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -30,6 +35,8 @@ class ShowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -66,17 +73,18 @@ class ShowTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    /** @test FKD-001 正常: 詳細取得 */
+    /** FKD-001 正常: 詳細取得 */
+    #[Test]
     public function test_show_success(): void
     {
         // 自分自身のレコード詳細を取得できることを確認
         $response = $this->getJson(
-            self::ENDPOINT . '/' . $this->recordId
+            $this->endpoint->records() . '/' . $this->recordId
         );
 
         // レスポンス形式と取得対象レコードを確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonStructure([
                 'data' => [
                     'id',
@@ -98,7 +106,8 @@ class ShowTest extends TestCase
             );
     }
 
-    /** @test FKD-002 異常: 他ユーザーのレコード */
+    /** FKD-002 異常: 他ユーザーのレコード */
+    #[Test]
     public function test_show_fails_when_record_belongs_to_other_user(): void
     {
         // 別ユーザーを作成
@@ -127,32 +136,34 @@ class ShowTest extends TestCase
 
         // 他ユーザーのレコードを取得できないことを確認
         $response = $this->getJson(
-            self::ENDPOINT . '/' . $record->id
+            $this->endpoint->records() . '/' . $record->id
         );
 
         $response
-            ->assertStatus(403)
+            ->assertStatus(Response::HTTP_FORBIDDEN)
             ->assertJson([
                 'message' => 'このレコードへのアクセス権限がありません',
             ]);
     }
 
-    /** @test FKD-003 異常: 存在しないレコード */
+    /** FKD-003 異常: 存在しないレコード */
+    #[Test]
     public function test_show_fails_when_record_not_found(): void
     {
         // 存在しないIDを指定した場合のエラーを確認
         $response = $this->getJson(
-            self::ENDPOINT . '/999'
+            $this->endpoint->records() . '/999'
         );
 
         $response
-            ->assertStatus(404)
+            ->assertStatus(Response::HTTP_NOT_FOUND)
             ->assertJson([
                 'message' => '指定された家計簿レコードが見つかりませんでした',
             ]);
     }
 
-    /** @test FKD-004 異常: 論理削除済みレコード */
+    /** FKD-004 異常: 論理削除済みレコード */
+    #[Test]
     public function test_show_fails_when_record_is_soft_deleted(): void
     {
         // 対象レコードを論理削除
@@ -162,13 +173,14 @@ class ShowTest extends TestCase
 
         // 論理削除済みレコードが取得できないことを確認
         $response = $this->getJson(
-            self::ENDPOINT . '/' . $this->recordId
+            $this->endpoint->records() . '/' . $this->recordId
         );
 
-        $response->assertStatus(404);
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
     }
 
-    /** @test FKD-005 異常: 未認証 */
+    /** FKD-005 異常: 未認証 */
+    #[Test]
     public function test_show_requires_authentication(): void
     {
         // 認証状態を解除
@@ -176,9 +188,9 @@ class ShowTest extends TestCase
 
         // 未認証ユーザーではアクセスできないことを確認
         $response = $this->getJson(
-            self::ENDPOINT . '/' . $this->recordId
+            $this->endpoint->records() . '/' . $this->recordId
         );
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

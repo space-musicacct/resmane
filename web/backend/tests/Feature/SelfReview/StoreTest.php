@@ -10,13 +10,18 @@ use App\Models\KakeiboRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class StoreTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -32,6 +37,8 @@ class StoreTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -76,10 +83,11 @@ class StoreTest extends TestCase
      */
     private function endpoint(int $recordId): string
     {
-        return self::ENDPOINT . '/' . $recordId . '/reviews';
+        return $this->endpoint->records() . '/' . $recordId . '/reviews';
     }
 
-    /** @test FSRS-001 正常: 投稿成功 */
+    /** FSRS-001 正常: 投稿成功 */
+    #[Test]
     public function test_store_success(): void
     {
         // 自己レビューを正常に登録できることを確認
@@ -90,7 +98,7 @@ class StoreTest extends TestCase
 
         // レスポンス内容とDB登録結果を確認
         $response
-            ->assertStatus(201)
+            ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('data.evaluation', 4)
             ->assertJsonPath('data.reviewComment', '良い買い物だった');
 
@@ -100,7 +108,8 @@ class StoreTest extends TestCase
         ]);
     }
 
-    /** @test FSRS-002 異常: 他ユーザーの家計簿レコード */
+    /** FSRS-002 異常: 他ユーザーの家計簿レコード */
+    #[Test]
     public function test_store_fails_when_record_belongs_to_other_user(): void
     {
         // 別ユーザーを作成
@@ -127,10 +136,11 @@ class StoreTest extends TestCase
             'evaluation' => 3,
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
-    /** @test FSRS-003 異常: 存在しない家計簿レコード */
+    /** FSRS-003 異常: 存在しない家計簿レコード */
+    #[Test]
     public function test_store_fails_when_record_not_found(): void
     {
         // 存在しない家計簿レコードIDを指定
@@ -140,10 +150,11 @@ class StoreTest extends TestCase
         ]);
 
         // 対象レコードが存在しない場合のエラーを確認
-        $response->assertStatus(404);
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
     }
 
-    /** @test FSRS-004 異常: バリデーションエラー（reviewComment） */
+    /** FSRS-004 異常: バリデーションエラー（reviewComment） */
+    #[Test]
     public function test_store_fails_when_review_comment_empty(): void
     {
         // reviewComment未入力時にバリデーションエラーになることを確認
@@ -153,11 +164,12 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors(['reviewComment']);
     }
 
-    /** @test FSRS-006 異常: バリデーションエラー（evaluation 範囲外） */
+    /** FSRS-006 異常: バリデーションエラー（evaluation 範囲外） */
+    #[Test]
     public function test_store_fails_when_evaluation_out_of_range(): void
     {
         // evaluationが許容範囲外の場合にエラーになることを確認
@@ -167,11 +179,12 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors(['evaluation']);
     }
 
-    /** @test FSRS-007 異常: バリデーションエラー（evaluation 未入力） */
+    /** FSRS-007 異常: バリデーションエラー（evaluation 未入力） */
+    #[Test]
     public function test_store_fails_when_evaluation_empty(): void
     {
         // evaluation未入力時にバリデーションエラーになることを確認
@@ -181,11 +194,12 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors(['evaluation']);
     }
 
-    /** @test FSRS-005 異常: 未認証 */
+    /** FSRS-005 異常: 未認証 */
+    #[Test]
     public function test_store_requires_authentication(): void
     {
         // 認証状態を解除
@@ -197,6 +211,6 @@ class StoreTest extends TestCase
             'evaluation' => 3,
         ]);
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

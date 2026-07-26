@@ -13,13 +13,18 @@ use App\Models\SelfReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class DestroyTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -37,6 +42,8 @@ class DestroyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -90,16 +97,17 @@ class DestroyTest extends TestCase
      */
     private function endpoint(int $recordId, int $reviewId): string
     {
-        return self::ENDPOINT . '/' . $recordId . '/reviews/' . $reviewId;
+        return $this->endpoint->records() . '/' . $recordId . '/reviews/' . $reviewId;
     }
 
-    /** @test FSRD-001 正常: 論理削除成功 */
+    /** FSRD-001 正常: 論理削除成功 */
+    #[Test]
     public function test_destroy_success(): void
     {
         // 自己レビューが正常に論理削除されることを確認
         $response = $this->deleteJson($this->endpoint($this->recordId, $this->reviewId));
 
-        $response->assertStatus(204);
+        $response->assertStatus(Response::HTTP_NO_CONTENT);
 
         // 物理削除ではなく論理削除されていることを確認
         $this->assertSoftDeleted('self_reviews', [
@@ -107,7 +115,8 @@ class DestroyTest extends TestCase
         ]);
     }
 
-    /** @test FSRD-002 正常: 紐づく投稿は削除されない */
+    /** FSRD-002 正常: 紐づく投稿は削除されない */
+    #[Test]
     public function test_destroy_does_not_delete_related_posts(): void
     {
         // 投稿作成用のAIステータスを作成
@@ -127,7 +136,7 @@ class DestroyTest extends TestCase
         // レビュー削除後も投稿が残ることを確認
         $response = $this->deleteJson($this->endpoint($this->recordId, $this->reviewId));
 
-        $response->assertStatus(204);
+        $response->assertStatus(Response::HTTP_NO_CONTENT);
 
         $this->assertDatabaseHas('posts', [
             'id' => $post->id,
@@ -135,7 +144,8 @@ class DestroyTest extends TestCase
         ]);
     }
 
-    /** @test FSRD-003 異常: 他ユーザーの家計簿レコード */
+    /** FSRD-003 異常: 他ユーザーの家計簿レコード */
+    #[Test]
     public function test_destroy_fails_when_record_belongs_to_other_user(): void
     {
         // 別ユーザーを作成
@@ -166,19 +176,21 @@ class DestroyTest extends TestCase
         // 他ユーザーのレビューを削除できないことを確認
         $response = $this->deleteJson($this->endpoint($otherRecord->id, $otherReview->id));
 
-        $response->assertStatus(403);
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
-    /** @test FSRD-004 異常: 存在しないレビュー */
+    /** FSRD-004 異常: 存在しないレビュー */
+    #[Test]
     public function test_destroy_fails_when_review_not_found(): void
     {
         // 存在しないレビューIDを指定した場合のエラーを確認
         $response = $this->deleteJson($this->endpoint($this->recordId, 999));
 
-        $response->assertStatus(404);
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
     }
 
-    /** @test FSRD-005 異常: 未認証 */
+    /** FSRD-005 異常: 未認証 */
+    #[Test]
     public function test_destroy_requires_authentication(): void
     {
         // 認証状態を解除
@@ -187,6 +199,6 @@ class DestroyTest extends TestCase
         // 未認証ユーザーでは削除できないことを確認
         $response = $this->deleteJson($this->endpoint($this->recordId, $this->reviewId));
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

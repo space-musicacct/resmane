@@ -23,7 +23,7 @@ class RegisterRequestTest extends TestCase
      */
     private function rules(): array
     {
-        return (new RegisterRequest())->rules();
+        return new RegisterRequest()->rules();
     }
 
     /**
@@ -55,7 +55,7 @@ class RegisterRequestTest extends TestCase
      * UR-001: 正常: 全フィールド有効
      */
     #[Test]
-    public function UR_001_全フィールド有効な場合はバリデーションを通過する(): void
+    public function test_UR_001_all_fields_valid_passes_validation(): void
     {
         $this->assertValid(
             $this->validData()
@@ -66,7 +66,7 @@ class RegisterRequestTest extends TestCase
      * UR-002: 異常: loginId 未入力
      */
     #[Test]
-    public function UR_002_loginId未入力の場合はrequiredエラーになる(): void
+    public function test_UR_002_loginId_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData(['loginId' => '']),
@@ -79,7 +79,7 @@ class RegisterRequestTest extends TestCase
      * UR-003: 異常: loginId 16文字
      */
     #[Test]
-    public function UR_003_loginIdが16文字の場合はmaxエラーになる(): void
+    public function test_UR_003_loginId_16_chars_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData(['loginId' => str_repeat('1', 16)]),
@@ -92,7 +92,7 @@ class RegisterRequestTest extends TestCase
      * UR-004: 異常: email 未入力
      */
     #[Test]
-    public function UR_004_email未入力の場合はrequiredエラーになる(): void
+    public function test_UR_004_email_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData(['email' => '']),
@@ -105,7 +105,7 @@ class RegisterRequestTest extends TestCase
      * UR-005: 異常: email 形式不正
      */
     #[Test]
-    public function UR_005_email形式が不正な場合はemailエラーになる(): void
+    public function test_UR_005_email_invalid_format_fails_email(): void
     {
         $this->assertInvalid(
             $this->validData(['email' => 'not-email']),
@@ -118,7 +118,7 @@ class RegisterRequestTest extends TestCase
      * UR-006: 異常: email 256文字
      */
     #[Test]
-    public function UR_006_emailが256文字の場合はmaxエラーになる(): void
+    public function test_UR_006_email_256_chars_fails_max(): void
     {
         // "@example.com" (12文字) を除いた244文字のローカル部を付与し、
         // 合計256文字（255文字超）のメールアドレスを作る
@@ -137,7 +137,7 @@ class RegisterRequestTest extends TestCase
      * UR-007: 異常: name 未入力
      */
     #[Test]
-    public function UR_007_name未入力の場合はrequiredエラーになる(): void
+    public function test_UR_007_name_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData(['name' => '']),
@@ -150,7 +150,7 @@ class RegisterRequestTest extends TestCase
      * UR-008: 異常: name 51文字
      */
     #[Test]
-    public function UR_008_nameが51文字の場合はmaxエラーになる(): void
+    public function test_UR_008_name_51_chars_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData(['name' => str_repeat('あ', 51)]),
@@ -163,7 +163,7 @@ class RegisterRequestTest extends TestCase
      * UR-009: 異常: password 未入力
      */
     #[Test]
-    public function UR_009_password未入力の場合はrequiredエラーになる(): void
+    public function test_UR_009_password_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -179,7 +179,7 @@ class RegisterRequestTest extends TestCase
      * UR-010: 異常: password 7文字
      */
     #[Test]
-    public function UR_010_passwordが7文字の場合はminエラーになる(): void
+    public function test_UR_010_password_7_chars_fails_min(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -195,7 +195,7 @@ class RegisterRequestTest extends TestCase
      * UR-011: 異常: passwordConfirmation 不一致
      */
     #[Test]
-    public function UR_011_passwordConfirmationが不一致の場合はsameエラーになる(): void
+    public function test_UR_011_passwordConfirmation_mismatch_fails_same(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -211,7 +211,7 @@ class RegisterRequestTest extends TestCase
      * UR-012: 異常: passwordConfirmation 未入力
      */
     #[Test]
-    public function UR_012_passwordConfirmation未入力の場合はrequiredエラーになる(): void
+    public function test_UR_012_passwordConfirmation_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData(['passwordConfirmation' => '']),
@@ -224,7 +224,7 @@ class RegisterRequestTest extends TestCase
      * UR-013: 境界値: loginId 15文字
      */
     #[Test]
-    public function UR_013_loginIdが15文字の場合はバリデーションを通過する(): void
+    public function test_UR_013_loginId_15_chars_passes(): void
     {
         $this->assertValid(
             $this->validData(['loginId' => str_repeat('1', 15)])
@@ -235,7 +235,7 @@ class RegisterRequestTest extends TestCase
      * UR-014: 境界値: password 8文字
      */
     #[Test]
-    public function UR_014_passwordが8文字の場合はバリデーションを通過する(): void
+    public function test_UR_014_password_8_chars_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -249,7 +249,7 @@ class RegisterRequestTest extends TestCase
      * UR-015: 境界値: name 50文字
      */
     #[Test]
-    public function UR_015_nameが50文字の場合はバリデーションを通過する(): void
+    public function test_UR_015_name_50_chars_passes(): void
     {
         $this->assertValid(
             $this->validData(['name' => str_repeat('あ', 50)])

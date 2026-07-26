@@ -8,11 +8,18 @@ use App\Models\KakeiboRecord;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class IndexTest extends TestCase
 {
     use RefreshDatabase;
+
+    private ApiEndpoint $endpoint;
+
 
     private User $user;
     private AmountType $expense;
@@ -26,6 +33,8 @@ class IndexTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::forceCreate([
@@ -90,15 +99,17 @@ class IndexTest extends TestCase
     }
 
 
-    public function test_FKI001_正常一覧取得(): void
+    /** FKI-001 正常: 一覧取得 */
+    #[Test]
+    public function test_FKI001_index_returns_records(): void
     {
         // 一覧取得対象となる複数レコードを作成
         $this->createRecords(5);
 
-        $response = $this->getJson('/api/v1/records');
+        $response = $this->getJson($this->endpoint->records());
 
         // 一覧データ、メタ情報、集計情報が返却されることを確認
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(5, 'data')
             ->assertJsonStructure([
                 'data',
@@ -108,12 +119,14 @@ class IndexTest extends TestCase
     }
 
 
-    public function test_FKI002_正常レコード0件(): void
+    /** FKI-002 正常: レコード0件 */
+    #[Test]
+    public function test_FKI002_index_returns_empty_when_no_records(): void
     {
         // レコードが存在しない場合のレスポンスを確認
-        $response = $this->getJson('/api/v1/records');
+        $response = $this->getJson($this->endpoint->records());
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJson([
                 'data' => [],
                 'meta' => [
@@ -123,15 +136,17 @@ class IndexTest extends TestCase
     }
 
 
-    public function test_FKI003_正常ページネーション(): void
+    /** FKI-003 正常: ページネーション */
+    #[Test]
+    public function test_FKI003_index_paginates_correctly(): void
     {
         // ページング確認用に上限を超えるレコードを作成
         $this->createRecords(25);
 
-        $response = $this->getJson('/api/v1/records?perPage=20&page=2');
+        $response = $this->getJson($this->endpoint->records() . '?perPage=20&page=2');
 
         // 2ページ目の取得結果を確認
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(5, 'data')
             ->assertJson([
                 'meta' => [
@@ -141,7 +156,9 @@ class IndexTest extends TestCase
     }
 
 
-    public function test_FKI004_正常新しい順(): void
+    /** FKI-004 正常: ソート（新しい順） */
+    #[Test]
+    public function test_FKI004_index_sorts_desc(): void
     {
         // 日付が異なるレコードを作成
         $this->createRecord([
@@ -153,9 +170,9 @@ class IndexTest extends TestCase
         ]);
 
         // 新しい日付順で取得できることを確認
-        $response = $this->getJson('/api/v1/records?sort=desc');
+        $response = $this->getJson($this->endpoint->records() . '?sort=desc');
 
-        $response->assertStatus(200);
+        $response->assertStatus(Response::HTTP_OK);
 
         $this->assertEquals(
             '2026-07-10',
@@ -164,7 +181,9 @@ class IndexTest extends TestCase
     }
 
 
-    public function test_FKI005_正常古い順(): void
+    /** FKI-005 正常: ソート（古い順） */
+    #[Test]
+    public function test_FKI005_index_sorts_asc(): void
     {
         // 日付が異なるレコードを作成
         $this->createRecord([
@@ -176,9 +195,9 @@ class IndexTest extends TestCase
         ]);
 
         // 古い日付順で取得できることを確認
-        $response = $this->getJson('/api/v1/records?sort=asc');
+        $response = $this->getJson($this->endpoint->records() . '?sort=asc');
 
-        $response->assertStatus(200);
+        $response->assertStatus(Response::HTTP_OK);
 
         $this->assertEquals(
             '2026-07-01',
@@ -187,7 +206,9 @@ class IndexTest extends TestCase
     }
 
 
-    public function test_FKI006_正常期間フィルタ(): void
+    /** FKI-006 正常: 期間フィルタ */
+    #[Test]
+    public function test_FKI006_index_filters_by_date_range(): void
     {
         // 期間外と期間内のレコードを作成
         $this->createRecord([
@@ -200,15 +221,17 @@ class IndexTest extends TestCase
 
         // 指定期間内のみ取得されることを確認
         $response = $this->getJson(
-            '/api/v1/records?from=2026-07-01&to=2026-07-31'
+            $this->endpoint->records() . '?from=2026-07-01&to=2026-07-31'
         );
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(1, 'data');
 
         $this->assertEquals('2026-07-01', $response->json('data.0.purchaseDate'));
     }
-    public function test_FKI007_正常収支区分フィルタ(): void
+    /** FKI-007 正常: 収支区分フィルタ */
+    #[Test]
+    public function test_FKI007_index_filters_by_amount_type(): void
     {
         // 収入・支出それぞれのレコードを作成
         $this->createRecord([
@@ -221,17 +244,19 @@ class IndexTest extends TestCase
 
         // 指定した収支区分のみ取得されることを確認
         $response = $this->getJson(
-            '/api/v1/records?amountTypeId=' . $this->expense->id
+            $this->endpoint->records() . '?amountTypeId=' . $this->expense->id
         );
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(1, 'data');
 
         $this->assertEquals($this->expense->id, $response->json('data.0.amountTypeId'));
     }
 
 
-    public function test_FKI008_正常カテゴリフィルタ(): void
+    /** FKI-008 正常: カテゴリフィルタ */
+    #[Test]
+    public function test_FKI008_index_filters_by_category(): void
     {
         // 異なるカテゴリのレコードを作成
         $this->createRecord([
@@ -244,17 +269,19 @@ class IndexTest extends TestCase
 
         // 指定したカテゴリのみ取得されることを確認
         $response = $this->getJson(
-            '/api/v1/records?categoryId=' . $this->category1->id
+            $this->endpoint->records() . '?categoryId=' . $this->category1->id
         );
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(1, 'data');
 
         $this->assertEquals($this->category1->id, $response->json('data.0.categoryId'));
     }
 
 
-    public function test_FKI009_summary確認(): void
+    /** FKI-009 正常: summary がフィルタ適用後の合計 */
+    #[Test]
+    public function test_FKI009_index_returns_correct_summary(): void
     {
         // 集計確認用の支出・収入レコードを作成
         $this->createRecord([
@@ -268,9 +295,9 @@ class IndexTest extends TestCase
         ]);
 
         // summaryの集計結果が正しいことを確認
-        $response = $this->getJson('/api/v1/records');
+        $response = $this->getJson($this->endpoint->records());
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJson([
                 'summary' => [
                     'totalExpense' => 5000,
@@ -280,7 +307,9 @@ class IndexTest extends TestCase
     }
 
 
-    public function test_FKI010_他ユーザー除外(): void
+    /** FKI-010 正常: 他ユーザーのレコードが含まれない */
+    #[Test]
+    public function test_FKI010_index_excludes_other_users_records(): void
     {
         // 別ユーザーを作成
         $other = User::forceCreate([
@@ -304,9 +333,9 @@ class IndexTest extends TestCase
         ]);
 
         // 他ユーザーのレコードが一覧に含まれないことを確認
-        $response = $this->getJson('/api/v1/records');
+        $response = $this->getJson($this->endpoint->records());
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(3, 'data');
 
         $data = $response->json('data');
@@ -316,23 +345,27 @@ class IndexTest extends TestCase
     }
 
 
-    public function test_FKI011_未認証(): void
+    /** FKI-011 異常: 未認証 */
+    #[Test]
+    public function test_FKI011_index_requires_authentication(): void
     {
         // 認証状態を解除
         $this->app['auth']->forgetGuards();
 
         // 未認証ユーザーではアクセスできないことを確認
-        $response = $this->getJson('/api/v1/records');
+        $response = $this->getJson($this->endpoint->records());
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 
 
-    public function test_FKI012_perPage101(): void
+    /** FKI-012 異常: perPage 101 */
+    #[Test]
+    public function test_FKI012_index_rejects_perPage_over_100(): void
     {
         // perPageの上限値を超えた場合、バリデーションエラーになることを確認
-        $response = $this->getJson('/api/v1/records?perPage=101');
+        $response = $this->getJson($this->endpoint->records() . '?perPage=101');
 
-        $response->assertStatus(422);
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 }

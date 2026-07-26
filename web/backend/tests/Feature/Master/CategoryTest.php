@@ -10,7 +10,11 @@ use Database\Seeders\KakeiboDefaultCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 /**
  * 結合テスト仕様書 7.1 GET /api/v1/categories（カテゴリ一覧）
@@ -19,7 +23,8 @@ class CategoryTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/categories';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -30,6 +35,8 @@ class CategoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         DB::statement('ALTER TABLE amount_types AUTO_INCREMENT = 1');
         $this->seed(AmountTypeSeeder::class);
@@ -46,25 +53,27 @@ class CategoryTest extends TestCase
         ]);
     }
 
-    /** @test FMC-001 正常: 全カテゴリ取得 */
+    /** FMC-001 正常: 全カテゴリ取得 */
+    #[Test]
     public function test_can_get_all_categories(): void
     {
         $this->actingAs($this->user);
 
-        $response = $this->getJson(self::ENDPOINT);
+        $response = $this->getJson($this->endpoint->categories());
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(11, 'data');
     }
 
-    /** @test FMC-002 正常: amountTypeId で絞り込み（支出） */
+    /** FMC-002 正常: amountTypeId で絞り込み（支出） */
+    #[Test]
     public function test_can_filter_by_expense_type(): void
     {
         $this->actingAs($this->user);
 
-        $response = $this->getJson(self::ENDPOINT . '?amountTypeId=' . $this->expenseTypeId);
+        $response = $this->getJson($this->endpoint->categories() . '?amountTypeId=' . $this->expenseTypeId);
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(7, 'data');
 
         $data = $response->json('data');
@@ -73,14 +82,15 @@ class CategoryTest extends TestCase
         }
     }
 
-    /** @test FMC-003 正常: amountTypeId で絞り込み（収入） */
+    /** FMC-003 正常: amountTypeId で絞り込み（収入） */
+    #[Test]
     public function test_can_filter_by_income_type(): void
     {
         $this->actingAs($this->user);
 
-        $response = $this->getJson(self::ENDPOINT . '?amountTypeId=' . $this->incomeTypeId);
+        $response = $this->getJson($this->endpoint->categories() . '?amountTypeId=' . $this->incomeTypeId);
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonCount(4, 'data');
 
         $data = $response->json('data');
@@ -89,14 +99,15 @@ class CategoryTest extends TestCase
         }
     }
 
-    /** @test FMC-004 正常: レスポンスに amountTypeId を含む */
+    /** FMC-004 正常: レスポンスに amountTypeId を含む */
+    #[Test]
     public function test_response_contains_amount_type_id(): void
     {
         $this->actingAs($this->user);
 
-        $response = $this->getJson(self::ENDPOINT);
+        $response = $this->getJson($this->endpoint->categories());
 
-        $response->assertStatus(200)
+        $response->assertStatus(Response::HTTP_OK)
             ->assertJsonStructure([
                 'data' => [
                     '*' => ['id', 'amountTypeId', 'categoryName'],
@@ -104,10 +115,11 @@ class CategoryTest extends TestCase
             ]);
     }
 
-    /** @test FMC-005 異常: 未認証 */
+    /** FMC-005 異常: 未認証 */
+    #[Test]
     public function test_requires_authentication(): void
     {
-        $this->getJson(self::ENDPOINT)
-            ->assertStatus(401);
+        $this->getJson($this->endpoint->categories())
+            ->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

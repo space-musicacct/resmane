@@ -7,9 +7,15 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Support\Facades\RateLimiter;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 /**
  * 結合テスト仕様書 1.2 POST /api/v1/login（ログイン）
@@ -18,25 +24,28 @@ class LoginTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/login';
+    private ApiEndpoint $endpoint;
+
 
     protected function setUp(): void
     {
         parent::setUp();
 
+        $this->endpoint = new V1ApiEndpoint();
+
         $this->withoutMiddleware([
-            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+            PreventRequestForgery::class,
         ]);
 
         // APIでsession利用可能にする
         $this->app['router']->pushMiddlewareToGroup(
             'api',
-            \Illuminate\Cookie\Middleware\EncryptCookies::class
+            EncryptCookies::class
         );
 
         $this->app['router']->pushMiddlewareToGroup(
             'api',
-            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class
+            AddQueuedCookiesToResponse::class
         );
 
         $this->app['router']->pushMiddlewareToGroup(
@@ -46,38 +55,40 @@ class LoginTest extends TestCase
     }
 
 
-/** @test FL-001 正常: ログイン成功 */
-public function test_login_success(): void
-{
-    User::create([
-        'login_id' => 'taro123',
-        'email' => 'taro@example.com',
-        'name' => '田中太郎',
-        'password_hash' => Hash::make('password123'),
-    ]);
+    /** FL-001 正常: ログイン成功 */
+    #[Test]
+    public function test_login_success(): void
+    {
+        User::create([
+            'login_id' => 'taro123',
+            'email' => 'taro@example.com',
+            'name' => '田中太郎',
+            'password_hash' => Hash::make('password123'),
+        ]);
 
-    $response = $this->postJson(self::ENDPOINT, [
-        'loginId' => 'taro123',
-        'password' => 'password123',
-    ]);
+        $response = $this->postJson($this->endpoint->login(), [
+            'loginId' => 'taro123',
+            'password' => 'password123',
+        ]);
 
-    $response->assertStatus(200)
-        ->assertJsonStructure([
-            'user' => [
-                'id',
-                'loginId',
-                'email',
-                'name',
-                'createdAt',
-            ],
-        ])
-        ->assertJsonPath('user.loginId', 'taro123');
+        $response->assertStatus(Response::HTTP_OK)
+            ->assertJsonStructure([
+                'user' => [
+                    'id',
+                    'loginId',
+                    'email',
+                    'name',
+                    'createdAt',
+                ],
+            ])
+            ->assertJsonPath('user.loginId', 'taro123');
 
-    // セッション認証確認
-    $this->assertAuthenticated();
-}
+        // セッション認証確認
+        $this->assertAuthenticated();
+    }
 
-    /** @test FL-002 異常: パスワード不一致 */
+    /** FL-002 異常: パスワード不一致 */
+    #[Test]
     public function test_login_fails_when_password_invalid(): void
     {
         User::create([
@@ -88,33 +99,35 @@ public function test_login_success(): void
         ]);
 
 
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'wrong',
         ]);
 
 
-        $response->assertStatus(401)
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED)
             ->assertJson([
                 'message' => 'ログインIDまたはパスワードが正しくありません',
             ]);
     }
 
 
-    /** @test FL-003 異常: 存在しないユーザー */
+    /** FL-003 異常: 存在しないユーザー */
+    #[Test]
     public function test_login_fails_when_user_not_found(): void
     {
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->login(), [
             'loginId' => 'unknown',
             'password' => 'any',
         ]);
 
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 
 
-    /** @test FL-004 異常: 論理削除済みユーザー */
+    /** FL-004 異常: 論理削除済みユーザー */
+    #[Test]
     public function test_login_fails_when_user_is_soft_deleted(): void
     {
         $user = User::create([
@@ -132,26 +145,27 @@ public function test_login_success(): void
         ]);
 
 
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'password123',
         ]);
 
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 
 
-    /** @test FL-005 異常: バリデーションエラー */
+    /** FL-005 異常: バリデーションエラー */
+    #[Test]
     public function test_login_fails_with_validation_errors(): void
     {
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->login(), [
             'loginId' => '',
             'password' => '',
         ]);
 
 
-        $response->assertStatus(422)
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors([
                 'loginId',
                 'password',
@@ -159,7 +173,8 @@ public function test_login_success(): void
     }
 
 
-    /** @test FL-006 異常: レートリミット超過 */
+    /** FL-006 異常: レートリミット超過 */
+    #[Test]
     public function test_login_fails_when_rate_limit_exceeded(): void
     {
         User::create([
@@ -171,21 +186,21 @@ public function test_login_success(): void
 
 
         for ($i = 0; $i < 5; $i++) {
-            $this->postJson(self::ENDPOINT, [
+            $this->postJson($this->endpoint->login(), [
                 'loginId' => 'taro123',
                 'password' => 'wrong',
             ])
-            ->assertStatus(401);
+            ->assertStatus(Response::HTTP_UNAUTHORIZED);
         }
 
 
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'wrong',
         ]);
 
 
-        $response->assertStatus(429);
+        $response->assertStatus(Response::HTTP_TOO_MANY_REQUESTS);
 
         $message = $response->json('message');
         $this->assertStringContainsString('ログイン試行回数が上限に達しました', $message);
@@ -193,47 +208,47 @@ public function test_login_success(): void
     }
 
 
-    /** @test FL-007 正常: レートリミットリセット */
-public function test_login_rate_limit_reset_after_success(): void
-{
-    User::create([
-        'login_id' => 'taro123',
-        'email' => 'taro@example.com',
-        'name' => '田中太郎',
-        'password_hash' => Hash::make('password123'),
-    ]);
+    /** FL-007 正常: レートリミットリセット */
+    #[Test]
+    public function test_login_rate_limit_reset_after_success(): void
+    {
+        User::create([
+            'login_id' => 'taro123',
+            'email' => 'taro@example.com',
+            'name' => '田中太郎',
+            'password_hash' => Hash::make('password123'),
+        ]);
 
-    for ($i = 0; $i < 4; $i++) {
-        $this->postJson(self::ENDPOINT, [
+        for ($i = 0; $i < 4; $i++) {
+            $this->postJson($this->endpoint->login(), [
+                'loginId' => 'taro123',
+                'password' => 'wrong',
+            ])
+            ->assertStatus(Response::HTTP_UNAUTHORIZED);
+        }
+
+        // 正しい認証
+        $this->postJson($this->endpoint->login(), [
+            'loginId' => 'taro123',
+            'password' => 'password123',
+        ])
+        ->assertStatus(Response::HTTP_OK)
+        ->assertJsonPath('user.loginId', 'taro123');
+
+        // リセットされていることを確認
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson($this->endpoint->login(), [
+                'loginId' => 'taro123',
+                'password' => 'wrong',
+            ])
+            ->assertStatus(Response::HTTP_UNAUTHORIZED);
+        }
+
+        $this->postJson($this->endpoint->login(), [
             'loginId' => 'taro123',
             'password' => 'wrong',
         ])
-        ->assertStatus(401);
+        ->assertStatus(Response::HTTP_TOO_MANY_REQUESTS);
     }
-
-    // 正しい認証
-    $this->postJson(self::ENDPOINT, [
-        'loginId' => 'taro123',
-        'password' => 'password123',
-    ])
-    ->assertStatus(200)
-    ->assertJsonPath('user.loginId', 'taro123');
-
-
-    // リセットされていることを確認
-    for ($i = 0; $i < 5; $i++) {
-        $this->postJson(self::ENDPOINT, [
-            'loginId' => 'taro123',
-            'password' => 'wrong',
-        ])
-        ->assertStatus(401);
-    }
-
-    $this->postJson(self::ENDPOINT, [
-        'loginId' => 'taro123',
-        'password' => 'wrong',
-    ])
-    ->assertStatus(429);
-}
 
 }

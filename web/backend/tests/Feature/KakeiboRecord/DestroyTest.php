@@ -13,13 +13,18 @@ use App\Models\SelfReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class DestroyTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -35,6 +40,8 @@ class DestroyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -74,22 +81,24 @@ class DestroyTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    /** @test FKDL-001 正常: 論理削除成功 */
+    /** FKDL-001 正常: 論理削除成功 */
+    #[Test]
     public function test_destroy_success(): void
     {
         // 削除API実行後、物理削除ではなく論理削除されることを確認
         $response = $this->deleteJson(
-            self::ENDPOINT . '/' . $this->recordId
+            $this->endpoint->records() . '/' . $this->recordId
         );
 
-        $response->assertStatus(204);
+        $response->assertStatus(Response::HTTP_NO_CONTENT);
 
         $this->assertSoftDeleted('kakeibo_records', [
             'id' => $this->recordId,
         ]);
     }
 
-    /** @test FKDL-002 正常: 紐づく自己レビューも論理削除される */
+    /** FKDL-002 正常: 紐づく自己レビューも論理削除される */
+    #[Test]
     public function test_destroy_deletes_related_reviews(): void
     {
         // 削除対象レコードに紐づく自己レビューを作成
@@ -101,17 +110,18 @@ class DestroyTest extends TestCase
 
         // 家計簿レコード削除時に関連レビューも削除されることを確認
         $response = $this->deleteJson(
-            self::ENDPOINT . '/' . $this->recordId
+            $this->endpoint->records() . '/' . $this->recordId
         );
 
-        $response->assertStatus(204);
+        $response->assertStatus(Response::HTTP_NO_CONTENT);
 
         $this->assertSoftDeleted('self_reviews', [
             'id' => $review->id,
         ]);
     }
 
-    /** @test FKDL-003 正常: 紐づく投稿も論理削除される */
+    /** FKDL-003 正常: 紐づく投稿も論理削除される */
+    #[Test]
     public function test_destroy_deletes_related_posts(): void
     {
         // 投稿作成に必要なAIステータスを作成
@@ -130,17 +140,18 @@ class DestroyTest extends TestCase
 
         // 家計簿レコード削除時に関連投稿も削除されることを確認
         $response = $this->deleteJson(
-            self::ENDPOINT . '/' . $this->recordId
+            $this->endpoint->records() . '/' . $this->recordId
         );
 
-        $response->assertStatus(204);
+        $response->assertStatus(Response::HTTP_NO_CONTENT);
 
         $this->assertSoftDeleted('posts', [
             'id' => $post->id,
         ]);
     }
 
-    /** @test FKDL-004 異常: 他ユーザーのレコード */
+    /** FKDL-004 異常: 他ユーザーのレコード */
+    #[Test]
     public function test_destroy_fails_when_record_belongs_to_other_user(): void
     {
         // 削除権限を持たない別ユーザーを作成
@@ -163,32 +174,34 @@ class DestroyTest extends TestCase
 
         // 他ユーザーのレコードを削除できないことを確認
         $response = $this->deleteJson(
-            self::ENDPOINT . '/' . $record->id
+            $this->endpoint->records() . '/' . $record->id
         );
 
         $response
-            ->assertStatus(403)
+            ->assertStatus(Response::HTTP_FORBIDDEN)
             ->assertJson([
                 'message' => 'このレコードへのアクセス権限がありません',
             ]);
     }
 
-    /** @test FKDL-005 異常: 存在しないレコード */
+    /** FKDL-005 異常: 存在しないレコード */
+    #[Test]
     public function test_destroy_fails_when_record_not_found(): void
     {
         // 存在しないレコードIDを指定した場合のエラーを確認
         $response = $this->deleteJson(
-            self::ENDPOINT . '/999'
+            $this->endpoint->records() . '/999'
         );
 
         $response
-            ->assertStatus(404)
+            ->assertStatus(Response::HTTP_NOT_FOUND)
             ->assertJson([
                 'message' => '指定された家計簿レコードが見つかりませんでした',
             ]);
     }
 
-    /** @test FKDL-006 異常: 未認証 */
+    /** FKDL-006 異常: 未認証 */
+    #[Test]
     public function test_destroy_requires_authentication(): void
     {
         // 認証情報を解除
@@ -196,9 +209,9 @@ class DestroyTest extends TestCase
 
         // 未認証ユーザーが削除できないことを確認
         $response = $this->deleteJson(
-            self::ENDPOINT . '/' . $this->recordId
+            $this->endpoint->records() . '/' . $this->recordId
         );
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

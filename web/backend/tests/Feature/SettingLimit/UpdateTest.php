@@ -9,14 +9,19 @@ use App\Models\UpperLimitType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class UpdateTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ApiEndpoint $endpoint;
+
     // 上限設定更新APIのエンドポイント
-    private const ENDPOINT = '/api/v1/settings/limit';
 
     // テスト用認証ユーザー
     protected User $user;
@@ -30,6 +35,8 @@ class UpdateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // テスト用ユーザー作成
         $this->user = User::create([
@@ -64,7 +71,8 @@ class UpdateTest extends TestCase
      * 正常系:
      * 設定が存在しない場合、新規作成されることを確認
      */
-    /** @test FSLU-001 正常: 新規作成（upsert） */
+    /** FSLU-001 正常: 新規作成（upsert） */
+    #[Test]
     public function test_update_creates_new_setting_when_not_exists(): void
     {
         // 金額タイプを作成
@@ -74,7 +82,7 @@ class UpdateTest extends TestCase
         );
 
         // 上限設定登録API実行
-        $response = $this->putJson(self::ENDPOINT, [
+        $response = $this->putJson($this->endpoint->settingsLimit(), [
             'upperLimitTypeId' => UpperLimitType::FIXED_AMOUNT_ID,
             'maxValue' => 50000,
             'aveMonthlyIncome' => null,
@@ -82,7 +90,7 @@ class UpdateTest extends TestCase
 
         // レスポンス内容確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.userId', $this->user->id)
             ->assertJsonPath('data.upperLimitTypeId', UpperLimitType::FIXED_AMOUNT_ID)
             ->assertJsonPath('data.maxValue', 50000);
@@ -100,7 +108,8 @@ class UpdateTest extends TestCase
      * 正常系:
      * 既存設定が更新されることを確認
      */
-    /** @test FSLU-002 正常: 更新（upsert） */
+    /** FSLU-002 正常: 更新（upsert） */
+    #[Test]
     public function test_update_updates_existing_setting(): void
     {
         // 金額タイプを作成
@@ -118,7 +127,7 @@ class UpdateTest extends TestCase
         ]);
 
         // 更新API実行
-        $response = $this->putJson(self::ENDPOINT, [
+        $response = $this->putJson($this->endpoint->settingsLimit(), [
             'upperLimitTypeId' => UpperLimitType::FIXED_AMOUNT_ID,
             'maxValue' => 60000,
             'aveMonthlyIncome' => null,
@@ -126,7 +135,7 @@ class UpdateTest extends TestCase
 
         // 更新結果確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.maxValue', 60000);
 
         // DB更新確認
@@ -141,7 +150,8 @@ class UpdateTest extends TestCase
      * 正常系:
      * 割合タイプの場合、平均月収を指定できることを確認
      */
-    /** @test FSLU-003 正常: 割合指定時に aveMonthlyIncome 必須 */
+    /** FSLU-003 正常: 割合指定時に aveMonthlyIncome 必須 */
+    #[Test]
     public function test_update_accepts_percentage_with_average_monthly_income(): void
     {
         // 割合タイプ作成
@@ -151,7 +161,7 @@ class UpdateTest extends TestCase
         );
 
         // 更新API実行
-        $response = $this->putJson(self::ENDPOINT, [
+        $response = $this->putJson($this->endpoint->settingsLimit(), [
             'upperLimitTypeId' => UpperLimitType::PERCENTAGE_ID,
             'maxValue' => 30,
             'aveMonthlyIncome' => 200000,
@@ -159,7 +169,7 @@ class UpdateTest extends TestCase
 
         // 割合設定情報確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.upperLimitTypeName', '割合')
             ->assertJsonPath('data.aveMonthlyIncome', 200000);
     }
@@ -169,7 +179,8 @@ class UpdateTest extends TestCase
      * 正常系:
      * 固定額の場合、平均月収を省略できることを確認
      */
-    /** @test FSLU-004 正常: 固定額指定時に aveMonthlyIncome 省略可 */
+    /** FSLU-004 正常: 固定額指定時に aveMonthlyIncome 省略可 */
+    #[Test]
     public function test_update_accepts_fixed_amount_without_average_monthly_income(): void
     {
         // 金額タイプ作成
@@ -179,7 +190,7 @@ class UpdateTest extends TestCase
         );
 
         // 更新API実行
-        $response = $this->putJson(self::ENDPOINT, [
+        $response = $this->putJson($this->endpoint->settingsLimit(), [
             'upperLimitTypeId' => UpperLimitType::FIXED_AMOUNT_ID,
             'maxValue' => 50000,
             'aveMonthlyIncome' => null,
@@ -187,7 +198,7 @@ class UpdateTest extends TestCase
 
         // 平均月収がnullであることを確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.aveMonthlyIncome', null);
     }
 
@@ -196,7 +207,8 @@ class UpdateTest extends TestCase
      * 異常系:
      * 割合タイプで平均月収未入力の場合、エラーになることを確認
      */
-    /** @test FSLU-005 異常: 割合指定時に aveMonthlyIncome なし */
+    /** FSLU-005 異常: 割合指定時に aveMonthlyIncome なし */
+    #[Test]
     public function test_update_fails_when_percentage_without_average_monthly_income(): void
     {
         // 割合タイプ作成
@@ -206,7 +218,7 @@ class UpdateTest extends TestCase
         );
 
         // 不正な値で更新API実行
-        $response = $this->putJson(self::ENDPOINT, [
+        $response = $this->putJson($this->endpoint->settingsLimit(), [
             'upperLimitTypeId' => UpperLimitType::PERCENTAGE_ID,
             'maxValue' => 30,
             'aveMonthlyIncome' => null,
@@ -214,7 +226,7 @@ class UpdateTest extends TestCase
 
         // バリデーションエラー確認
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors(['aveMonthlyIncome']);
     }
 
@@ -223,11 +235,12 @@ class UpdateTest extends TestCase
      * 異常系:
      * 存在しない上限タイプIDは登録できないことを確認
      */
-    /** @test FSLU-006 異常: 存在しない upperLimitTypeId */
+    /** FSLU-006 異常: 存在しない upperLimitTypeId */
+    #[Test]
     public function test_update_fails_when_upper_limit_type_not_exists(): void
     {
         // 存在しないIDで更新API実行
-        $response = $this->putJson(self::ENDPOINT, [
+        $response = $this->putJson($this->endpoint->settingsLimit(), [
             'upperLimitTypeId' => 999,
             'maxValue' => 50000,
             'aveMonthlyIncome' => null,
@@ -235,7 +248,7 @@ class UpdateTest extends TestCase
 
         // バリデーションエラー確認
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors(['upperLimitTypeId']);
     }
 
@@ -244,7 +257,8 @@ class UpdateTest extends TestCase
      * 異常系:
      * 上限金額が0の場合エラーになることを確認
      */
-    /** @test FSLU-007 異常: maxValue 0 */
+    /** FSLU-007 異常: maxValue 0 */
+    #[Test]
     public function test_update_fails_when_max_value_is_zero(): void
     {
         // 金額タイプ作成
@@ -254,7 +268,7 @@ class UpdateTest extends TestCase
         );
 
         // 0円で更新API実行
-        $response = $this->putJson(self::ENDPOINT, [
+        $response = $this->putJson($this->endpoint->settingsLimit(), [
             'upperLimitTypeId' => UpperLimitType::FIXED_AMOUNT_ID,
             'maxValue' => 0,
             'aveMonthlyIncome' => null,
@@ -262,7 +276,7 @@ class UpdateTest extends TestCase
 
         // バリデーションエラー確認
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors(['maxValue']);
     }
 
@@ -271,20 +285,21 @@ class UpdateTest extends TestCase
      * 異常系:
      * 未認証ユーザーは更新できないことを確認
      */
-    /** @test FSLU-008 異常: 未認証 */
+    /** FSLU-008 異常: 未認証 */
+    #[Test]
     public function test_update_requires_authentication(): void
     {
         // 認証解除
         auth()->logout();
 
         // 未認証状態で更新API実行
-        $response = $this->putJson(self::ENDPOINT, [
+        $response = $this->putJson($this->endpoint->settingsLimit(), [
             'upperLimitTypeId' => UpperLimitType::FIXED_AMOUNT_ID,
             'maxValue' => 50000,
             'aveMonthlyIncome' => null,
         ]);
 
         // 認証エラー確認
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

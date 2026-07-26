@@ -11,13 +11,18 @@ use App\Models\SelfReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class UpdateTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -35,6 +40,8 @@ class UpdateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -88,10 +95,11 @@ class UpdateTest extends TestCase
      */
     private function endpoint(int $recordId, int $reviewId): string
     {
-        return self::ENDPOINT . '/' . $recordId . '/reviews/' . $reviewId;
+        return $this->endpoint->records() . '/' . $recordId . '/reviews/' . $reviewId;
     }
 
-    /** @test FSRU-001 正常: 更新成功 */
+    /** FSRU-001 正常: 更新成功 */
+    #[Test]
     public function test_update_success(): void
     {
         // 自己レビューを正常に更新できることを確認
@@ -102,7 +110,7 @@ class UpdateTest extends TestCase
 
         // 更新後のレスポンス内容とDB更新結果を確認
         $response
-            ->assertStatus(200)
+            ->assertStatus(Response::HTTP_OK)
             ->assertJsonPath('data.evaluation', 5)
             ->assertJsonPath('data.reviewComment', 'やっぱり良かった');
 
@@ -112,7 +120,8 @@ class UpdateTest extends TestCase
         ]);
     }
 
-    /** @test FSRU-002 異常: 他ユーザーの家計簿レコード */
+    /** FSRU-002 異常: 他ユーザーの家計簿レコード */
+    #[Test]
     public function test_update_fails_when_record_belongs_to_other_user(): void
     {
         // 別ユーザーを作成
@@ -146,10 +155,11 @@ class UpdateTest extends TestCase
             'evaluation' => 4,
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
-    /** @test FSRU-003 異常: 存在しないレビュー */
+    /** FSRU-003 異常: 存在しないレビュー */
+    #[Test]
     public function test_update_fails_when_review_not_found(): void
     {
         // 存在しないレビューIDを指定した場合のエラーを確認
@@ -159,13 +169,14 @@ class UpdateTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(404)
+            ->assertStatus(Response::HTTP_NOT_FOUND)
             ->assertJson([
                 'message' => '指定された自己レビューが見つかりません',
             ]);
     }
 
-    /** @test FSRU-004 異常: 存在しない家計簿レコード */
+    /** FSRU-004 異常: 存在しない家計簿レコード */
+    #[Test]
     public function test_update_fails_when_record_not_found(): void
     {
         // 存在しない家計簿レコードIDを指定した場合のエラーを確認
@@ -174,10 +185,11 @@ class UpdateTest extends TestCase
             'evaluation' => 4,
         ]);
 
-        $response->assertStatus(404);
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
     }
 
-    /** @test FSRU-005 異常: バリデーションエラー */
+    /** FSRU-005 異常: バリデーションエラー */
+    #[Test]
     public function test_update_fails_with_validation_error(): void
     {
         // コメント文字数超過によるバリデーションエラーを確認
@@ -187,11 +199,12 @@ class UpdateTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors(['reviewComment']);
     }
 
-    /** @test FSRU-006 異常: 未認証 */
+    /** FSRU-006 異常: 未認証 */
+    #[Test]
     public function test_update_requires_authentication(): void
     {
         // 認証状態を解除
@@ -203,6 +216,6 @@ class UpdateTest extends TestCase
             'evaluation' => 4,
         ]);
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }

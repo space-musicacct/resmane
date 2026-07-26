@@ -9,13 +9,18 @@ use App\Models\KakeiboDefaultCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Support\ApiEndpoint;
+use Tests\Support\V1ApiEndpoint;
 
 class StoreTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINT = '/api/v1/records';
+    private ApiEndpoint $endpoint;
+
 
     protected User $user;
 
@@ -31,6 +36,8 @@ class StoreTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->endpoint = new V1ApiEndpoint();
 
         // API実行用の認証済みユーザーを作成
         $this->user = User::create([
@@ -71,11 +78,12 @@ class StoreTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    /** @test FKS-001 正常: 登録成功 */
+    /** FKS-001 正常: 登録成功 */
+    #[Test]
     public function test_store_success(): void
     {
         // 家計簿レコードを正常に登録できることを確認
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->records(), [
             'purchaseDate' => '2026-07-22',
             'amountTypeId' => $this->expenseAmountTypeId,
             'kakeiboDefaultCategoryId' => $this->expenseCategoryId,
@@ -85,7 +93,7 @@ class StoreTest extends TestCase
 
         // 登録成功レスポンスとDB保存結果を確認
         $response
-            ->assertStatus(201)
+            ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonStructure([
                 'data',
             ]);
@@ -95,11 +103,12 @@ class StoreTest extends TestCase
         ]);
     }
 
-    /** @test FKS-002 正常: purchaseDate省略時に今日の日付 */
+    /** FKS-002 正常: purchaseDate省略時に今日の日付 */
+    #[Test]
     public function test_purchase_date_defaults_to_today(): void
     {
         // purchaseDateを指定しない場合のデフォルト値を確認
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->records(), [
             'amountTypeId' => $this->expenseAmountTypeId,
             'kakeiboDefaultCategoryId' => $this->expenseCategoryId,
             'amount' => 1000,
@@ -107,18 +116,19 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(201)
+            ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath(
                 'data.purchaseDate',
                 now()->toDateString()
             );
     }
 
-    /** @test FKS-003 正常: amountTypeName, categoryNameを含む */
+    /** FKS-003 正常: amountTypeName, categoryNameを含む */
+    #[Test]
     public function test_response_contains_amount_type_name_and_category_name(): void
     {
         // レスポンスに関連情報が含まれることを確認
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->records(), [
             'purchaseDate' => now()->toDateString(),
             'amountTypeId' => $this->expenseAmountTypeId,
             'kakeiboDefaultCategoryId' => $this->expenseCategoryId,
@@ -127,7 +137,7 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(201)
+            ->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('data.amountTypeName', '支出')
             ->assertJsonPath('data.categoryName', '食費')
             ->assertJsonStructure([
@@ -138,11 +148,12 @@ class StoreTest extends TestCase
             ]);
     }
 
-    /** @test FKS-004 異常: カテゴリと収支区分の不整合 */
+    /** FKS-004 異常: カテゴリと収支区分の不整合 */
+    #[Test]
     public function test_store_fails_when_category_and_amount_type_do_not_match(): void
     {
         // 収支区分と一致しないカテゴリを指定した場合のエラーを確認
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->records(), [
             'purchaseDate' => now()->toDateString(),
             'amountTypeId' => $this->expenseAmountTypeId,
             'kakeiboDefaultCategoryId' => $this->incomeCategoryId,
@@ -151,17 +162,18 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors([
                 'kakeiboDefaultCategoryId',
             ]);
     }
 
-    /** @test FKS-005 異常: 存在しない amountTypeId */
+    /** FKS-005 異常: 存在しない amountTypeId */
+    #[Test]
     public function test_store_fails_when_amount_type_not_exists(): void
     {
         // 存在しない収支区分ID指定時のバリデーションを確認
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->records(), [
             'purchaseDate' => now()->toDateString(),
             'amountTypeId' => 999,
             'kakeiboDefaultCategoryId' => $this->expenseCategoryId,
@@ -170,17 +182,18 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors([
                 'amountTypeId',
             ]);
     }
 
-    /** @test FKS-006 異常: 必須項目未入力 */
+    /** FKS-006 異常: 必須項目未入力 */
+    #[Test]
     public function test_store_fails_with_validation_errors(): void
     {
         // 必須項目が未入力の場合のバリデーションを確認
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->records(), [
             'purchaseDate' => now()->toDateString(),
             'amountTypeId' => $this->expenseAmountTypeId,
             'kakeiboDefaultCategoryId' => $this->expenseCategoryId,
@@ -189,20 +202,21 @@ class StoreTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(422)
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
             ->assertJsonValidationErrors([
                 'amount',
             ]);
     }
 
-    /** @test FKS-007 異常: 未認証 */
+    /** FKS-007 異常: 未認証 */
+    #[Test]
     public function test_store_requires_authentication(): void
     {
         // 認証状態を解除
         auth()->logout();
 
         // 未認証状態で登録できないことを確認
-        $response = $this->postJson(self::ENDPOINT, [
+        $response = $this->postJson($this->endpoint->records(), [
             'purchaseDate' => now()->toDateString(),
             'amountTypeId' => $this->expenseAmountTypeId,
             'kakeiboDefaultCategoryId' => $this->expenseCategoryId,
@@ -210,6 +224,6 @@ class StoreTest extends TestCase
             'details' => '昼食',
         ]);
 
-        $response->assertStatus(401);
+        $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
 }
