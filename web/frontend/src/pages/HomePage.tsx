@@ -7,16 +7,55 @@ import {
 } from 'chart.js'
 import { Link } from 'react-router-dom';
 import api, { isApiError } from '../lib/axios'
+import LoadingScreen from '../components/LoadingScreen'
+import ErrorAlert from '../components/ErrorAlert'
 import type {
   KakeiboRecord,
   RecordsResponse,
+  SettingLimit,
+  SettingLimitResponse,
   Summary,
 } from '../types/record'
 
 ChartJS.register(ArcElement, Tooltip);
 
+const PERCENTAGE_TYPE_ID = 1
+
+function getMonthRange(): { from: string; to: string } {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth()
+  const from = `${y}-${String(m + 1).padStart(2, '0')}-01`
+  const lastDay = new Date(y, m + 1, 0).getDate()
+  const to = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  return { from, to }
+}
+
+function calcBudget(
+  summary: Summary,
+  settingLimit: SettingLimit | null,
+): { label: string; value: number } {
+  if (!settingLimit) {
+    return {
+      label: '今月の残高',
+      value: summary.totalIncome - summary.totalExpense,
+    }
+  }
+
+  let budget: number
+  if (settingLimit.upperLimitTypeId === PERCENTAGE_TYPE_ID) {
+    const income = settingLimit.aveMonthlyIncome ?? 0
+    budget = Math.floor(income * settingLimit.maxValue / 100) - summary.totalExpense
+  } else {
+    budget = settingLimit.maxValue - summary.totalExpense
+  }
+
+  return { label: '今月の残予算', value: budget }
+}
+
 type DonutChartProps = {
   summary: Summary
+  settingLimit: SettingLimit | null
 }
 
 type RecentTransactionProps = {
@@ -26,31 +65,30 @@ type RecentTransactionProps = {
 type HomeContentProps = {
   summary: Summary | null
   records: KakeiboRecord[]
+  settingLimit: SettingLimit | null
 }
 
 type RecentHistoryProps = {
   records: KakeiboRecord[]
 }
 
-function HomeContent({ summary, records }: HomeContentProps) {
+function HomeContent({ summary, records, settingLimit }: HomeContentProps) {
   return (
     <section className="mx-auto flex flex-col gap-6 rounded-[36px] px-5 py-6">
 
       {summary && (
         <div className="flex justify-center">
           <Link to="/records">
-            <DonutChart summary={summary} />
+            <DonutChart summary={summary} settingLimit={settingLimit} />
           </Link>
         </div>
       )}
 
-      <Link to="/records/new" className="block">
-        <button
-          type="button"
-          className="h-[59px] w-full rounded-lg bg-blue-200 text-[16px] font-bold"
-        >
-          家計簿登録
-        </button>
+      <Link
+        to="/records/new"
+        className="block h-[59px] w-full rounded-lg bg-blue-200 text-center text-[16px] font-bold leading-[59px]"
+      >
+        家計簿登録
       </Link>
 
       {records.length > 0 ? (
@@ -61,13 +99,13 @@ function HomeContent({ summary, records }: HomeContentProps) {
         </div>
       )}
 
-      <RecentHistory records={records.slice(0, 3)} />
+      <RecentHistory records={records.slice(1, 4)} />
     </section>
   )
 }
 
-function DonutChart({ summary }: DonutChartProps) {
-  const balance = summary.totalIncome - summary.totalExpense
+function DonutChart({ summary, settingLimit }: DonutChartProps) {
+  const { label, value: balance } = calcBudget(summary, settingLimit)
 
   const data = {
     labels: ['収入', '支出'],
@@ -91,7 +129,6 @@ function DonutChart({ summary }: DonutChartProps) {
 
   return (
     <div className="flex w-full items-center justify-between gap-6">
-      {/* 左側：収入・支出 */}
       <div className="flex-1 text-left text-[16px] leading-relaxed">
         <p className="text-gray-600">今月の収入</p>
         <p className="font-bold">
@@ -104,12 +141,11 @@ function DonutChart({ summary }: DonutChartProps) {
         </p>
       </div>
 
-      {/* 右側：ドーナツグラフ */}
       <div className="relative h-[200px] w-[200px] shrink-0">
         <Doughnut data={data} options={options} />
 
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center leading-tight">
-          <span className="text-gray-700 text-[16px]">今月の残予算</span>
+          <span className="text-gray-700 text-[16px]">{label}</span>
 
           <span
             className={`text-[14px] font-bold ${balance >= 0 ? 'text-blue-600' : 'text-red-600'
@@ -214,44 +250,61 @@ function RecentHistory({ records }: RecentHistoryProps) {
 export default function HomePage() {
   const [records, setRecords] = useState<KakeiboRecord[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
+  const [settingLimit, setSettingLimit] = useState<SettingLimit | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const fetchRecords = useCallback(() => {
-    api
-      .get<RecordsResponse>('/records', {
-        params: {
-          page: 1,
-          sort: 'desc',
-        },
-      })
-      .then((res) => {
-        setRecords(res.data.data)
-        setSummary(res.data.summary)
-      })
-      .catch((err) => {
-        if (isApiError(err)) {
-          console.error(err.response.data.message)
-        } else {
-          console.error('データの取得に失敗しました')
-        }
-      })
+  const fetchData = useCallback(async () => {
+    setIsLoading(true)
+    setError('')
+
+    const { from, to } = getMonthRange()
+
+    try {
+      const [recordsRes, limitRes] = await Promise.all([
+        api.get<RecordsResponse>('/records', {
+          params: { page: 1, sort: 'desc', from, to },
+        }),
+        api.get<SettingLimitResponse>('/settings/limit'),
+      ])
+
+      setRecords(recordsRes.data.data)
+      setSummary(recordsRes.data.summary)
+      setSettingLimit(limitRes.data.data)
+    } catch (err) {
+      if (isApiError(err)) {
+        setError(err.response.data.message)
+      } else {
+        setError('データの取得に失敗しました')
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
   useEffect(() => {
-    fetchRecords()
-  }, [fetchRecords])
+    fetchData()
+  }, [fetchData])
+
+  if (isLoading) {
+    return <LoadingScreen />
+  }
 
   return (
     <main className="min-h-screen bg-yellow-400 flex justify-center px-4 pt-10 pb-10">
       <div className="w-full max-w-[390px] bg-[#F4F1F1] rounded-[40px] py-4">
-        <HomeContent
-          summary={summary}
-          records={records}
-        />
+        {error ? (
+          <div className="px-5 py-6">
+            <ErrorAlert message={error} />
+          </div>
+        ) : (
+          <HomeContent
+            summary={summary}
+            records={records}
+            settingLimit={settingLimit}
+          />
+        )}
       </div>
-
     </main>
   )
 }
-
-
-
