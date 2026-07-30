@@ -29,3 +29,18 @@ export type RecordsResponse = {
   meta: Meta
   summary: Summary
 }
+
+export type SettingLimit = {
+  id: number
+  userId: number
+  upperLimitTypeId: number
+  upperLimitTypeName: string
+  maxValue: number
+  aveMonthlyIncome: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type SettingLimitResponse = {
+  data: SettingLimit | null
+}

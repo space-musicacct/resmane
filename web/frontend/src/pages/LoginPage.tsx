@@ -28,7 +28,7 @@ export default function LoginPage() {
       await getCsrfCookie()
       const res = await api.post('/login', { loginId, password })
       setUser(res.data.user)
-      navigate('/')
+      navigate('/home')
     } catch (err) {
       if (isApiError(err)) {
         const { status, data } = err.response

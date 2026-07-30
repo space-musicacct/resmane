@@ -19,7 +19,13 @@ type KakeiboRecord = {
   updatedAt: string
 }
 
-type Tab = 'detail' | 'review'
+type TabKey = 'detail' | 'posts'
+
+const VALID_TABS: TabKey[] = ['detail', 'posts']
+
+function resolveTab(tab: string | undefined): TabKey {
+  return VALID_TABS.includes(tab as TabKey) ? (tab as TabKey) : 'detail'
+}
 
 type Message = {
   id: number
@@ -28,13 +34,13 @@ type Message = {
 }
 
 export default function RecordDetailPage() {
-  const { id } = useParams()
+  const { id, tab } = useParams()
   const navigate = useNavigate()
 
   const [record, setRecord] = useState<KakeiboRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [activeTab, setActiveTab] = useState<Tab>('detail')
+  const activeTab = resolveTab(tab)
 
   const [reviewComment, setReviewComment] = useState('')
   const [evaluation, setEvaluation] = useState(0)
@@ -123,11 +129,11 @@ export default function RecordDetailPage() {
     <PageCard title="家計簿詳細">
       <TabSwitcher
         tabs={[
-          { key: 'detail', label: '家計簿詳細' },
-          { key: 'review', label: '自己レビュー / AIフィードバック' },
+          { key: 'detail' as TabKey, label: '家計簿詳細' },
+          { key: 'posts' as TabKey, label: '自己レビュー / AIフィードバック' },
         ]}
         activeTab={activeTab}
-        onChange={(tab) => setActiveTab(tab as Tab)}
+        onChange={(key) => navigate(`/records/${id}/${key}`, { replace: true })}
         className="mb-8"
       />
 
@@ -164,7 +170,7 @@ export default function RecordDetailPage() {
         </>
       )}
 
-      {activeTab === 'review' && (
+      {activeTab === 'posts' && (
         <div className="flex flex-col gap-6">
           {/* 自己レビュー投稿フォーム */}
           <div className="space-y-5">
