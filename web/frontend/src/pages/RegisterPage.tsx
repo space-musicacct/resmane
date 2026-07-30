@@ -37,7 +37,7 @@ export default function RegisterPage() {
         passwordConfirmation,
       })
       setUser(res.data.user)
-      navigate('/')
+      navigate('/home')
     } catch (err) {
       if (isApiError(err)) {
         const { status, data } = err.response

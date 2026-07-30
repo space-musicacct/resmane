@@ -7,6 +7,7 @@ import {
 } from 'chart.js'
 import { Link } from 'react-router-dom';
 import api, { isApiError } from '../lib/axios'
+import PageCard from '../components/PageCard'
 import LoadingScreen from '../components/LoadingScreen'
 import ErrorAlert from '../components/ErrorAlert'
 import type {
@@ -20,6 +21,24 @@ import type {
 ChartJS.register(ArcElement, Tooltip);
 
 const PERCENTAGE_TYPE_ID = 1
+const MAX_FEEDBACK_DISPLAY = 3
+const FEEDBACK_TRUNCATE_LENGTH = 80
+
+type Post = {
+  id: number
+  userId: number
+  kakeiboRecordId: number
+  isAi: boolean
+  aiStatus: { id: number; statusName: string } | null
+  parentId: number | null
+  content: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+type PostsResponse = {
+  data: Post[]
+}
 
 function getMonthRange(): { from: string; to: string } {
   const now = new Date()
@@ -37,7 +56,7 @@ function calcBudget(
 ): { label: string; value: number } {
   if (!settingLimit) {
     return {
-      label: '今月の残高',
+      label: '今月の収支',
       value: summary.totalIncome - summary.totalExpense,
     }
   }
@@ -53,66 +72,37 @@ function calcBudget(
   return { label: '今月の残予算', value: budget }
 }
 
+function truncate(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) + '...' : text
+}
+
 type DonutChartProps = {
   summary: Summary
   settingLimit: SettingLimit | null
 }
 
-type RecentTransactionProps = {
-  transaction: KakeiboRecord
-}
-
-type HomeContentProps = {
-  summary: Summary | null
-  records: KakeiboRecord[]
-  settingLimit: SettingLimit | null
-}
-
-type RecentHistoryProps = {
-  records: KakeiboRecord[]
-}
-
-function HomeContent({ summary, records, settingLimit }: HomeContentProps) {
-  return (
-    <section className="mx-auto flex flex-col gap-6 rounded-[36px] px-5 py-6">
-
-      {summary && (
-        <div className="flex justify-center">
-          <Link to="/records">
-            <DonutChart summary={summary} settingLimit={settingLimit} />
-          </Link>
-        </div>
-      )}
-
-      <Link
-        to="/records/new"
-        className="block h-[59px] w-full rounded-lg bg-blue-200 text-center text-[16px] font-bold leading-[59px]"
-      >
-        家計簿登録
-      </Link>
-
-      {records.length > 0 ? (
-        <RecentTransaction transaction={records[0]} />
-      ) : (
-        <div className="mb-3 rounded-xl bg-yellow-200 px-4 py-6 text-center text-gray-600">
-          まだ家計簿が登録されていません。
-        </div>
-      )}
-
-      <RecentHistory records={records.slice(1, 4)} />
-    </section>
-  )
-}
+const GRADIENT_COLORS = [
+  { start: '#FB7185', end: '#F43F5E' },
+  { start: '#818CF8', end: '#38BDF8' },
+]
 
 function DonutChart({ summary, settingLimit }: DonutChartProps) {
   const { label, value: balance } = calcBudget(summary, settingLimit)
 
   const data = {
-    labels: ['収入', '支出'],
+    labels: ['支出', '収入'],
     datasets: [
       {
-        data: [summary.totalIncome, summary.totalExpense],
-        backgroundColor: ['#3B82F6', '#EF4444'],
+        data: [summary.totalExpense, summary.totalIncome],
+        backgroundColor: (context: { chart: ChartJS; dataIndex: number }) => {
+          const { ctx, chartArea } = context.chart
+          if (!chartArea) return GRADIENT_COLORS[context.dataIndex]?.start ?? '#ccc'
+          const g = ctx.createLinearGradient(chartArea.left, chartArea.top, chartArea.right, chartArea.bottom)
+          const colors = GRADIENT_COLORS[context.dataIndex]
+          g.addColorStop(0, colors.start)
+          g.addColorStop(1, colors.end)
+          return g
+        },
         borderWidth: 0,
         cutout: '70%',
       },
@@ -128,121 +118,84 @@ function DonutChart({ summary, settingLimit }: DonutChartProps) {
   }
 
   return (
-    <div className="flex w-full items-center justify-between gap-6">
-      <div className="flex-1 text-left text-[16px] leading-relaxed">
-        <p className="text-gray-600">今月の収入</p>
-        <p className="font-bold">
-          {summary.totalIncome.toLocaleString()}円
-        </p>
-
-        <p className="mt-2 text-gray-600">今月の支出</p>
-        <p className="font-bold">
-          {summary.totalExpense.toLocaleString()}円
-        </p>
-      </div>
-
-      <div className="relative h-[200px] w-[200px] shrink-0">
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative h-[160px] w-[160px]">
         <Doughnut data={data} options={options} />
-
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center leading-tight">
-          <span className="text-gray-700 text-[16px]">{label}</span>
-
+          <span className="text-gray-700 text-sm">{label}</span>
           <span
-            className={`text-[14px] font-bold ${balance >= 0 ? 'text-blue-600' : 'text-red-600'
-              }`}
+            className={`text-base font-bold ${balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}
           >
             {balance < 0 ? '-' : ''}
             {Math.abs(balance).toLocaleString()}円
           </span>
         </div>
       </div>
+
+      <div className="flex w-full gap-4">
+        <div className="flex-1 rounded-xl bg-blue-50 px-4 py-3 text-center">
+          <p className="text-sm text-gray-500">今月の収入</p>
+          <p className="text-lg font-bold text-blue-600">{summary.totalIncome.toLocaleString()}円</p>
+        </div>
+        <div className="flex-1 rounded-xl bg-red-50 px-4 py-3 text-center">
+          <p className="text-sm text-gray-500">今月の支出</p>
+          <p className="text-lg font-bold text-red-600">{summary.totalExpense.toLocaleString()}円</p>
+        </div>
+      </div>
+
     </div>
   )
 }
 
-function RecentTransaction({ transaction }: RecentTransactionProps) {
-  const isIncome = transaction.amountTypeId === 2
+type AiFeedbackSectionProps = {
+  latestRecord: KakeiboRecord | null
+  aiFeedbacks: Post[]
+}
+
+function AiFeedbackSection({ latestRecord, aiFeedbacks }: AiFeedbackSectionProps) {
+  if (!latestRecord) {
+    return (
+      <div className="rounded-xl bg-white px-5 py-6 text-center text-base text-gray-500">
+        まだ家計簿が登録されていません。
+      </div>
+    )
+  }
+
+  const completedFeedbacks = aiFeedbacks
+    .filter((p) => p.isAi && p.aiStatus?.statusName === 'completed' && p.content)
+    .slice(0, MAX_FEEDBACK_DISPLAY)
 
   return (
     <div>
-      <Link
-        to={`/records/${transaction.id}`}
-        className="block rounded-xl bg-yellow-200 px-4 py-3 transition active:scale-95"
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="font-semibold">
-              {transaction.details || '（詳細なし）'}
-            </p>
+      <p className="mb-1 text-sm text-gray-400">最新の記録へのAIフィードバック</p>
+      <p className="mb-3 text-base font-semibold">{latestRecord.details}</p>
 
-            <p className="text-xs text-gray-600">
-              {new Date(transaction.purchaseDate).toLocaleDateString('ja-JP')}
-            </p>
-          </div>
-
-          <p
-            className={`font-bold ${isIncome ? 'text-blue-600' : 'text-red-600'
-              }`}
-          >
-            {isIncome ? '+' : '-'}
-            {transaction.amount.toLocaleString()}円
-          </p>
+      {completedFeedbacks.length === 0 ? (
+        <div className="rounded-xl bg-white px-5 py-6 text-center text-base text-gray-400">
+          まだAIフィードバックがありません
         </div>
-      </Link>
-    </div>
-  )
-}
-
-function RecentHistory({ records }: RecentHistoryProps) {
-  return (
-    <section className="rounded-[20px] bg-yellow-400 px-5 py-5">
-      <div className="rounded-md py-3 text-center text-[16px]">
-        直近の収入・支出
-      </div>
-
-      {records.length === 0 ? (
-        <p>まだ記録がありません。</p>
       ) : (
-        <>
-          {records.map((record) => {
-            const isIncome = record.amountTypeId === 2
-
-            return (
-              <Link
-                key={record.id}
-                to={`/records/${record.id}`}
-                className="mb-2 block rounded-lg bg-white px-4 py-2"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold">
-                      {record.details || '（詳細なし）'}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(record.purchaseDate).toLocaleDateString('ja-JP')}
-                    </p>
-                  </div>
-
-                  <p className={`font-bold ${isIncome ? 'text-blue-600' : 'text-red-600'}`}>
-                    {isIncome ? '+' : '-'}
-                    {record.amount.toLocaleString()}円
-                  </p>
-                </div>
-              </Link>
-            )
-          })}
-
-          <div className="mt-4 text-center">
-            <Link
-              to="/records"
-              className="font-semibold text-blue-600 hover:underline"
+        <div className="space-y-2">
+          {completedFeedbacks.map((post) => (
+            <div
+              key={post.id}
+              className="rounded-xl bg-white px-4 py-3 text-base text-gray-700"
             >
-              もっと見る →
-            </Link>
-          </div>
-        </>
+              {truncate(post.content!, FEEDBACK_TRUNCATE_LENGTH)}
+            </div>
+          ))}
+        </div>
       )}
-    </section>
+
+      <div className="mt-3 text-right">
+        <Link
+          to={`/records/${latestRecord.id}/posts`}
+          className="text-base font-semibold text-blue-600 hover:underline"
+        >
+          フィードバックを見る
+        </Link>
+      </div>
+    </div>
   )
 }
 
@@ -251,6 +204,7 @@ export default function HomePage() {
   const [records, setRecords] = useState<KakeiboRecord[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [settingLimit, setSettingLimit] = useState<SettingLimit | null>(null)
+  const [aiFeedbacks, setAiFeedbacks] = useState<Post[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -271,6 +225,14 @@ export default function HomePage() {
       setRecords(recordsRes.data.data)
       setSummary(recordsRes.data.summary)
       setSettingLimit(limitRes.data.data)
+
+      const latestRecord = recordsRes.data.data[0]
+      if (latestRecord) {
+        const postsRes = await api.get<PostsResponse>(
+          `/records/${latestRecord.id}/posts`
+        )
+        setAiFeedbacks(postsRes.data.data)
+      }
     } catch (err) {
       if (isApiError(err)) {
         setError(err.response.data.message)
@@ -290,21 +252,24 @@ export default function HomePage() {
     return <LoadingScreen />
   }
 
+  const latestRecord = records[0] ?? null
+
   return (
-    <main className="min-h-screen bg-yellow-400 flex justify-center px-4 pt-10 pb-10">
-      <div className="w-full max-w-[390px] bg-[#F4F1F1] rounded-[40px] py-4">
-        {error ? (
-          <div className="px-5 py-6">
-            <ErrorAlert message={error} />
-          </div>
-        ) : (
-          <HomeContent
-            summary={summary}
-            records={records}
-            settingLimit={settingLimit}
+    <PageCard title="今月のまとめ">
+      {error ? (
+        <ErrorAlert message={error} />
+      ) : (
+        <div className="flex flex-col gap-8">
+          {summary && (
+            <DonutChart summary={summary} settingLimit={settingLimit} />
+          )}
+
+          <AiFeedbackSection
+            latestRecord={latestRecord}
+            aiFeedbacks={aiFeedbacks}
           />
-        )}
-      </div>
-    </main>
+        </div>
+      )}
+    </PageCard>
   )
 }
