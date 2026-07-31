@@ -161,26 +161,36 @@ function AiFeedbackSection({ latestRecord, aiFeedbacks }: AiFeedbackSectionProps
     )
   }
 
-  const completedFeedbacks = aiFeedbacks
-    .filter((p) => p.isAi && p.aiStatus?.statusName === 'completed' && p.content)
+  const visiblePosts = aiFeedbacks
+    .filter((p) => {
+      if (p.isAi) return p.aiStatus?.statusName === 'completed' && p.content
+      return p.content
+    })
     .slice(0, MAX_FEEDBACK_DISPLAY)
 
   return (
     <div>
-      <p className="mb-1 text-sm text-gray-400">最新の記録へのAIフィードバック</p>
+      <p className="mb-1 text-sm text-gray-400">最新の記録へのスレッド</p>
       <p className="mb-3 text-base font-semibold">{latestRecord.details}</p>
 
-      {completedFeedbacks.length === 0 ? (
+      {visiblePosts.length === 0 ? (
         <div className="rounded-xl bg-white px-5 py-6 text-center text-base text-gray-400">
-          まだAIフィードバックがありません
+          まだ投稿がありません
         </div>
       ) : (
         <div className="space-y-2">
-          {completedFeedbacks.map((post) => (
+          {visiblePosts.map((post) => (
             <div
               key={post.id}
-              className="rounded-xl bg-white px-4 py-3 text-base text-gray-700"
+              className={`rounded-xl px-4 py-3 text-base ${
+                post.isAi
+                  ? 'bg-white text-gray-700'
+                  : 'bg-blue-50 text-gray-700'
+              }`}
             >
+              <span className="mr-2 text-xs font-bold text-gray-400">
+                {post.isAi ? 'AI' : 'あなた'}
+              </span>
               {truncate(post.content!, FEEDBACK_TRUNCATE_LENGTH)}
             </div>
           ))}

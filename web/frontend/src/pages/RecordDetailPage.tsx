@@ -366,6 +366,7 @@ function PostsTab({ recordId }: { recordId: number }) {
           </div>
         )}
 
+        {reviews.length === 0 && (
         <details className="rounded-xl border bg-white">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-blue-600">
             新しいレビューを追加
@@ -421,6 +422,7 @@ function PostsTab({ recordId }: { recordId: number }) {
             </button>
           </div>
         </details>
+        )}
       </section>
 
       {/* AI フィードバック */}
@@ -441,7 +443,7 @@ function PostsTab({ recordId }: { recordId: number }) {
           </div>
         )}
 
-        <div className="flex min-h-[300px] flex-col rounded-2xl border bg-white shadow">
+        <div className="flex max-h-[500px] min-h-[300px] flex-col rounded-2xl border bg-white shadow">
           <div className="flex-1 overflow-y-auto space-y-4 p-4">
             {posts.length === 0 && (
               <div className="py-10 text-center text-sm text-gray-400">
