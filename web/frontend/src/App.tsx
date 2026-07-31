@@ -58,6 +58,7 @@ function AppContent() {
         <Route path="*" element={<ErrorPage statusCode="404" />} />
       </Routes>
 
+      {!isAuthPage && <div className="h-24" />}
       {!isAuthPage && <Footer />}
     </>
   )
