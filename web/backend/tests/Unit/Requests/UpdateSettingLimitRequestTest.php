@@ -189,4 +189,51 @@ class UpdateSettingLimitRequestTest extends TestCase
             'aveMonthlyIncome' => null,
         ]);
     }
+
+    /**
+     * USL-009: 境界値: maxValue 2147483647 (INT MAX)
+     */
+    #[Test]
+    public function test_us_l_009_max_value_int_max_passes(): void
+    {
+        $this->assertValid([
+            'upperLimitTypeId' => 2,
+            'maxValue' => 2147483647,
+            'aveMonthlyIncome' => null,
+        ]);
+    }
+
+    /**
+     * USL-010: 異常: maxValue 2147483648 (INT MAX + 1)
+     */
+    #[Test]
+    public function test_us_l_010_max_value_int_max_plus_one_fails_max(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => 2,
+                'maxValue' => 2147483648,
+                'aveMonthlyIncome' => null,
+            ],
+            'maxValue',
+            'max'
+        );
+    }
+
+    /**
+     * USL-011: 異常: aveMonthlyIncome 2147483648 (INT MAX + 1)
+     */
+    #[Test]
+    public function test_us_l_011_ave_monthly_income_int_max_plus_one_fails_max(): void
+    {
+        $this->assertInvalid(
+            [
+                'upperLimitTypeId' => 1,
+                'maxValue' => 30,
+                'aveMonthlyIncome' => 2147483648,
+            ],
+            'aveMonthlyIncome',
+            'max'
+        );
+    }
 }

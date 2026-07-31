@@ -256,4 +256,32 @@ class KakeiboRecordStoreRequestTest extends TestCase
             ])
         );
     }
+
+    /**
+     * UKS-015: 境界値: amount 2147483647 (INT MAX)
+     */
+    #[Test]
+    public function test_uk_s_015_amount_int_max_passes(): void
+    {
+        $this->assertValid(
+            $this->validData([
+                'amount' => 2147483647,
+            ])
+        );
+    }
+
+    /**
+     * UKS-016: 異常: amount 2147483648 (INT MAX + 1)
+     */
+    #[Test]
+    public function test_uk_s_016_amount_int_max_plus_one_fails_max(): void
+    {
+        $this->assertInvalid(
+            $this->validData([
+                'amount' => 2147483648,
+            ]),
+            'amount',
+            'max'
+        );
+    }
 }
