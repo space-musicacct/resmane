@@ -26,39 +26,37 @@ function AppContent() {
     <>
       {!isAuthPage && <Header />}
 
-      <main className={!isAuthPage ? 'pb-24' : ''}>
-        <Routes>
-          {/* LP */}
-          <Route path="/" element={<LandingPage />} />
+      <Routes>
+        {/* LP */}
+        <Route path="/" element={<LandingPage />} />
 
-          {/* ゲスト専用 */}
-          <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
-          <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+        {/* ゲスト専用 */}
+        <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+        <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
 
-          {/* 認証必須 */}
-          <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
-          <Route path="/records" element={<PrivateRoute><RecordListPage /></PrivateRoute>} />
-          <Route path="/records/new" element={<PrivateRoute><RecordNewPage /></PrivateRoute>} />
-          <Route path="/records/:id" element={<PrivateRoute><RecordDetailPage /></PrivateRoute>} />
-          <Route path="/records/:id/:tab" element={<PrivateRoute><RecordDetailPage /></PrivateRoute>} />
-          <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
-          <Route path="/records/:id/edit" element={<PrivateRoute><RecordEditPage /></PrivateRoute>} />
+        {/* 認証必須 */}
+        <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+        <Route path="/records" element={<PrivateRoute><RecordListPage /></PrivateRoute>} />
+        <Route path="/records/new" element={<PrivateRoute><RecordNewPage /></PrivateRoute>} />
+        <Route path="/records/:id" element={<PrivateRoute><RecordDetailPage /></PrivateRoute>} />
+        <Route path="/records/:id/:tab" element={<PrivateRoute><RecordDetailPage /></PrivateRoute>} />
+        <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+        <Route path="/records/:id/edit" element={<PrivateRoute><RecordEditPage /></PrivateRoute>} />
+        <Route
+          path="/records/:recordId/reviews/:reviewId/edit"
+          element={<PrivateRoute><ReviewEditPage /></PrivateRoute>}
+        />
+
+        {/* エラーページ */}
+        {['403', '500'].map(code => (
           <Route
-            path="/records/:recordId/reviews/:reviewId/edit"
-            element={<PrivateRoute><ReviewEditPage /></PrivateRoute>}
+            key={code}
+            path={`/${code}`}
+            element={<ErrorPage statusCode={code} />}
           />
-
-          {/* エラーページ */}
-          {['403', '500'].map(code => (
-            <Route
-              key={code}
-              path={`/${code}`}
-              element={<ErrorPage statusCode={code} />}
-            />
-          ))}
-          <Route path="*" element={<ErrorPage statusCode="404" />} />
-        </Routes>
-      </main>
+        ))}
+        <Route path="*" element={<ErrorPage statusCode="404" />} />
+      </Routes>
 
       {!isAuthPage && <Footer />}
     </>

@@ -11,7 +11,7 @@ export default function PageCard({
   const { user } = useAuth()
 
   return (
-    <div className="min-h-screen bg-yellow-400 flex justify-center px-4 pt-10 pb-10">
+    <div className="min-h-screen bg-yellow-400 flex justify-center px-4 pt-10 pb-28">
       <div className="w-full max-w-[390px] bg-[#F4F1F1] rounded-[40px] px-8 py-10">
         {user && (
           <div className="flex justify-end -mt-2 mb-4">
