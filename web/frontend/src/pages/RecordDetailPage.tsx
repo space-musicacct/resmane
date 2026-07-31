@@ -367,11 +367,7 @@ function PostsTab({ recordId }: { recordId: number }) {
         )}
 
         {reviews.length === 0 && (
-        <details className="rounded-xl border bg-white">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-blue-600">
-            新しいレビューを追加
-          </summary>
-          <div className="border-t px-4 py-4 space-y-4">
+          <div className="space-y-5">
             <ErrorAlert message={reviewGeneralError} />
 
             <div>
@@ -382,7 +378,7 @@ function PostsTab({ recordId }: { recordId: number }) {
                     key={star}
                     type="button"
                     onClick={() => setEvaluation(star)}
-                    className={`flex-1 text-4xl ${
+                    className={`flex-1 text-5xl ${
                       star <= evaluation
                         ? 'text-yellow-400'
                         : 'text-gray-300 hover:text-yellow-300'
@@ -403,7 +399,7 @@ function PostsTab({ recordId }: { recordId: number }) {
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
                 placeholder="この支出について振り返りを入力してください（250文字以内）"
-                rows={4}
+                rows={14}
                 maxLength={250}
                 className="w-full rounded-lg border border-gray-400 bg-white px-3 py-2 text-sm"
               />
@@ -421,7 +417,6 @@ function PostsTab({ recordId }: { recordId: number }) {
               {submittingReview ? '保存中...' : '保存'}
             </button>
           </div>
-        </details>
         )}
       </section>
 
@@ -443,8 +438,8 @@ function PostsTab({ recordId }: { recordId: number }) {
           </div>
         )}
 
-        <div className="flex max-h-[500px] min-h-[300px] flex-col rounded-2xl border bg-white shadow">
-          <div className="flex-1 overflow-y-auto space-y-4 p-4">
+        <div className="flex min-h-[460px] flex-col rounded-2xl border bg-white shadow">
+          <div className="h-[350px] overflow-y-auto space-y-4 p-4">
             {posts.length === 0 && (
               <div className="py-10 text-center text-sm text-gray-400">
                 AIフィードバックはまだありません
