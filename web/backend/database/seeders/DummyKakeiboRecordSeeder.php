@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\KakeiboRecord;
+use App\Models\SelfReview;
+use App\Models\UpperLimitSetting;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -133,6 +135,44 @@ class DummyKakeiboRecordSeeder extends Seeder
                 'amount' => $r[3],
                 'details' => $r[4],
             ]);
+        }
+
+        // 上限値設定: 固定額 80,000円
+        UpperLimitSetting::create([
+            'user_id' => $userId,
+            'upper_limit_type_id' => 2,
+            'max_value' => 80000,
+            'ave_monthly_income' => null,
+        ]);
+
+        // 自己レビュー: [details, reviewComment, evaluation]
+        $reviews = [
+            ['ガチャ（ソシャゲコラボ）', 'ガチャは沼…。でも推しのコラボだから仕方ない', 2],
+            ['VTuberフェスチケット', '推しのフェス、最高だった！後悔はない！', 5],
+            ['フェス限定グッズ', 'グッズも買えたし満足。ただ予算オーバー気味', 3],
+            ['スパチャ（歌枠神回）', '神回だったからスパチャしちゃった。幸せ', 4],
+            ['推しのBD（Blu-ray）予約', 'BD予約は計画的だったからOK', 4],
+            ['日高屋でチャーハンセット', 'チャーハンセット、普通においしかった', 4],
+            ['オタク仲間とフェス打ち上げ', '打ち上げ楽しかったけどちょっと使いすぎたかも', 3],
+            ['ファミマで弁当', 'コンビニ弁当ばっかりだな…自炊したい', 2],
+            ['スパチャ（推しの誕生日配信）', '推しの誕生日だから！これは必要経費', 5],
+            ['推しの新曲CD＋特典', '新曲よかった。特典も嬉しい', 4],
+            ['スパチャ（3Dお披露目）', '3Dお披露目は記念だから', 4],
+            ['ラーメン二郎', '二郎うまかった。でもカロリーやばい', 3],
+        ];
+
+        foreach ($reviews as [$details, $comment, $evaluation]) {
+            $record = KakeiboRecord::where('user_id', $userId)
+                ->where('details', $details)
+                ->first();
+
+            if ($record) {
+                SelfReview::create([
+                    'kakeibo_record_id' => $record->id,
+                    'review_comment' => $comment,
+                    'evaluation' => $evaluation,
+                ]);
+            }
         }
     }
 }
