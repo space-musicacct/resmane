@@ -13,6 +13,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithAbort;
 
@@ -34,7 +35,9 @@ class SelfReviewServiceTest extends TestCase
     use InteractsWithAbort;
 
     private SelfReviewRepositoryInterface&MockInterface $repository;
+
     private KakeiboRecordRepositoryInterface&MockInterface $kakeiboRecordRepository;
+
     private SelfReviewService $service;
 
     protected function setUp(): void
@@ -104,7 +107,7 @@ class SelfReviewServiceTest extends TestCase
      * SSR-001: list: 一覧取得
      */
     #[Test]
-    public function SSR_001_一覧取得でRepositoryのpaginateByRecordIdが呼ばれる(): void
+    public function test_ss_r_001_list_calls_paginate_by_record_id(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -128,7 +131,7 @@ class SelfReviewServiceTest extends TestCase
      * SSR-002: list: 親レコードが存在しない
      */
     #[Test]
-    public function SSR_002_親レコードが存在しない場合は404になる(): void
+    public function test_ss_r_002_list_parent_not_found_aborts_404(): void
     {
         $recordId = 999;
         $userId = 1;
@@ -144,7 +147,7 @@ class SelfReviewServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->list($recordId, $userId),
-            404
+            Response::HTTP_NOT_FOUND
         );
     }
 
@@ -152,7 +155,7 @@ class SelfReviewServiceTest extends TestCase
      * SSR-003: create: 正常作成
      */
     #[Test]
-    public function SSR_003_createでRepositoryのcreateが呼ばれる(): void
+    public function test_ss_r_003_create_calls_repository(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -185,7 +188,7 @@ class SelfReviewServiceTest extends TestCase
      * SSR-004: update: 正常更新
      */
     #[Test]
-    public function SSR_004_updateでRepositoryのupdateが呼ばれる(): void
+    public function test_ss_r_004_update_calls_repository(): void
     {
         $recordId = 10;
         $id = 20;
@@ -225,7 +228,7 @@ class SelfReviewServiceTest extends TestCase
      * SSR-005: update: レビューが存在しない
      */
     #[Test]
-    public function SSR_005_updateでレビューが存在しない場合は404になる(): void
+    public function test_ss_r_005_update_not_found_aborts_404(): void
     {
         $recordId = 10;
         $id = 999;
@@ -249,7 +252,7 @@ class SelfReviewServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->update($recordId, $id, $userId, $validated),
-            404
+            Response::HTTP_NOT_FOUND
         );
     }
 
@@ -257,7 +260,7 @@ class SelfReviewServiceTest extends TestCase
      * SSR-006: delete: 正常削除
      */
     #[Test]
-    public function SSR_006_deleteでRepositoryのdeleteが呼ばれる(): void
+    public function test_ss_r_006_delete_calls_repository(): void
     {
         $recordId = 10;
         $id = 20;
@@ -290,7 +293,7 @@ class SelfReviewServiceTest extends TestCase
      * SSR-007: delete: レビューが存在しない
      */
     #[Test]
-    public function SSR_007_deleteでレビューが存在しない場合は404になる(): void
+    public function test_ss_r_007_delete_not_found_aborts_404(): void
     {
         $recordId = 10;
         $id = 999;
@@ -309,7 +312,7 @@ class SelfReviewServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->delete($recordId, $id, $userId),
-            404
+            Response::HTTP_NOT_FOUND
         );
     }
 }

@@ -11,9 +11,6 @@ use Illuminate\Database\QueryException;
  */
 readonly class SettingLimitService
 {
-    /**
-     * @param UpperLimitSettingRepositoryInterface $repository
-     */
     public function __construct(
         private UpperLimitSettingRepositoryInterface $repository,
     ) {}
@@ -21,7 +18,7 @@ readonly class SettingLimitService
     /**
      * ユーザーの基準値設定を取得する
      *
-     * @param int $userId ユーザーID
+     * @param  int  $userId  ユーザーID
      * @return UpperLimitSetting|null 未設定の場合はnull
      */
     public function find(int $userId): ?UpperLimitSetting
@@ -32,9 +29,10 @@ readonly class SettingLimitService
     /**
      * 基準値設定を作成または更新する
      *
-     * @param int $userId ユーザーID
-     * @param array $validated バリデーション済みリクエストデータ（camelCase）
+     * @param  int  $userId  ユーザーID
+     * @param  array  $validated  バリデーション済みリクエストデータ（camelCase）
      * @return UpperLimitSetting upperLimitTypeリレーションをロード済み
+     *
      * @throws QueryException DB操作に失敗した場合
      */
     public function upsert(int $userId, array $validated): UpperLimitSetting

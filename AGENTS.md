@@ -21,8 +21,8 @@
 | ---------------- | ----------------------- | ----------- |
 | フロントエンド   | React + TypeScript      | React 18 / TS 5 |
 | スタイリング     | Tailwind CSS            | 3 系        |
-| ビルド           | Vite                    | 5 系        |
-| バックエンド     | PHP + Laravel           | PHP 8.3 / Laravel 10 |
+| ビルド           | Vite                    | 8 系        |
+| バックエンド     | PHP + Laravel           | PHP 8.5 / Laravel 13 |
 | AI worker        | Python + schedule       | Python 3.11 |
 | データベース     | MySQL                   | 8.4         |
 | インフラ         | Docker Compose + Nginx  | -           |
@@ -32,10 +32,6 @@
 - フロントエンド（React SPA）とバックエンド（Laravel API）は**完全に分離**する。React は Laravel の `resources/` 配下に置かない
 - Nginx がパスで振り分け：静的ファイル → React、`/api` → Laravel
 - AI 処理は Python worker が非同期で担う。Laravel 本体から外部 AI API を直接呼ばない
-
-### レビュー時の注意
-
-- **Laravel 10 のセキュリティサポート終了（2025年2月）は認識済み**。技術構成書 2.1 節に方針を記載しており、公開時は Laravel 13 へ引き上げる前提。この件に関する再指摘は不要
 
 詳細：`docs/技術構成/技術構成書.md`
 

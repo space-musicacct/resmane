@@ -19,7 +19,7 @@ class SettingLimitController extends Controller
     {
         $setting = $this->service->find($request->user()->id);
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json(['data' => null]);
         }
 

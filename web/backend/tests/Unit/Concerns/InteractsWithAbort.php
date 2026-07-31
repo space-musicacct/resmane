@@ -17,7 +17,7 @@ trait InteractsWithAbort
     {
         try {
             $callback();
-            $this->fail("Expected HttpException with status {$status} was not thrown.");
+            $this->fail("Expected HttpException with status $status was not thrown.");
         } catch (HttpException $e) {
             $this->assertSame($status, $e->getStatusCode());
         }

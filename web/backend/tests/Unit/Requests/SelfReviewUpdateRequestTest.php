@@ -3,8 +3,8 @@
 namespace Tests\Unit\Requests;
 
 use App\Http\Requests\V1\SelfReviewUpdateRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
+use Illuminate\Validation\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithValidation;
@@ -24,7 +24,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      */
     private function rules(): array
     {
-        return (new SelfReviewUpdateRequest())->rules();
+        return new SelfReviewUpdateRequest()->rules();
     }
 
     /**
@@ -53,7 +53,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-001: 正常: 全フィールド有効
      */
     #[Test]
-    public function USRU_001_全フィールド有効な場合はバリデーションを通過する(): void
+    public function test_usr_u_001_all_fields_valid_passes_validation(): void
     {
         $this->assertValid(
             $this->validData()
@@ -64,7 +64,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-002: 異常: reviewComment 未入力
      */
     #[Test]
-    public function USRU_002_reviewComment未入力の場合はrequiredエラーになる(): void
+    public function test_usr_u_002_review_comment_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -79,7 +79,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-003: 異常: reviewComment 251文字
      */
     #[Test]
-    public function USRU_003_reviewCommentが251文字の場合はmaxエラーになる(): void
+    public function test_usr_u_003_review_comment_251_chars_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -94,7 +94,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-004: 異常: evaluation 未入力
      */
     #[Test]
-    public function USRU_004_evaluation未入力の場合はrequiredエラーになる(): void
+    public function test_usr_u_004_evaluation_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -109,7 +109,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-005: 異常: evaluation 0
      */
     #[Test]
-    public function USRU_005_evaluationが0の場合はminエラーになる(): void
+    public function test_usr_u_005_evaluation_zero_fails_min(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -124,7 +124,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-006: 異常: evaluation 6
      */
     #[Test]
-    public function USRU_006_evaluationが6の場合はmaxエラーになる(): void
+    public function test_usr_u_006_evaluation_6_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -139,7 +139,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-007: 異常: evaluation 小数
      */
     #[Test]
-    public function USRU_007_evaluationが小数の場合はintegerエラーになる(): void
+    public function test_usr_u_007_evaluation_decimal_fails_integer(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -154,7 +154,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-008: 境界値: reviewComment 250文字
      */
     #[Test]
-    public function USRU_008_reviewCommentが250文字の場合は通過する(): void
+    public function test_usr_u_008_review_comment_250_chars_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -167,7 +167,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-009: 境界値: reviewComment 1文字
      */
     #[Test]
-    public function USRU_009_reviewCommentが1文字の場合は通過する(): void
+    public function test_usr_u_009_review_comment_1_char_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -180,7 +180,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-010: 境界値: evaluation 1
      */
     #[Test]
-    public function USRU_010_evaluationが1の場合は通過する(): void
+    public function test_usr_u_010_evaluation_1_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -193,7 +193,7 @@ class SelfReviewUpdateRequestTest extends TestCase
      * USRU-011: 境界値: evaluation 5
      */
     #[Test]
-    public function USRU_011_evaluationが5の場合は通過する(): void
+    public function test_usr_u_011_evaluation_5_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -201,5 +201,4 @@ class SelfReviewUpdateRequestTest extends TestCase
             ])
         );
     }
-
 }

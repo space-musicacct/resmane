@@ -3,8 +3,8 @@
 namespace Tests\Unit\Requests;
 
 use App\Http\Requests\V1\PostStoreRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
+use Illuminate\Validation\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithValidation;
@@ -23,7 +23,7 @@ class PostStoreRequestTest extends TestCase
      */
     private function rules(): array
     {
-        return (new PostStoreRequest())->rules();
+        return new PostStoreRequest()->rules();
     }
 
     /**
@@ -52,7 +52,7 @@ class PostStoreRequestTest extends TestCase
      * UPS-001: 正常: content 有効
      */
     #[Test]
-    public function UPS_001_contentが有効な場合はバリデーションを通過する(): void
+    public function test_up_s_001_content_valid_passes(): void
     {
         $this->assertValid(
             $this->validData()
@@ -63,7 +63,7 @@ class PostStoreRequestTest extends TestCase
      * UPS-002: 正常: content 省略
      */
     #[Test]
-    public function UPS_002_contentがnullの場合はバリデーションを通過する(): void
+    public function test_up_s_002_content_null_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -76,7 +76,7 @@ class PostStoreRequestTest extends TestCase
      * UPS-003: 正常: parentId 省略
      */
     #[Test]
-    public function UPS_003_parentIdがnullの場合はバリデーションを通過する(): void
+    public function test_up_s_003_parent_id_null_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -89,7 +89,7 @@ class PostStoreRequestTest extends TestCase
      * UPS-004: 異常: content 3001文字
      */
     #[Test]
-    public function UPS_004_contentが3001文字の場合はmaxエラーになる(): void
+    public function test_up_s_004_content_3001_chars_fails_max(): void
     {
         $this->assertInvalid(
             $this->validData([
@@ -104,7 +104,7 @@ class PostStoreRequestTest extends TestCase
      * UPS-005: 境界値: content 3000文字
      */
     #[Test]
-    public function UPS_005_contentが3000文字の場合は通過する(): void
+    public function test_up_s_005_content_3000_chars_passes(): void
     {
         $this->assertValid(
             $this->validData([
@@ -112,5 +112,4 @@ class PostStoreRequestTest extends TestCase
             ])
         );
     }
-
 }

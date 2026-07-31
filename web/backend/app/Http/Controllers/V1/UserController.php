@@ -8,6 +8,7 @@ use App\Http\Resources\V1\UserResource;
 use App\Services\V1\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class UserController extends Controller
@@ -32,6 +33,10 @@ class UserController extends Controller
                 'message' => $result['error'],
                 'errors' => (object) [],
             ], $result['status']);
+        }
+
+        if ($request->hasSession()) {
+            Auth::guard('web')->login($result['user']);
         }
 
         return response()->json([

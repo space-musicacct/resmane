@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Concerns;
 
+use Illuminate\Validation\Rules\Exists;
 use Illuminate\Validation\Validator;
 
 /**
@@ -79,7 +80,7 @@ trait InteractsWithValidation
                         return ! str_starts_with($rule, 'exists:');
                     }
 
-                    return ! ($rule instanceof \Illuminate\Validation\Rules\Exists);
+                    return ! ($rule instanceof Exists);
                 }
             ));
         }

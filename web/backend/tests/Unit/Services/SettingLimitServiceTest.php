@@ -18,6 +18,7 @@ use Tests\TestCase;
 class SettingLimitServiceTest extends TestCase
 {
     private UpperLimitSettingRepositoryInterface&MockInterface $repository;
+
     private SettingLimitService $service;
 
     protected function setUp(): void
@@ -39,7 +40,7 @@ class SettingLimitServiceTest extends TestCase
      * SSL-001: find: 設定が存在する
      */
     #[Test]
-    public function SSL_001_設定が存在する場合はその設定を返す(): void
+    public function test_ss_l_001_find_returns_setting(): void
     {
         $userId = 1;
 
@@ -60,7 +61,7 @@ class SettingLimitServiceTest extends TestCase
      * SSL-002: find: 設定が存在しない
      */
     #[Test]
-    public function SSL_002_設定が存在しない場合はnullを返す(): void
+    public function test_ss_l_002_find_returns_null_when_not_found(): void
     {
         $userId = 1;
 
@@ -79,7 +80,7 @@ class SettingLimitServiceTest extends TestCase
      * SSL-003: upsert: 正常作成/更新
      */
     #[Test]
-    public function SSL_003_upsertでRepositoryが正しいデータで呼ばれる(): void
+    public function test_ss_l_003_upsert_calls_repository_with_correct_data(): void
     {
         $userId = 1;
 
@@ -110,7 +111,7 @@ class SettingLimitServiceTest extends TestCase
      * SSL-004: upsert: aveMonthlyIncome 省略時に null が設定される
      */
     #[Test]
-    public function SSL_004_aveMonthlyIncome省略時にnullが設定される(): void
+    public function test_ss_l_004_upsert_defaults_ave_monthly_income_to_null(): void
     {
         $userId = 1;
 

@@ -3,8 +3,8 @@
 namespace Tests\Unit\Requests;
 
 use App\Http\Requests\V1\LoginRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
+use Illuminate\Validation\Validator;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithValidation;
@@ -23,7 +23,7 @@ class LoginRequestTest extends TestCase
      */
     private function rules(): array
     {
-        return (new LoginRequest())->rules();
+        return new LoginRequest()->rules();
     }
 
     /**
@@ -52,7 +52,7 @@ class LoginRequestTest extends TestCase
      * UL-001: 正常: 全フィールド有効
      */
     #[Test]
-    public function UL_001_全フィールド有効な場合はバリデーションを通過する(): void
+    public function test_u_l_001_all_fields_valid_passes_validation(): void
     {
         $this->assertValid(
             $this->validData()
@@ -63,7 +63,7 @@ class LoginRequestTest extends TestCase
      * UL-002: 異常: loginId 未入力
      */
     #[Test]
-    public function UL_002_loginId未入力の場合はrequiredエラーになる(): void
+    public function test_u_l_002_login_id_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData(['loginId' => '']),
@@ -76,7 +76,7 @@ class LoginRequestTest extends TestCase
      * UL-003: 異常: password 未入力
      */
     #[Test]
-    public function UL_003_password未入力の場合はrequiredエラーになる(): void
+    public function test_u_l_003_password_empty_fails_required(): void
     {
         $this->assertInvalid(
             $this->validData(['password' => '']),

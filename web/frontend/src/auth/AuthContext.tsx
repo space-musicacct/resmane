@@ -73,7 +73,7 @@ export function GuestRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/', { replace: true })
+      navigate('/home', { replace: true })
     }
   }, [loading, user, navigate])
 

@@ -14,6 +14,7 @@ use Illuminate\Support\Collection;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 use Tests\Unit\Concerns\InteractsWithAbort;
 
@@ -36,7 +37,9 @@ class PostServiceTest extends TestCase
     use InteractsWithAbort;
 
     private PostRepositoryInterface&MockInterface $repository;
+
     private KakeiboRecordRepositoryInterface&MockInterface $kakeiboRecordRepository;
+
     private PostService $service;
 
     protected function setUp(): void
@@ -121,7 +124,7 @@ class PostServiceTest extends TestCase
      * SPS-001: list: 一覧取得
      */
     #[Test]
-    public function SPS_001_一覧取得でRepositoryのfindByRecordIdが呼ばれる(): void
+    public function test_sp_s_001_list_calls_find_by_record_id(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -145,7 +148,7 @@ class PostServiceTest extends TestCase
      * SPS-002: store: content 有りでユーザー投稿+AI投稿作成
      */
     #[Test]
-    public function SPS_002_content有りでユーザー投稿とAI投稿が作成される(): void
+    public function test_sp_s_002_store_with_content_creates_user_and_ai_post(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -196,7 +199,7 @@ class PostServiceTest extends TestCase
      * SPS-003: store: content 省略でAIフィードバック要求のみ
      */
     #[Test]
-    public function SPS_003_content省略で既存AI投稿なしの場合はAIフィードバック要求のみ作成される(): void
+    public function test_sp_s_003_store_without_content_creates_ai_post_only(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -206,7 +209,7 @@ class PostServiceTest extends TestCase
             'parentId' => null,
         ];
 
-        $aiPost = $this->makePost(200, null);
+        $aiPost = $this->makePost(200);
 
         $this->mockFindByIdForUpdate($recordId, $userId);
 
@@ -243,7 +246,7 @@ class PostServiceTest extends TestCase
      * SPS-004: store: content 省略で既存completed AI投稿がある
      */
     #[Test]
-    public function SPS_004_content省略で既存completedAI投稿がある場合は409を返す(): void
+    public function test_sp_s_004_store_without_content_completed_exists_returns_409(): void
     {
         $this->assertConflictWhenAiPostExists();
     }
@@ -252,7 +255,7 @@ class PostServiceTest extends TestCase
      * SPS-005: store: content 省略で既存pending AI投稿がある
      */
     #[Test]
-    public function SPS_005_content省略で既存pendingAI投稿がある場合は409を返す(): void
+    public function test_sp_s_005_store_without_content_pending_exists_returns_409(): void
     {
         $this->assertConflictWhenAiPostExists();
     }
@@ -289,14 +292,14 @@ class PostServiceTest extends TestCase
         $result = $this->service->store($recordId, $userId, $validated);
 
         $this->assertArrayHasKey('error', $result);
-        $this->assertSame(409, $result['status']);
+        $this->assertSame(Response::HTTP_CONFLICT, $result['status']);
     }
 
     /**
      * SPS-006: store: content 省略で既存failed AI投稿のみ
      */
     #[Test]
-    public function SPS_006_content省略で既存failedAI投稿のみの場合は再試行として新規作成される(): void
+    public function test_sp_s_006_store_without_content_failed_only_allows_retry(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -306,7 +309,7 @@ class PostServiceTest extends TestCase
             'parentId' => null,
         ];
 
-        $newAiPost = $this->makePost(301, null);
+        $newAiPost = $this->makePost(301);
 
         $this->mockFindByIdForUpdate($recordId, $userId);
 
@@ -344,7 +347,7 @@ class PostServiceTest extends TestCase
      * SPS-007: store: parentId 指定で存在する投稿
      */
     #[Test]
-    public function SPS_007_parentId指定で存在する投稿の場合は正常に投稿作成される(): void
+    public function test_sp_s_007_store_with_valid_parent_id_succeeds(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -401,7 +404,7 @@ class PostServiceTest extends TestCase
      * SPS-008: store: parentId 指定で存在しない投稿
      */
     #[Test]
-    public function SPS_008_parentId指定で存在しない投稿の場合は404になる(): void
+    public function test_sp_s_008_store_with_invalid_parent_id_aborts_404(): void
     {
         $recordId = 10;
         $userId = 1;
@@ -425,7 +428,7 @@ class PostServiceTest extends TestCase
 
         $this->assertAbort(
             fn () => $this->service->store($recordId, $userId, $validated),
-            404
+            Response::HTTP_NOT_FOUND
         );
     }
 
@@ -433,7 +436,7 @@ class PostServiceTest extends TestCase
      * SPS-009: store: userPost の parentId が aiPost に引き継がれる
      */
     #[Test]
-    public function SPS_009_userPostのIDがaiPostのparent_idに引き継がれる(): void
+    public function test_sp_s_009_ai_post_parent_id_inherits_user_post_id(): void
     {
         $recordId = 10;
         $userId = 1;
