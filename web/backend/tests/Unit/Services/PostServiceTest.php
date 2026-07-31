@@ -164,6 +164,12 @@ class PostServiceTest extends TestCase
         $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
+            ->shouldReceive('existsAiPostWithStatuses')
+            ->once()
+            ->with($recordId, [AiStatus::PENDING_ID, AiStatus::PROCESSING_ID])
+            ->andReturn(false);
+
+        $this->repository
             ->shouldReceive('create')
             ->once()
             ->with([
@@ -369,6 +375,12 @@ class PostServiceTest extends TestCase
             ->andReturn(true);
 
         $this->repository
+            ->shouldReceive('existsAiPostWithStatuses')
+            ->once()
+            ->with($recordId, [AiStatus::PENDING_ID, AiStatus::PROCESSING_ID])
+            ->andReturn(false);
+
+        $this->repository
             ->shouldReceive('create')
             ->once()
             ->with([
@@ -451,6 +463,12 @@ class PostServiceTest extends TestCase
         $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
+            ->shouldReceive('existsAiPostWithStatuses')
+            ->once()
+            ->with($recordId, [AiStatus::PENDING_ID, AiStatus::PROCESSING_ID])
+            ->andReturn(false);
+
+        $this->repository
             ->shouldReceive('create')
             ->once()
             ->with([
@@ -474,5 +492,116 @@ class PostServiceTest extends TestCase
         $result = $this->service->store($recordId, $userId, $validated);
 
         $this->assertSame($userPost->id, $result['aiPost']->parent_id);
+    }
+
+    /**
+     * SPS-010: store: content 有りで pending AI投稿がある場合は 409
+     */
+    #[Test]
+    public function test_sp_s_010_store_with_content_pending_ai_returns_409(): void
+    {
+        $this->assertConflictWhenChatDuringPendingOrProcessing();
+    }
+
+    /**
+     * SPS-011: store: content 有りで processing AI投稿がある場合は 409
+     */
+    #[Test]
+    public function test_sp_s_011_store_with_content_processing_ai_returns_409(): void
+    {
+        $this->assertConflictWhenChatDuringPendingOrProcessing();
+    }
+
+    /**
+     * SPS-010/011 共通: content 有りで pending/processing AI投稿がある場合は
+     * repository への create が呼ばれず、409 のエラー配列が返る。
+     */
+    private function assertConflictWhenChatDuringPendingOrProcessing(): void
+    {
+        $recordId = 10;
+        $userId = 1;
+
+        $validated = [
+            'content' => '追加の質問',
+            'parentId' => null,
+        ];
+
+        $this->mockFindByIdForUpdate($recordId, $userId);
+
+        $this->repository
+            ->shouldReceive('existsAiPostWithStatuses')
+            ->once()
+            ->with($recordId, [
+                AiStatus::PENDING_ID,
+                AiStatus::PROCESSING_ID,
+            ])
+            ->andReturn(true);
+
+        $this->repository
+            ->shouldNotReceive('create');
+
+        $result = $this->service->store($recordId, $userId, $validated);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame(Response::HTTP_CONFLICT, $result['status']);
+    }
+
+    /**
+     * SPS-012: store: content 有りで completed AI投稿のみの場合は追加チャット可能
+     */
+    #[Test]
+    public function test_sp_s_012_store_with_content_completed_only_allows_chat(): void
+    {
+        $recordId = 10;
+        $userId = 1;
+
+        $validated = [
+            'content' => '追加の質問',
+            'parentId' => null,
+        ];
+
+        $userPost = $this->makePost(100);
+
+        $this->mockFindByIdForUpdate($recordId, $userId);
+
+        $this->repository
+            ->shouldReceive('existsAiPostWithStatuses')
+            ->once()
+            ->with($recordId, [
+                AiStatus::PENDING_ID,
+                AiStatus::PROCESSING_ID,
+            ])
+            ->andReturn(false);
+
+        $this->repository
+            ->shouldReceive('create')
+            ->once()
+            ->with([
+                'user_id' => $userId,
+                'kakeibo_record_id' => $recordId,
+                'ai_status_id' => null,
+                'parent_id' => null,
+                'is_ai' => 0,
+                'content' => '追加の質問',
+            ])
+            ->andReturn($userPost);
+
+        $this->repository
+            ->shouldReceive('create')
+            ->once()
+            ->with([
+                'user_id' => $userId,
+                'kakeibo_record_id' => $recordId,
+                'ai_status_id' => AiStatus::PENDING_ID,
+                'parent_id' => $userPost->id,
+                'is_ai' => 1,
+                'content' => null,
+            ])
+            ->andReturn($this->makePost(101, $userPost->id));
+
+        $result = $this->service->store($recordId, $userId, $validated);
+
+        $this->assertSame($userPost, $result['userPost']);
+        $this->assertNotNull($result['aiPost']);
     }
 }
