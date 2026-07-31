@@ -437,7 +437,18 @@ class FeedbackService:
         return [{"role": "user", "content": user_message}]
 
     def _build_followup_messages(self, context: dict) -> list[dict]:
-        messages = []
+        record = context["record"]
+        background = (
+            "【参照データ: この会話の対象となる家計簿レコード】\n"
+            f"日付: {record['purchase_date']}\n"
+            f"区分: {record['amount_type_name']}\n"
+            f"カテゴリ: {record['category_name']}\n"
+            f"金額: {record['amount']:,}円\n"
+            f"内容: {record['details'] or '(なし)'}\n"
+        )
+        background += self._format_upper_limit(context)
+
+        messages = [{"role": "user", "content": background}]
         for post in context["thread"]:
             role = "assistant" if post["is_ai"] else "user"
             if post["content"]:
@@ -453,17 +464,7 @@ class FeedbackService:
         return PERSONA_BASE + INITIAL_TASK_INSTRUCTION
 
     def _build_followup_instruction(self, context: dict) -> str:
-        record = context["record"]
-        record_context = (
-            f"\n## 背景情報（この会話の対象となる家計簿レコード）\n"
-            f"- 日付: {record['purchase_date']}\n"
-            f"- 区分: {record['amount_type_name']}\n"
-            f"- カテゴリ: {record['category_name']}\n"
-            f"- 金額: {record['amount']:,}円\n"
-            f"- 内容: {record['details'] or '(なし)'}\n"
-        )
-        record_context += self._format_upper_limit(context)
-        return PERSONA_BASE + FOLLOWUP_TASK_INSTRUCTION + record_context
+        return PERSONA_BASE + FOLLOWUP_TASK_INSTRUCTION
 
     @staticmethod
     def _format_upper_limit(context: dict) -> str:
