@@ -25,10 +25,10 @@ class UpdateSettingLimitRequest extends FormRequest
                 'integer',
                 Rule::exists('upper_limit_types', 'id')->whereNull('deleted_at'),
             ],
-            'maxValue' => ['required', 'integer', 'min:1'],
+            'maxValue' => ['required', 'integer', 'min:1', 'max:2147483647'],
             'aveMonthlyIncome' => $isPercentageType
-                ? ['required', 'integer', 'min:1']
-                : ['nullable', 'integer', 'min:1'],
+                ? ['required', 'integer', 'min:1', 'max:2147483647']
+                : ['nullable', 'integer', 'min:1', 'max:2147483647'],
         ];
     }
 
@@ -41,9 +41,11 @@ class UpdateSettingLimitRequest extends FormRequest
             'maxValue.required' => '上限値は必須です',
             'maxValue.integer' => '上限値は1以上の整数で入力してください',
             'maxValue.min' => '上限値は1以上の整数で入力してください',
+            'maxValue.max' => '上限値が大きすぎます',
             'aveMonthlyIncome.required' => '割合指定時は平均月収が必須です',
             'aveMonthlyIncome.integer' => '平均月収は1以上の整数で入力してください',
             'aveMonthlyIncome.min' => '平均月収は1以上の整数で入力してください',
+            'aveMonthlyIncome.max' => '平均月収が大きすぎます',
         ];
     }
 }

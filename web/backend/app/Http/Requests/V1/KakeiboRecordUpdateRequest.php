@@ -17,7 +17,7 @@ class KakeiboRecordUpdateRequest extends FormRequest
         return [
             'purchaseDate' => ['nullable', 'date'],
             'amountTypeId' => ['required', 'exists:amount_types,id'],
-            'amount' => ['required', 'integer', 'min:1'],
+            'amount' => ['required', 'integer', 'min:1', 'max:2147483647'],
             'details' => ['required', 'string', 'min:1', 'max:250'],
             'kakeiboDefaultCategoryId' => [
                 'required',
@@ -36,6 +36,7 @@ class KakeiboRecordUpdateRequest extends FormRequest
             'amount.required' => '金額は必須です',
             'amount.integer' => '金額は1以上の整数で入力してください',
             'amount.min' => '金額は1以上の整数で入力してください',
+            'amount.max' => '金額が大きすぎます',
             'details.required' => '購入詳細は必須です',
             'details.min' => '購入詳細は1文字以上で入力してください',
             'details.max' => '購入詳細は250文字以内で入力してください',
