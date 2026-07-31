@@ -1,74 +1,29 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { getCsrfCookie, isApiError } from '../lib/axios'
+import type { KakeiboRecord, SelfReview, Post } from '../types/record'
+import type { ValidationErrors } from '../types'
 import PageCard from '../components/PageCard'
 import LoadingScreen from '../components/LoadingScreen'
 import TabSwitcher from '../components/TabSwitcher'
+import ErrorAlert from '../components/ErrorAlert'
 
-type KakeiboRecord = {
-  id: number
-  userId: number
-  purchaseDate: string
-  amountTypeId: number
-  amountTypeName: string
-  amount: number
-  details: string
-  categoryId: number
-  categoryName: string
-  createdAt: string
-  updatedAt: string
-}
+type TabKey = 'detail' | 'posts'
 
-type Tab = 'detail' | 'review'
+const VALID_TABS: TabKey[] = ['detail', 'posts']
 
-type Message = {
-  id: number
-  sender: 'user' | 'ai'
-  text: string
+function resolveTab(tab: string | undefined): TabKey {
+  return VALID_TABS.includes(tab as TabKey) ? (tab as TabKey) : 'detail'
 }
 
 export default function RecordDetailPage() {
-  const { id } = useParams()
+  const { id, tab } = useParams()
   const navigate = useNavigate()
 
   const [record, setRecord] = useState<KakeiboRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [activeTab, setActiveTab] = useState<Tab>('detail')
-
-  const [reviewComment, setReviewComment] = useState('')
-  const [evaluation, setEvaluation] = useState(0)
-
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
-
-  const sendMessage = async () => {
-    if (!input.trim()) return
-    const userMessage: Message = {
-      id: Date.now(),
-      sender: 'user',
-      text: input,
-    }
-    setMessages((prev) => [...prev, userMessage])
-
-    try {
-      const res = await api.post('/chat', {
-        message: input,
-        recordId: id,
-      })
-
-      const aiMessage: Message = {
-        id: Date.now() + 1,
-        sender: 'ai',
-        text: res.data.message,
-      }
-
-      setMessages((prev) => [...prev, aiMessage])
-    } catch (err) {
-      console.error(err)
-    }
-    setInput('')
-  }
+  const activeTab = resolveTab(tab)
 
   const handleDelete = async () => {
     if (!confirm('この記録を削除しますか？')) return
@@ -108,7 +63,6 @@ export default function RecordDetailPage() {
         <p className="text-center text-red-600">
           {errorMessage || '家計簿レコードを表示できませんでした'}
         </p>
-
         <Link
           to="/records"
           className="mt-6 block text-center text-sm font-medium text-blue-600 underline"
@@ -123,11 +77,11 @@ export default function RecordDetailPage() {
     <PageCard title="家計簿詳細">
       <TabSwitcher
         tabs={[
-          { key: 'detail', label: '家計簿詳細' },
-          { key: 'review', label: '自己レビュー / AIフィードバック' },
+          { key: 'detail' as TabKey, label: '家計簿詳細' },
+          { key: 'posts' as TabKey, label: '自己レビュー / AIフィードバック' },
         ]}
         activeTab={activeTab}
-        onChange={(tab) => setActiveTab(tab as Tab)}
+        onChange={(key) => navigate(`/records/${id}/${key}`, { replace: true })}
         className="mb-8"
       />
 
@@ -152,7 +106,6 @@ export default function RecordDetailPage() {
             >
               編集
             </Link>
-
             <button
               type="button"
               onClick={handleDelete}
@@ -164,10 +117,259 @@ export default function RecordDetailPage() {
         </>
       )}
 
-      {activeTab === 'review' && (
-        <div className="flex flex-col gap-6">
-          {/* 自己レビュー投稿フォーム */}
+      {activeTab === 'posts' && <PostsTab recordId={Number(id)} />}
+    </PageCard>
+  )
+}
+
+function PostsTab({ recordId }: { recordId: number }) {
+  const navigate = useNavigate()
+  const [reviews, setReviews] = useState<SelfReview[]>([])
+  const [posts, setPosts] = useState<Post[]>([])
+  const [loadingData, setLoadingData] = useState(true)
+  const [error, setError] = useState('')
+
+  const [reviewComment, setReviewComment] = useState('')
+  const [evaluation, setEvaluation] = useState(0)
+  const [reviewErrors, setReviewErrors] = useState<ValidationErrors>({})
+  const [reviewGeneralError, setReviewGeneralError] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+
+  const [chatInput, setChatInput] = useState('')
+  const [submittingChat, setSubmittingChat] = useState(false)
+  const [chatError, setChatError] = useState('')
+
+  const [generatingFeedback, setGeneratingFeedback] = useState(false)
+  const [feedbackError, setFeedbackError] = useState('')
+
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const fetchPosts = useCallback(() => {
+    return api.get(`/records/${recordId}/posts`).then((res) => {
+      setPosts(res.data.data)
+      return res.data.data as Post[]
+    })
+  }, [recordId])
+
+  const fetchReviews = useCallback(() => {
+    return api.get(`/records/${recordId}/reviews`).then((res) => {
+      setReviews(res.data.data)
+    })
+  }, [recordId])
+
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return
+    pollingRef.current = setInterval(async () => {
+      try {
+        const latest = await fetchPosts()
+        const hasPending = latest.some(
+          (p: Post) => p.isAi && p.aiStatus &&
+            (p.aiStatus.statusName === 'pending' || p.aiStatus.statusName === 'processing'),
+        )
+        if (!hasPending && pollingRef.current) {
+          clearInterval(pollingRef.current)
+          pollingRef.current = null
+        }
+      } catch {
+        /* polling failure is silent */
+      }
+    }, 3000)
+  }, [fetchPosts])
+
+  useEffect(() => {
+    Promise.all([fetchReviews(), fetchPosts()])
+      .then(([, postsData]) => {
+        const hasPending = (postsData as Post[]).some(
+          (p) => p.isAi && p.aiStatus &&
+            (p.aiStatus.statusName === 'pending' || p.aiStatus.statusName === 'processing'),
+        )
+        if (hasPending) startPolling()
+      })
+      .catch((err) => {
+        if (isApiError(err)) {
+          setError(err.response.data.message)
+        } else {
+          setError('データの取得に失敗しました')
+        }
+      })
+      .finally(() => setLoadingData(false))
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [recordId, fetchReviews, fetchPosts, startPolling])
+
+  const handleSubmitReview = async () => {
+    if (submittingReview) return
+    if (evaluation === 0) {
+      setReviewErrors({ evaluation: ['評価を選択してください'] })
+      return
+    }
+    setReviewErrors({})
+    setReviewGeneralError('')
+    setSubmittingReview(true)
+
+    try {
+      await getCsrfCookie()
+      await api.post(`/records/${recordId}/reviews`, { reviewComment, evaluation })
+      setReviewComment('')
+      setEvaluation(0)
+      await fetchReviews()
+    } catch (err) {
+      if (isApiError(err)) {
+        const { status, data } = err.response
+        if (status === 422 && data.errors) {
+          setReviewErrors(data.errors)
+        } else {
+          setReviewGeneralError(data.message)
+        }
+      } else {
+        setReviewGeneralError('通信に失敗しました')
+      }
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  const handleDeleteReview = async (reviewId: number) => {
+    if (!confirm('この自己レビューを削除しますか？')) return
+
+    try {
+      await getCsrfCookie()
+      await api.delete(`/records/${recordId}/reviews/${reviewId}`)
+      setReviews((prev) => prev.filter((r) => r.id !== reviewId))
+    } catch (err) {
+      if (isApiError(err)) {
+        setError(err.response.data.message)
+      } else {
+        setError('削除に失敗しました')
+      }
+    }
+  }
+
+  const handleRequestFeedback = async () => {
+    if (generatingFeedback) return
+    setFeedbackError('')
+    setGeneratingFeedback(true)
+
+    try {
+      await getCsrfCookie()
+      const res = await api.post(`/records/${recordId}/posts`)
+      const aiPost: Post | null = res.data.data.aiPost
+      if (aiPost) {
+        setPosts((prev) => [...prev, aiPost])
+        startPolling()
+      }
+    } catch (err) {
+      if (isApiError(err)) {
+        setFeedbackError(err.response.data.message)
+      } else {
+        setFeedbackError('AIフィードバックの生成要求に失敗しました')
+      }
+    } finally {
+      setGeneratingFeedback(false)
+    }
+  }
+
+  const handleSendChat = async () => {
+    if (submittingChat || !chatInput.trim()) return
+    setChatError('')
+    setSubmittingChat(true)
+
+    const lastCompletedAi = [...posts].reverse().find(
+      (p) => p.isAi && p.aiStatus?.statusName === 'completed',
+    )
+    const parentId = lastCompletedAi?.id ?? null
+
+    try {
+      await getCsrfCookie()
+      const res = await api.post(`/records/${recordId}/posts`, {
+        content: chatInput,
+        parentId,
+      })
+
+      const { userPost, aiPost } = res.data.data
+      setPosts((prev) => {
+        const next = [...prev]
+        if (userPost) next.push(userPost)
+        if (aiPost) next.push(aiPost)
+        return next
+      })
+      setChatInput('')
+      if (aiPost) startPolling()
+    } catch (err) {
+      if (isApiError(err)) {
+        const { status, data } = err.response
+        if (status === 422 && data.errors) {
+          setChatError(Object.values(data.errors).flat().join(', '))
+        } else {
+          setChatError(data.message)
+        }
+      } else {
+        setChatError('通信に失敗しました')
+      }
+    } finally {
+      setSubmittingChat(false)
+    }
+  }
+
+  if (loadingData) return null
+
+  const hasCompletedAi = posts.some(
+    (p) => p.isAi && p.aiStatus?.statusName === 'completed',
+  )
+  const hasPendingAi = posts.some(
+    (p) => p.isAi && p.aiStatus &&
+      (p.aiStatus.statusName === 'pending' || p.aiStatus.statusName === 'processing'),
+  )
+
+  return (
+    <div className="flex flex-col gap-8">
+      <ErrorAlert message={error} />
+
+      {/* 自己レビュー */}
+      <section>
+        <h2 className="text-lg font-bold mb-4">自己レビュー</h2>
+
+        {reviews.length > 0 && (
+          <div className="space-y-3 mb-6">
+            {reviews.map((r) => (
+              <div key={r.id} className="rounded-xl border bg-white p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-yellow-400 text-lg">
+                    {'★'.repeat(r.evaluation)}
+                    {'☆'.repeat(5 - r.evaluation)}
+                  </span>
+                  <div className="flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/records/${recordId}/reviews/${r.id}/edit`)}
+                      className="text-blue-600 underline"
+                    >
+                      編集
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteReview(r.id)}
+                      className="text-red-600 underline"
+                    >
+                      削除
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm">{r.reviewComment}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {reviews.length === 0 && (
           <div className="space-y-5">
+            <ErrorAlert message={reviewGeneralError} />
+
             <div>
               <label className="block text-sm font-medium mb-1">評価</label>
               <div className="flex">
@@ -186,6 +388,9 @@ export default function RecordDetailPage() {
                   </button>
                 ))}
               </div>
+              {reviewErrors.evaluation?.map((msg, i) => (
+                <p key={i} className="mt-1 text-xs text-red-600">{msg}</p>
+              ))}
             </div>
 
             <div>
@@ -196,66 +401,133 @@ export default function RecordDetailPage() {
                 placeholder="この支出について振り返りを入力してください（250文字以内）"
                 rows={14}
                 maxLength={250}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-400 bg-white px-3 py-2 text-sm"
               />
+              {reviewErrors.reviewComment?.map((msg, i) => (
+                <p key={i} className="mt-1 text-xs text-red-600">{msg}</p>
+              ))}
             </div>
 
             <button
               type="button"
-              className="w-full rounded-2xl border border-blue-500 py-3 font-bold text-blue-600 hover:bg-blue-50"
-              onClick={() => {
-                console.log({ evaluation, reviewComment })
-              }}
+              disabled={submittingReview}
+              onClick={handleSubmitReview}
+              className="w-full rounded-2xl border border-blue-500 py-3 font-bold text-blue-600 hover:bg-blue-50 disabled:opacity-50"
             >
-              保存
+              {submittingReview ? '保存中...' : '保存'}
             </button>
           </div>
+        )}
+      </section>
 
-          {/* AIフィードバック チャットUI */}
-          <div className="flex min-h-[460px] flex-col rounded-2xl border bg-white shadow">
-            <div className="h-[350px] overflow-y-auto space-y-4 p-4">
-              {messages.length === 0 && (
-                <div className="py-10 text-center text-sm text-gray-400">
-                  AIフィードバックはまだありません
-                </div>
-              )}
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[75%] rounded-2xl px-4 py-3 ${msg.sender === 'user' ? 'bg-blue-200' : 'bg-gray-100'}`}
-                  >
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* AI フィードバック */}
+      <section>
+        <h2 className="text-lg font-bold mb-4">AIフィードバック</h2>
 
+        {!hasCompletedAi && !hasPendingAi && (
+          <div className="mb-4">
+            {feedbackError && <p className="mb-2 text-xs text-red-600">{feedbackError}</p>}
+            <button
+              type="button"
+              disabled={generatingFeedback}
+              onClick={handleRequestFeedback}
+              className="w-full rounded-2xl bg-lime-300 py-3 font-bold hover:brightness-95 disabled:opacity-50"
+            >
+              {generatingFeedback ? '要求中...' : 'AIフィードバックを生成'}
+            </button>
+          </div>
+        )}
+
+        <div className="flex min-h-[460px] flex-col rounded-2xl border bg-white shadow">
+          <div className="h-[350px] overflow-y-auto space-y-4 p-4">
+            {posts.length === 0 && (
+              <div className="py-10 text-center text-sm text-gray-400">
+                AIフィードバックはまだありません
+              </div>
+            )}
+            {posts.map((post) => (
+              <PostBubble key={post.id} post={post} onRetry={handleRequestFeedback} />
+            ))}
+          </div>
+
+          {hasCompletedAi && (
             <div className="border-t p-3 flex flex-col gap-2">
+              {chatError && <p className="text-xs text-red-600">{chatError}</p>}
+              {hasPendingAi && (
+                <p className="text-xs text-gray-500">AIの返信を待っています...</p>
+              )}
               <textarea
-                value={input}
+                value={chatInput}
                 onChange={(e) => {
-                  setInput(e.target.value)
+                  setChatInput(e.target.value)
                   e.target.style.height = 'auto'
                   e.target.style.height = `${e.target.scrollHeight}px`
                 }}
                 placeholder="メッセージを入力"
                 rows={1}
-                className="w-full resize-none rounded-xl border px-4 py-2 outline-none focus:border-blue-500"
+                maxLength={3000}
+                disabled={hasPendingAi}
+                className="w-full resize-none rounded-xl border px-4 py-2 outline-none focus:border-blue-500 disabled:bg-gray-100"
               />
               <button
-                onClick={sendMessage}
-                className="self-end rounded-full bg-blue-500 px-5 py-2 text-white"
+                type="button"
+                onClick={handleSendChat}
+                disabled={submittingChat || !chatInput.trim() || hasPendingAi}
+                className="self-end rounded-full bg-blue-500 px-5 py-2 text-white disabled:opacity-50"
               >
-                送信
+                {submittingChat ? '送信中...' : '送信'}
               </button>
             </div>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function PostBubble({ post, onRetry }: { post: Post; onRetry: () => void }) {
+  if (post.isAi) {
+    const status = post.aiStatus?.statusName
+    if (status === 'pending' || status === 'processing') {
+      return (
+        <div className="flex justify-start">
+          <div className="max-w-[75%] rounded-2xl bg-gray-100 px-4 py-3 text-sm text-gray-500">
+            AIが考え中です...
           </div>
         </div>
-      )}
-    </PageCard>
+      )
+    }
+    if (status === 'failed') {
+      return (
+        <div className="flex justify-start">
+          <div className="max-w-[75%] rounded-2xl bg-red-50 px-4 py-3">
+            <p className="text-sm text-red-600">生成に失敗しました</p>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-1 text-xs text-blue-600 underline"
+            >
+              再試行
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[75%] rounded-2xl bg-gray-100 px-4 py-3 text-sm whitespace-pre-wrap">
+          {post.content}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[75%] rounded-2xl bg-blue-200 px-4 py-3 text-sm whitespace-pre-wrap">
+        {post.content}
+      </div>
+    </div>
   )
 }
 

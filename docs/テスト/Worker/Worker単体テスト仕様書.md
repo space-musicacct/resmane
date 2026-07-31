@@ -55,7 +55,7 @@ Repository・Client・DB を全てモック化して検証する。
 | ID | テスト名 | 前提条件 | 期待結果 |
 |----|---------|---------|---------|
 | UFS-010 | 初回フィードバック: 正常完了 | parent_id=None, AI が応答 | save_response + mark_completed |
-| UFS-011 | 追加チャット: 正常完了 | parent_id あり, AI が応答 | スレッド履歴が messages に、家計簿情報が system_instruction に |
+| UFS-011 | 追加チャット: 正常完了 | parent_id あり, AI が応答 | 背景情報が messages 先頭の参照データに、system_instruction に「追加チャット」タスク指示 |
 | UFS-012 | AI 応答をそのまま保存 | AI が 2000 文字を返す | save_response に 2000 文字が渡される |
 
 ### 3.3 process_one 異常系
@@ -109,8 +109,8 @@ Repository・Client・DB を全てモック化して検証する。
 | UFS-060 | 初回: 家計簿情報がユーザーメッセージに含まれる | 初回フィードバック | 金額・カテゴリ・内容が含まれる |
 | UFS-061 | 初回: 自己レビューがユーザーメッセージに含まれる | self_reviews あり | 評価・コメントが含まれる |
 | UFS-062 | 初回: 自己レビューなし | self_reviews=[] | 自己レビューセクションがない |
-| UFS-063 | 追加: スレッド履歴が messages に含まれる | thread に 3 投稿 | messages が 3 件 |
-| UFS-064 | 追加: 家計簿情報が system_instruction に含まれる | 追加チャット | system_instruction に背景情報 |
+| UFS-063 | 追加: スレッド履歴が messages に含まれる | thread に 3 投稿 | messages が 4 件（先頭に参照データ + thread 3 件） |
+| UFS-064 | 追加: 背景情報が messages 先頭の user メッセージに含まれる | 追加チャット | messages[0] に家計簿情報（金額・カテゴリ等） |
 
 ### 3.9 上限設定
 
@@ -119,7 +119,7 @@ Repository・Client・DB を全てモック化して検証する。
 | UFS-080 | 初回: 固定額の上限情報が含まれる | upper_limit type=固定額, max_value=50000 | 「支出上限設定」「固定額」「50,000円」 |
 | UFS-081 | 初回: 割合の上限情報 (ave_monthly_income から算出) | type=割合, max_value=30, ave_monthly_income=200000 | 「30%」「200,000円」「60,000円」 |
 | UFS-082 | 初回: 上限設定なし | upper_limit=None | 「支出上限設定」セクションなし |
-| UFS-083 | 追加チャット: system_instruction に上限情報 | upper_limit あり | system_instruction に「支出上限設定」 |
+| UFS-083 | 追加チャット: 背景メッセージに上限情報 | upper_limit あり | messages[0] に「支出上限設定」 |
 | UFS-084 | 割合: ave_monthly_income が None | ave_monthly_income=None | 「0円」 |
 | UFS-085 | _build_context に upper_limit が含まれる | fetch_upper_limit が値を返す | ctx["upper_limit"] が正しい |
 

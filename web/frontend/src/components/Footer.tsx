@@ -11,12 +11,12 @@ export default function Footer() {
   const isActive = (path: string) => location.pathname === path
 
   return (
-    <footer className="fixed bottom-0 left-0 z-50 w-full bg-white border-t">
+    <footer className="fixed bottom-0 left-0 z-50 w-full bg-white border-t rounded-t-2xl">
       <nav className="relative flex items-center justify-around h-16">
         <Link
-          to="/"
+          to="/home"
           className={`flex flex-col items-center text-xs ${
-            isActive('/') ? 'text-yellow-500' : 'text-gray-500'
+            isActive('/home') ? 'text-lime-500' : 'text-gray-500'
           }`}
         >
           <IoHomeOutline className="text-2xl" />
@@ -27,8 +27,8 @@ export default function Footer() {
           to="/records/new"
           className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center"
         >
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-yellow-400 shadow-lg">
-            <IoAdd className="text-4xl text-white" />
+          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-lime-300 shadow-lg">
+            <IoAdd className="text-4xl text-gray-600" />
           </div>
           <span className="mt-1 text-xs text-gray-600">記録追加</span>
         </Link>
@@ -36,7 +36,7 @@ export default function Footer() {
         <Link
           to="/records"
           className={`flex flex-col items-center text-xs ${
-            isActive('/records') ? 'text-yellow-500' : 'text-gray-500'
+            isActive('/records') ? 'text-lime-500' : 'text-gray-500'
           }`}
         >
           <IoListOutline className="text-2xl" />

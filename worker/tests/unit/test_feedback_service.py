@@ -190,8 +190,10 @@ class TestProcessOneSuccess:
 
         call_args = ai_client.generate.call_args
         messages = call_args[1]["messages"] if "messages" in call_args[1] else call_args[0][0]
-        assert len(messages) == 2
-        assert "背景情報" in call_args[1].get("system_instruction", call_args[0][1] if len(call_args[0]) > 1 else "")
+        assert len(messages) == 3
+        assert "参照データ" in messages[0]["content"]
+        si = call_args[1].get("system_instruction", call_args[0][1] if len(call_args[0]) > 1 else "")
+        assert "追加チャット" in si
 
     def test_save_2000_char_response(self):
         """UFS-012: AI 応答をそのまま保存。"""
@@ -616,17 +618,20 @@ class TestMessageBuilding:
             {"id": 3, "is_ai": 0, "content": "msg3"},
         ]
         messages = svc._build_followup_messages(ctx)
-        assert len(messages) == 3
-        assert messages[0]["role"] == "user"
-        assert messages[1]["role"] == "assistant"
+        assert len(messages) == 4
+        assert "参照データ" in messages[0]["content"]
+        assert messages[1]["role"] == "user"
+        assert messages[2]["role"] == "assistant"
 
-    def test_followup_instruction_has_record(self):
-        """UFS-064: 追加チャットの system_instruction に家計簿情報。"""
+    def test_followup_background_in_messages(self):
+        """UFS-064: 追加チャットの背景情報が messages 先頭に user メッセージとして含まれる。"""
         svc = _make_service()
         ctx = _make_context()
-        instruction = svc._build_followup_instruction(ctx)
-        assert "背景情報" in instruction
-        assert "1,500円" in instruction
+        messages = svc._build_followup_messages(ctx)
+        background = messages[0]["content"]
+        assert messages[0]["role"] == "user"
+        assert "1,500円" in background
+        assert "飲食" in background
 
 
 # =========================================================
@@ -702,8 +707,8 @@ class TestUpperLimit:
         content = messages[0]["content"]
         assert "支出上限設定" not in content
 
-    def test_followup_instruction_with_upper_limit(self):
-        """UFS-083: 追加チャットの system_instruction に上限情報。"""
+    def test_followup_messages_with_upper_limit(self):
+        """UFS-083: 追加チャットの背景メッセージに上限情報。"""
         svc = _make_service()
         ctx = _make_context(
             upper_limit={
@@ -711,9 +716,10 @@ class TestUpperLimit:
                 "max_value": 30000, "ave_monthly_income": None,
             },
         )
-        instruction = svc._build_followup_instruction(ctx)
-        assert "支出上限設定" in instruction
-        assert "30,000円" in instruction
+        messages = svc._build_followup_messages(ctx)
+        background = messages[0]["content"]
+        assert "支出上限設定" in background
+        assert "30,000円" in background
 
     def test_percentage_with_null_income(self):
         """UFS-084: 割合で ave_monthly_income が None の場合。"""

@@ -4,7 +4,7 @@ import { IoSettingsOutline } from "react-icons/io5";
 
 export default function Header() {
   return (
-    <header className="h-28 border-b bg-white relative flex items-center justify-center">
+    <header className="h-28 border-b bg-white relative flex items-center justify-center rounded-b-2xl">
       <img src={logo} alt="Resmane" className="h-24 w-auto object-contain" />
 
       <Link

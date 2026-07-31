@@ -80,6 +80,18 @@ readonly class PostService
                     ];
                 }
             } else {
+                $hasPendingOrProcessing = $this->repository->existsAiPostWithStatuses($recordId, [
+                    AiStatus::PENDING_ID,
+                    AiStatus::PROCESSING_ID,
+                ]);
+
+                if ($hasPendingOrProcessing) {
+                    return [
+                        'error' => 'AIの返信を待っている間は投稿できません',
+                        'status' => Response::HTTP_CONFLICT,
+                    ];
+                }
+
                 $userPost = $this->repository->create([
                     'user_id' => $userId,
                     'kakeibo_record_id' => $recordId,

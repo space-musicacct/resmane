@@ -29,3 +29,44 @@ export type RecordsResponse = {
   meta: Meta
   summary: Summary
 }
+
+export type SettingLimit = {
+  id: number
+  userId: number
+  upperLimitTypeId: number
+  upperLimitTypeName: string
+  maxValue: number
+  aveMonthlyIncome: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type SettingLimitResponse = {
+  data: SettingLimit | null
+}
+
+export type SelfReview = {
+  id: number
+  kakeiboRecordId: number
+  reviewComment: string
+  evaluation: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type AiStatus = {
+  id: number
+  statusName: string
+}
+
+export type Post = {
+  id: number
+  userId: number
+  kakeiboRecordId: number
+  isAi: boolean
+  aiStatus: AiStatus | null
+  parentId: number | null
+  content: string | null
+  createdAt: string
+  updatedAt: string
+}
