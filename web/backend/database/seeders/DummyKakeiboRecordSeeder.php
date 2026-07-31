@@ -13,8 +13,15 @@ class DummyKakeiboRecordSeeder extends Seeder
 {
     public function run(): void
     {
-        $userId = User::where('login_id', 'taro_yamada')->firstOrFail()->id;
+        $users = User::all();
 
+        foreach ($users as $user) {
+            $this->seedForUser($user->id);
+        }
+    }
+
+    private function seedForUser(int $userId): void
+    {
         $thisMonth = Carbon::today()->startOfMonth();
         $lastMonth = Carbon::today()->subMonthNoOverflow()->startOfMonth();
 
