@@ -65,6 +65,26 @@ docker compose exec backend php artisan db:seed
 | localhost:53306 | MySQL (DB クライアントから接続) |
 | http://localhost:58080 | phpMyAdmin |
 
+## ダミーデータ
+
+`php artisan db:seed` で以下のダミーデータが投入される。
+
+### ダミーユーザー
+
+| ログインID | 名前 | メールアドレス | パスワード |
+|---|---|---|---|
+| `taro_yamada` | 山田太郎 | taro@example.com | `hogehoge` |
+| `hanako_sato` | 佐藤花子 | hanako@example.com | `hogehoge` |
+| `yuki_tanaka` | 田中ゆき | yuki@example.com | `hogehoge` |
+
+### ダミーデータ内容（全ユーザー共通）
+
+- 家計簿レコード: 先月分 + 今月分（食費・交通費・推し活・サブスク・固定費・収入等）
+- 上限値設定: 固定額 80,000円/月
+- 自己レビュー: 12件（★2〜5の評価分布）
+
+---
+
 ## 起動方法
 
 起動は原則 `--build` 付きで行う。`--build` によりイメージが再ビルドされ、コンテナが再作成されるため、起動時に実行される `npm ci` で `package-lock.json` の状態に依存が同期される。
