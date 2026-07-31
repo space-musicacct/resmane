@@ -53,6 +53,10 @@ readonly class SelfReviewService
         return DB::transaction(function () use ($recordId, $userId, $validated) {
             $this->kakeiboRecordService->findOrFailForUpdate($recordId, $userId);
 
+            if ($this->repository->existsByRecordId($recordId)) {
+                abort(Response::HTTP_CONFLICT, 'この家計簿レコードには既に自己レビューが登録されています');
+            }
+
             return $this->repository->create([
                 'kakeibo_record_id' => $recordId,
                 'review_comment' => $validated['reviewComment'],

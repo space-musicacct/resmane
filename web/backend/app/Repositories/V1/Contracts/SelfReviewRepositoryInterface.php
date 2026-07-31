@@ -49,6 +49,13 @@ interface SelfReviewRepositoryInterface
     public function delete(SelfReview $review): void;
 
     /**
+     * 家計簿レコードに自己レビューが存在するか確認する
+     *
+     * @param  int  $recordId  家計簿レコードID
+     */
+    public function existsByRecordId(int $recordId): bool;
+
+    /**
      * 指定の家計簿レコードIDに紐づく自己レビューを一括論理削除する
      *
      * @param  Collection<int, int>  $recordIds  家計簿レコードIDのコレクション

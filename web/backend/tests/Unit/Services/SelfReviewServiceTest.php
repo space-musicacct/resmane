@@ -170,6 +170,12 @@ class SelfReviewServiceTest extends TestCase
         $this->mockFindByIdForUpdate($recordId, $userId);
 
         $this->repository
+            ->shouldReceive('existsByRecordId')
+            ->once()
+            ->with($recordId)
+            ->andReturn(false);
+
+        $this->repository
             ->shouldReceive('create')
             ->once()
             ->with([
@@ -182,6 +188,37 @@ class SelfReviewServiceTest extends TestCase
         $result = $this->service->create($recordId, $userId, $validated);
 
         $this->assertSame($createdReview, $result);
+    }
+
+    /**
+     * SSR-008: create: 既に自己レビューが存在する場合は 409
+     */
+    #[Test]
+    public function test_ss_r_008_create_fails_when_review_exists(): void
+    {
+        $recordId = 10;
+        $userId = 1;
+
+        $validated = [
+            'reviewComment' => '2件目',
+            'evaluation' => 3,
+        ];
+
+        $this->mockFindByIdForUpdate($recordId, $userId);
+
+        $this->repository
+            ->shouldReceive('existsByRecordId')
+            ->once()
+            ->with($recordId)
+            ->andReturn(true);
+
+        $this->repository
+            ->shouldNotReceive('create');
+
+        $this->assertAbort(
+            fn () => $this->service->create($recordId, $userId, $validated),
+            Response::HTTP_CONFLICT
+        );
     }
 
     /**

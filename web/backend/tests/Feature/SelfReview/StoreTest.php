@@ -212,4 +212,25 @@ class StoreTest extends TestCase
 
         $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
+
+    /** FSRS-008 異常: 既に自己レビューが登録済み */
+    #[Test]
+    public function test_store_fails_when_review_already_exists(): void
+    {
+        // 1件目のレビューを登録
+        $this->postJson($this->endpoint($this->recordId), [
+            'reviewComment' => '1件目',
+            'evaluation' => 4,
+        ])->assertStatus(Response::HTTP_CREATED);
+
+        // 2件目のレビューは登録できないことを確認
+        $response = $this->postJson($this->endpoint($this->recordId), [
+            'reviewComment' => '2件目',
+            'evaluation' => 3,
+        ]);
+
+        $response
+            ->assertStatus(Response::HTTP_CONFLICT)
+            ->assertJsonPath('message', 'この家計簿レコードには既に自己レビューが登録されています');
+    }
 }

@@ -72,6 +72,16 @@ class SelfReviewRepository implements SelfReviewRepositoryInterface
     }
 
     /**
+     * 家計簿レコードに自己レビューが存在するか確認する
+     *
+     * @param  int  $recordId  家計簿レコードID
+     */
+    public function existsByRecordId(int $recordId): bool
+    {
+        return SelfReview::where('kakeibo_record_id', $recordId)->exists();
+    }
+
+    /**
      * 指定の家計簿レコードIDに紐づく自己レビューを一括論理削除する
      *
      * @param  Collection<int, int>  $recordIds  家計簿レコードIDのコレクション
