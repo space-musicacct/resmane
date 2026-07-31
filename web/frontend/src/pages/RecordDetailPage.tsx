@@ -279,8 +279,10 @@ function PostsTab({ recordId }: { recordId: number }) {
     setChatError('')
     setSubmittingChat(true)
 
-    const lastAiPost = [...posts].reverse().find((p) => p.isAi)
-    const parentId = lastAiPost?.id ?? null
+    const lastCompletedAi = [...posts].reverse().find(
+      (p) => p.isAi && p.aiStatus?.statusName === 'completed',
+    )
+    const parentId = lastCompletedAi?.id ?? null
 
     try {
       await getCsrfCookie()
@@ -454,6 +456,9 @@ function PostsTab({ recordId }: { recordId: number }) {
           {hasCompletedAi && (
             <div className="border-t p-3 flex flex-col gap-2">
               {chatError && <p className="text-xs text-red-600">{chatError}</p>}
+              {hasPendingAi && (
+                <p className="text-xs text-gray-500">AIの返信を待っています...</p>
+              )}
               <textarea
                 value={chatInput}
                 onChange={(e) => {
@@ -464,12 +469,13 @@ function PostsTab({ recordId }: { recordId: number }) {
                 placeholder="メッセージを入力"
                 rows={1}
                 maxLength={3000}
-                className="w-full resize-none rounded-xl border px-4 py-2 outline-none focus:border-blue-500"
+                disabled={hasPendingAi}
+                className="w-full resize-none rounded-xl border px-4 py-2 outline-none focus:border-blue-500 disabled:bg-gray-100"
               />
               <button
                 type="button"
                 onClick={handleSendChat}
-                disabled={submittingChat || !chatInput.trim()}
+                disabled={submittingChat || !chatInput.trim() || hasPendingAi}
                 className="self-end rounded-full bg-blue-500 px-5 py-2 text-white disabled:opacity-50"
               >
                 {submittingChat ? '送信中...' : '送信'}
