@@ -383,4 +383,72 @@ class StoreTest extends TestCase
         // 認証エラーを確認
         $response->assertStatus(Response::HTTP_UNAUTHORIZED);
     }
+
+    /** FPS-014 異常: content 有りで既存 pending AI投稿がある */
+    #[Test]
+    public function test_store_with_content_fails_when_ai_post_pending(): void
+    {
+        // 処理待ち状態のAI投稿を作成
+        Post::create([
+            'user_id' => $this->user->id,
+            'kakeibo_record_id' => $this->recordId,
+            'is_ai' => true,
+            'ai_status_id' => $this->pendingStatusId,
+            'content' => null,
+        ]);
+
+        // AI生成待ちの間は追加チャットできないことを確認
+        $response = $this->postJson($this->endpoint($this->recordId), [
+            'content' => '追加の質問',
+        ]);
+
+        $response
+            ->assertStatus(Response::HTTP_CONFLICT)
+            ->assertJsonPath('message', 'AIの返信を待っている間は投稿できません');
+    }
+
+    /** FPS-015 異常: content 有りで既存 processing AI投稿がある */
+    #[Test]
+    public function test_store_with_content_fails_when_ai_post_processing(): void
+    {
+        // 処理中状態のAI投稿を作成
+        Post::create([
+            'user_id' => $this->user->id,
+            'kakeibo_record_id' => $this->recordId,
+            'is_ai' => true,
+            'ai_status_id' => $this->processingStatusId,
+            'content' => null,
+        ]);
+
+        // AI処理中の間は追加チャットできないことを確認
+        $response = $this->postJson($this->endpoint($this->recordId), [
+            'content' => '追加の質問',
+        ]);
+
+        $response->assertStatus(Response::HTTP_CONFLICT);
+    }
+
+    /** FPS-016 正常: content 有りで completed AI投稿のみの場合は追加チャット可能 */
+    #[Test]
+    public function test_store_with_content_succeeds_when_only_completed_ai(): void
+    {
+        // 完了済みのAI投稿を作成
+        Post::create([
+            'user_id' => $this->user->id,
+            'kakeibo_record_id' => $this->recordId,
+            'is_ai' => true,
+            'ai_status_id' => $this->completedStatusId,
+            'content' => 'AI完了済み',
+        ]);
+
+        // completed のみの場合は追加チャットが可能であることを確認
+        $response = $this->postJson($this->endpoint($this->recordId), [
+            'content' => '追加の質問',
+        ]);
+
+        $response
+            ->assertStatus(Response::HTTP_CREATED)
+            ->assertJsonPath('data.userPost.content', '追加の質問')
+            ->assertJsonPath('data.aiPost.aiStatus.statusName', 'pending');
+    }
 }
