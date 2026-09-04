@@ -1,5 +1,12 @@
 SELECT @@character_set_database, @@collation_database;
 
+-- テスト専用データベース
+CREATE DATABASE IF NOT EXISTS `resmane_test`
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+GRANT ALL PRIVILEGES ON `resmane_test`.* TO 'resmane_user'@'%';
+
 -- Worker 専用データベース
 CREATE DATABASE IF NOT EXISTS `resmane_worker`
     CHARACTER SET utf8mb4

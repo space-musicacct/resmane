@@ -1,12 +1,56 @@
 # 最新型家計簿！「レスマネ」
 
-学生向け AI 連動家計簿 Web アプリケーション。
+**AI × SNS型で支出の後悔を減らす家計簿アプリ**
+
+## タイトルの由来
+
+- **レス** → SNS における「Response」
+- **マネ** → お金の「マネー」と管理の「マネジメント」
+
+## 企画の動機
+
+- 「給料日前にお金を使い込んでしまう」
+- 「趣味や娯楽でどうしても浪費してしまう」
+
+従来の家計簿は、お金の使い方を確認するのみの機能であることが多く、「今月使いすぎたな…」などと考えはするものの、行動変容につながりにくいと考えた。
+
+### エビデンス
+
+- [ASMARQの「衝動買いに関するアンケート調査」](https://www.asmarq.co.jp/data/mr201202_1shopping/)によると、衝動買いを「よくする」「たまにする」人の割合は、全体の800人中 **70.2%** であった。一般的にも衝動買いをする人が多い傾向にあると推定できる
+- [博報堂生活総研「生活定点」調査](https://seikatsusoken.jp/teiten/answer/706.html)において「褒めると成長する」が **90.3%** と、人は褒められると成長やモチベーションアップ、維持につながることがわかった。衝動買いを減らすには行動変容が必要であり、この「褒めると成長する」ことがエビデンスとして利用できると考えた
+
+### 課題放置のリスク
+
+- 本来買いたいものが買えないことが起こる
+- 一人暮らしにおいて生活費が不足し、緊急時に資金が活用できないなど、将来的に自身の首を絞める事態を招く
+
+## ターゲット
+
+お金の管理が苦手な20代前後の学生
+
+## キーワード
+
+- **家計簿** — お金の管理を可視化する
+- **自分自身で評価** — 購入したものに対する評価を自分自身で客観的に分析する
+- **AI × SNS型** — 自分自身で評価したものをさらにAIが褒めたりツッコミを入れる形でさらに評価（フィードバック）し、スレッド形式でまとめる
+
+## コンセプト
+
+日々の収入支出の管理に加え、購入したものに対して自分自身で評価を行う。
+
+支出の管理を自身による「一人反省会」で終わらせず、その評価に対してAIがSNSの返信のように反応し、良い買い物をしたり節約の努力を褒めたり、逆に無駄遣いや浪費などは改善点をフィードバックしてコミュニケーションを取る形で提示することで、ユーザーがエンタメ感覚で衝動買いの抑止や自身のお金の管理の見直しを図ることを目標とする。
+
+### フィードバックの基準
+
+- 使いすぎ自体は否定しない
+- 原則優しく、なるべく褒める
+- 無駄遣いには改善点を提示するが、責めない
 
 ## 技術スタック
 
 | 層 | 技術 |
 |----|------|
-| フロントエンド | React 18 + TypeScript 5 + Tailwind CSS 3 (Vite 5) |
+| フロントエンド | React 18 + TypeScript 5 + Tailwind CSS 3 (Vite 8) |
 | バックエンド | PHP 8.5 + Laravel 13 (API サーバー) |
 | AI / バックグラウンド | Python 3.11 + schedule (常駐 worker) |
 | データベース | MySQL 8.4 |
@@ -60,10 +104,10 @@ docker compose exec backend php artisan db:seed
 
 | URL | 内容 |
 |-----|------|
-| http://localhost:50080 | React (フロントエンド) |
-| http://localhost:50080/api | Laravel API |
-| localhost:53306 | MySQL (DB クライアントから接続) |
-| http://localhost:58080 | phpMyAdmin |
+| http://localhost:40080 | React (フロントエンド) |
+| http://localhost:40080/api | Laravel API |
+| localhost:43306 | MySQL (DB クライアントから接続) |
+| http://localhost:48080 | phpMyAdmin |
 
 ## ダミーデータ
 
@@ -164,6 +208,42 @@ docker compose exec backend php artisan ide-helper:eloquent
 
 ## 既存環境の更新手順
 
+### テスト用データベースの追加 (2026-09-04)
+
+テスト実行時に本番 DB を破壊しないよう、テスト専用の `resmane_test` データベースを使用するようになりました。
+
+新規構築の場合は `init.example.sql` に含まれているため追加作業は不要です。既存の `db_data` ボリュームを持つ環境では、以下を一度だけ実行してください。
+
+```bash
+docker compose exec db mysql -u root -proot_password -e "
+CREATE DATABASE IF NOT EXISTS resmane_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON resmane_test.* TO 'resmane_user'@'%';
+FLUSH PRIVILEGES;
+"
+```
+
+### デフォルトポート変更: 5万台 → 4万台 (2026-09-04)
+
+ポート競合のリスクを軽減するため、デフォルトポートを変更しました。
+
+| 用途 | 旧ポート | 新ポート |
+|---|---|---|
+| Nginx (Web) | 50080 | 40080 |
+| MySQL | 53306 | 43306 |
+| phpMyAdmin | 58080 | 48080 |
+
+既存環境は `.env` と `web/backend/.env` のポート番号を更新してください。
+
+```bash
+# .env
+NGINX_PORT=40080
+DB_EXTERNAL_PORT=43306
+
+# web/backend/.env
+APP_URL=http://localhost:40080
+SANCTUM_STATEFUL_DOMAINS=localhost:40080
+```
+
 ### Node.js 20 → 24 (2026-06-07)
 
 Node 20 が EOL のため Node 24 LTS に変更しました。構築済みの環境は以下で更新してください。
@@ -204,13 +284,6 @@ docker compose exec backend composer install
 
 値はそのままで、キー名だけ変更すれば OK です。
 
-```diff
-- BROADCAST_DRIVER=log
-+ BROADCAST_CONNECTION=log
-- CACHE_DRIVER=file
-+ CACHE_STORE=file
-```
-
 また、以下の変数は不要になったため削除して構いません（残っていても動作に影響はありません）。
 
 - `LOG_DEPRECATIONS_CHANNEL`
@@ -229,28 +302,20 @@ docker compose exec backend php artisan --version
 # → Laravel Framework 13.x.x と表示されれば OK
 ```
 
-#### 主な変更点
-
-- **PHP 8.5**: Docker イメージを `php:8.5-fpm-alpine` に変更。Dockerfile の拡張インストールに `install-php-extensions` を採用
-- **アプリケーション構造の刷新**: Laravel 11 で導入されたスリム構造に移行。`app/Http/Kernel.php`・`app/Console/Kernel.php`・`app/Exceptions/Handler.php`・個別 Middleware ファイルは削除され、`bootstrap/app.php` に集約
-- **config ファイルの整理**: カスタマイズのない config ファイル（auth, cache, database 等）は削除し、フレームワーク内蔵のデフォルトを使用
-- **依存パッケージの更新**: Sanctum 4, Tinker 3, PHPUnit 12, Collision 8 等
-- **Carbon 3**: Carbon 2 から 3 に更新（`diffIn*` メソッドが float を返すように変更）
-
 ---
 
 ## トラブルシューティング
 
-### `localhost:50080` にアクセスできない (WSL2)
+### `localhost:40080` にアクセスできない (WSL2)
 
-Nginx コンテナが `address already in use` で起動に失敗する場合、Windows の Hyper-V がポート 50080 を予約している可能性がある。
+Nginx コンテナが `address already in use` で起動に失敗する場合、Windows の Hyper-V がポートを予約している可能性がある。
 
 ```powershell
 # Windows PowerShell で予約ポートを確認
 netsh interface ipv4 show excludedportrange protocol=tcp
 ```
 
-50080 を含む範囲が表示された場合、`.env` でポート番号を変更する。
+40080 を含む範囲が表示された場合、`.env` でポート番号を変更する。
 
 ```dotenv
 NGINX_PORT=30080
@@ -260,7 +325,6 @@ NGINX_PORT=30080
 
 ```dotenv
 APP_URL=http://localhost:30080
-# ...
 SANCTUM_STATEFUL_DOMAINS=localhost:30080
 ```
 
@@ -274,19 +338,11 @@ docker compose up -d --build
 docker compose exec backend php artisan key:generate
 ```
 
-### Guzzle 7.14 → 7.15.1 (2026-07-27)
-
-セキュリティ脆弱性 4 件（Referer ヘッダーの URI フラグメント漏洩、Cookie スコープ不正、Cookie DoS、Proxy-Authorization ヘッダー漏洩）への対応として、Guzzle を 7.15.1 へ更新しました。構築済みの環境は以下で更新してください。
-
-```bash
-docker compose exec backend composer install
-```
-
 ---
 
 ## `docker compose` と入力するのがだるいよ〜という方へ
 
-2026年6月26日(金)のチーム開発の授業内で、チームメンバー全員の本プロジェクト開発用の WSL2 に以下のエイリアスを `~/.bashrc` に追加した。現在は `source ~/.bashrc` を実行済みである。
+`~/.bashrc` に以下のエイリアスを追加すると楽になります。
 
 ```bash
 alias dc='docker compose'
@@ -296,22 +352,20 @@ alias dce='docker compose exec'
 ### 使用例
 
 ```bash
-# 起動
 dc up -d --build
-```
-```bash
-# 停止
 dc down
-```
-```bash
-# Laravel
 dce backend php artisan route:list --path=records
 ```
 
 ---
+
+## ライセンス
+
+[MIT License](LICENSE)
 
 ## 関連ドキュメント
 
 - [要件定義書](docs/要件定義/要件定義書.md)
 - [技術構成書](docs/技術構成/技術構成書.md)
 - [コーディング規約](docs/開発ルール/コーディング規約.md)
+- [依存関係更新ルール](docs/開発ルール/依存関係更新ルール.md)
