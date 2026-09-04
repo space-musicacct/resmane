@@ -7,8 +7,8 @@
 #   3. docker compose up -d --build
 #
 # ポートマッピング (デフォルト):
-#   http://localhost:50080  -> Nginx -> React / Laravel API
-#   localhost:53306         -> MySQL
+#   http://localhost:40080  -> Nginx -> React / Laravel API
+#   localhost:43306         -> MySQL
 # =================================================================
 
 services:
@@ -18,7 +18,7 @@ services:
   nginx:
     image: nginx:1.27-alpine
     ports:
-      - "${NGINX_PORT:-50080}:80"
+      - "${NGINX_PORT:-40080}:80"
     volumes:
       - ./docker/nginx/default.dev.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
@@ -93,7 +93,7 @@ services:
   db:
     image: mysql:8.4
     ports:
-      - "${DB_EXTERNAL_PORT:-53306}:3306"
+      - "${DB_EXTERNAL_PORT:-43306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-resmane}
@@ -121,7 +121,7 @@ services:
   phpmyadmin:
     image: phpmyadmin:latest
     ports:
-      - "${PMA_PORT:-58080}:80"
+      - "${PMA_PORT:-48080}:80"
     environment:
       PMA_HOST: db
       PMA_USER: ${MYSQL_USER:-resmane_user}
