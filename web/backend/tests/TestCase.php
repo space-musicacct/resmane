@@ -3,17 +3,25 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Illuminate\Support\Facades\DB;
+use Override;
+use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function setUp(): void
+    #[Override]
+    public function createApplication()
     {
-        parent::setUp();
+        $app = parent::createApplication();
 
-        $database = DB::connection()->getDatabaseName();
+        $connection = $app['config']->get('database.default');
+        $database = $app['config']->get("database.connections.{$connection}.database");
+
         if ($database !== 'resmane_test') {
-            $this->fail("テストが本番 DB ({$database}) に接続しています。phpunit.xml の DB_DATABASE=resmane_test を確認してください。");
+            throw new RuntimeException(
+                "テスト実行を拒否しました。接続先DB: {$database} (resmane_test 以外への接続は禁止されています)"
+            );
         }
+
+        return $app;
     }
 }
