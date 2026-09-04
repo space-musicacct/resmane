@@ -90,15 +90,31 @@ cp .env.example .env
 cp web/backend/.env.example web/backend/.env
 cp docker/db/init.example.sql docker/db/init.sql
 
-# 3. コンテナをビルド・起動
+# 3. AI API キーを設定
+#    .env の AI_API_KEY に Gemini API キーを設定する。
+#    キーは Google AI Studio (https://aistudio.google.com/apikey) で取得できる。
+
+# 4. コンテナをビルド・起動
 docker compose up -d --build
 
-# 4. Laravel 初期設定 (初回のみ)
+# 5. Laravel 初期設定 (初回のみ)
 docker compose exec backend composer install
 docker compose exec backend php artisan key:generate
 docker compose exec backend php artisan migrate
 docker compose exec backend php artisan db:seed
 ```
+
+### AI API キーについて
+
+レスマネの AI フィードバック機能は Gemini API を使用する。Worker コンテナが `.env` の以下の値を参照して AI フィードバックを生成する。
+
+| 変数 | 説明 | デフォルト |
+|---|---|---|
+| `AI_API_KEY` | Gemini API キー | `your-api-key-here` (要変更) |
+| `AI_API_URL` | Gemini API エンドポイント | `https://generativelanguage.googleapis.com/v1beta` |
+| `AI_MODEL` | 使用モデル | `gemini-3.5-flash` |
+
+API キーが未設定 (`your-api-key-here` のまま) の場合、Worker コンテナは起動するが AI フィードバックの生成に失敗する。
 
 ## アクセス
 
@@ -207,6 +223,16 @@ docker compose exec backend php artisan ide-helper:eloquent
 ```
 
 ## 既存環境の更新手順
+
+### Worker 有効化・AI API キー設定の追加 (2026-09-04)
+
+`compose.example.yml` で Python Worker がデフォルト有効になりました。既存の `compose.yml` を使用している場合は、Worker セクションのコメントアウトを解除してください。
+
+また、`.env` に `AI_API_KEY` を設定してください（[AI API キーについて](#ai-api-キーについて) を参照）。
+
+```bash
+docker compose up -d --build
+```
 
 ### テスト用データベースの追加 (2026-09-04)
 
