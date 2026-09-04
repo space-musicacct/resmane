@@ -69,23 +69,23 @@ services:
 
   # ---------------------------------------------------------------
   # バックグラウンド Worker (Python 3.11)
-  # ローカルでは外部 AI API がないため無効化。
-  # 必要になったらコメントを外して docker compose up -d --build
+  # AI フィードバック生成を担当する常駐プロセス。
+  # .env の AI_API_KEY に有効な Gemini API キーを設定すること。
   # ---------------------------------------------------------------
-  # worker:
-  #   build:
-  #     context: ./worker
-  #     dockerfile: ../docker/worker/Dockerfile
-  #   volumes:
-  #     - ./worker:/app
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   networks:
-  #     - resmane-net
-  #   restart: unless-stopped
+  worker:
+    build:
+      context: ./worker
+      dockerfile: ../docker/worker/Dockerfile
+    volumes:
+      - ./worker:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - resmane-net
+    restart: unless-stopped
 
   # ---------------------------------------------------------------
   # データベース (MySQL 8.4)

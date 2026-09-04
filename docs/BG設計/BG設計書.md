@@ -554,10 +554,10 @@ UNIQUE: `table_name`
 
 ## 9. Docker 構成
 
-`compose.example.yml` に Worker サービスの定義がコメントアウトで用意されている。AI API キーを設定後、コメントを外して起動する。
+`compose.example.yml` に Worker サービスの定義がデフォルトで有効になっている。起動前に `.env` の `AI_API_KEY` に有効な Gemini API キーを設定すること。
 
 ```bash
-docker compose up -d --build worker
+docker compose up -d --build
 ```
 
 Worker は外部からの接続を受けないため `expose` / `ports` は不要。ヘルスチェックは `/tmp/worker_healthy` の mtime で判定可能。
